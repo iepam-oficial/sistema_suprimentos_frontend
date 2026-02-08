@@ -131,6 +131,9 @@ export async function GET(request: Request) {
         // Processa os dados de tendência de consumo
         const consumptionTrends = processConsumptionTrends(supplyRequests)
 
+        // Processa o tempo médio de entrega por mês (requisições com status DELIVERED)
+        const averageDeliveryTimeTrends = processAverageDeliveryTimeTrends(supplyRequests)
+
         // Calcula estatísticas
         const stats = {
             totalInventory: Array.isArray(inventory) ? inventory.length : 0,
@@ -140,6 +143,7 @@ export async function GET(request: Request) {
             openServiceOrders: Array.isArray(serviceOrders) ? serviceOrders.filter((so: any) => !so.exit_date).length : 0,
             criticalAlerts: alerts.filter((a: any) => a.danger_level === 'ALTO').length,
             consumptionTrends,
+            averageDeliveryTimeTrends,
             totalSuppliers: Array.isArray(suppliers) ? suppliers.length : 0,
             totalQuotes: Array.isArray(quotes) ? quotes.length : 0,
             pendingQuotes: Array.isArray(quotes) ? quotes.filter((q: any) => q.status === 'PENDENTE').length : 0,
@@ -178,5 +182,35 @@ function processConsumptionTrends(supplyRequests: any[]) {
         .map(([date, quantity]) => ({
             date,
             quantity,
+        }));
+}
+
+/**
+ * Tempo médio de entrega em dias, por mês (requisições com status DELIVERED).
+ * Usa (updated_at - created_at) como proxy da data de entrega.
+ */
+function processAverageDeliveryTimeTrends(supplyRequests: any[]) {
+    if (!Array.isArray(supplyRequests)) return [];
+
+    const delivered = supplyRequests.filter((r: any) => r.status === 'DELIVERED');
+    const byMonth: { [key: string]: number[] } = {};
+
+    for (const request of delivered) {
+        const created = new Date(request.created_at).getTime();
+        const updated = new Date(request.updated_at).getTime();
+        const days = Math.round((updated - created) / (1000 * 60 * 60 * 24));
+        const date = new Date(request.updated_at);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (!byMonth[monthKey]) byMonth[monthKey] = [];
+        byMonth[monthKey].push(days);
+    }
+
+    return Object.entries(byMonth)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, daysArray]) => ({
+            date,
+            averageDays: daysArray.length
+                ? Math.round((daysArray.reduce((s, d) => s + d, 0) / daysArray.length) * 10) / 10
+                : 0,
         }));
 } 

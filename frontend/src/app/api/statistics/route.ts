@@ -19,24 +19,6 @@ export async function GET(request: Request) {
             );
         }
 
-        // Busca dados de servidores
-        const serversResponse = await fetch(`${baseUrl}/servers`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (serversResponse.status === 429) {
-            const message = await serversResponse.text();
-            console.log('[API][statistics][GET] Rate limit exceeded', message);
-            return NextResponse.json(
-                { error: 'Rate limit exceeded', details: message },
-                { status: 429 }
-            );
-        }
-
-        const servers = await serversResponse.json();
-
         // Busca dados de inventário
         const inventoryResponse = await fetch(`${baseUrl}/inventory`, {
             headers: {
@@ -92,13 +74,11 @@ export async function GET(request: Request) {
         const alerts = await alertsResponse.json();
 
         // Processa os dados para as estatísticas
-        const serversByStatus = processStatusData(servers, 'status');
         const serviceOrdersByMonth = processTimeData(serviceOrders, 'entry_date', timeRange);
         const inventoryByType = processTypeData(inventory, 'item');
         const alertsByLevel = processStatusData(alerts, 'danger_level');
 
         return NextResponse.json({
-            serversByStatus,
             serviceOrdersByMonth,
             inventoryByType,
             alertsByLevel,
