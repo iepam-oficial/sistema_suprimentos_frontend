@@ -176,13 +176,6 @@ export default function QuotesPage() {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
   return (
     <Box w="full" h="full">
       <VStack

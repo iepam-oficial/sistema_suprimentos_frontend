@@ -19,6 +19,7 @@ import {
 } from '@chakra-ui/react';
 import { FiPackage, FiMapPin, FiTag, FiLayers } from 'react-icons/fi';
 import { PieChart } from '../components/PieChart';
+import { formatBRL, sumMoney } from '@/utils/money';
 
 interface InventoryItem {
     id: string;
@@ -90,7 +91,7 @@ export default function InventoryStatisticsPage() {
 
     // Estatísticas gerais
     const totalItems = items.length;
-    const totalValue = items.reduce((sum, item) => sum + (item.acquisition_price || 0), 0);
+    const totalValue = sumMoney(items.map((item) => item.acquisition_price || 0));
     const uniqueLocations = new Set(items.map(item => item.location.name)).size;
     const uniqueCategories = new Set(items.map(item => item.category.label)).size;
 
@@ -129,7 +130,7 @@ export default function InventoryStatisticsPage() {
                                     <FiTag size={24} />
                                     <StatLabel>Valor Total</StatLabel>
                                 </HStack>
-                                <StatNumber>R$ {totalValue.toLocaleString('pt-BR')}</StatNumber>
+                                <StatNumber>{formatBRL(totalValue)}</StatNumber>
                             </Stat>
                         </CardBody>
                     </Card>

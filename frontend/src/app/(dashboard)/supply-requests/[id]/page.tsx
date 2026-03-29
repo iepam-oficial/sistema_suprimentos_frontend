@@ -44,6 +44,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { DeliveryDetailsModal } from '../components/DeliveryDetailsModal';
+import { formatBRL } from '@/utils/money';
 
 interface Supply {
     id: string;
@@ -381,13 +382,6 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
         }
     };
 
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(value);
-    };
-
     const loadingBg = useColorModeValue('gray.50', 'gray.900');
     const mainBg = useColorModeValue('gray.50', 'gray.900');
 
@@ -535,7 +529,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                                                             <Text fontSize="sm" color="gray.500">Preço Unitário</Text>
                                                         </HStack>
                                                         <Text fontWeight="bold" color="green.600" fontSize="lg">
-                                                            {formatCurrency(supply.unit_price)}
+                                                            {formatBRL(supply.unit_price)}
                                                         </Text>
                                                     </VStack>
                                                 )}

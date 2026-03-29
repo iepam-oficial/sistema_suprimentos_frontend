@@ -29,7 +29,11 @@ import {
     MenuItem,IconButton, useDisclosure, AlertDialog, AlertDialogOverlay, AlertDialogContent, AlertDialogHeader, AlertDialogBody, AlertDialogFooter
 } from '@chakra-ui/react';
 import { Supply as BaseSupply, Category, Supplier, Unit } from '../utils/types';
-import { initializeFormData } from '../utils/suppliesUtils';
+import {
+    initializeFormDataWithFreight,
+    formatCurrencyBR,
+    parseCurrencyBR,
+} from '../utils/suppliesUtils';
 import { uploadImage } from '@/utils/imageUtils';
 import { fetchSuppliers, fetchUnits, fetchChartOfAccounts, ChartOfAccount } from '@/utils/apiUtils';
 import { handleImageChange } from '@/utils/imageUtils';
@@ -49,27 +53,6 @@ interface SupplyModalProps {
 interface Subcategory {
     id: string;
     label: string;
-}
-
-function initializeFormDataWithFreight(initialData?: Supply) {
-    return {
-        ...initializeFormData(initialData),
-        freight: initialData?.freight ?? '',
-        subcategory_id: initialData?.subcategory_id ?? '',
-        chart_of_account_id: (initialData as any)?.chartOfAccount?.id || '',
-    };
-}
-
-function formatCurrencyBR(value: string | number): string {
-    if (value === '' || value === null || value === undefined) return '';
-    const number = typeof value === 'number' ? value : parseFloat(value.toString().replace(/\./g, '').replace(',', '.'));
-    if (isNaN(number)) return '';
-    return number.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function parseCurrencyBR(value: string): number {
-    if (!value) return 0;
-    return parseFloat(value.replace(/\./g, '').replace(',', '.'));
 }
 
 export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData }: SupplyModalProps) {

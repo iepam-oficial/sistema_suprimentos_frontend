@@ -22,6 +22,7 @@ import {
 } from '@chakra-ui/react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { formatBRL, mulMoney, sumMoney } from '@/utils/money';
 
 interface Supplier {
   id: string;
@@ -132,7 +133,7 @@ export function MobileNewQuote({ onSubmit, onCancel }: MobileNewQuoteProps) {
   };
 
   const calculateTotal = () => {
-    return formData.items.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
+    return sumMoney(formData.items.map((item) => mulMoney(item.unit_price, item.quantity)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -333,7 +334,7 @@ export function MobileNewQuote({ onSubmit, onCancel }: MobileNewQuoteProps) {
           bg={useColorModeValue('gray.50', 'gray.700')}
         >
           <Text fontWeight="medium">
-            Valor Total: R$ {calculateTotal().toFixed(2)}
+            Valor Total: {formatBRL(calculateTotal())}
           </Text>
         </Box>
 

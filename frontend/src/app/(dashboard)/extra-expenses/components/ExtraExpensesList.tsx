@@ -49,6 +49,7 @@ import {
 import { SearchIcon, EditIcon, DeleteIcon, ViewIcon, AddIcon } from '@chakra-ui/icons';
 import { ExtraExpense } from '../interfaces/IExtraExpense';
 import { exportToPDF } from '@/utils/exportToPDF';
+import { formatBRL } from '@/utils/money';
 import type { ExtraExpenseCategory } from '../../settings/interfaces/IExtraExpenseCategory';
 
 interface ExtraExpensesListProps {
@@ -217,13 +218,6 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
     onViewOpen();
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
@@ -258,7 +252,7 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
         body: filteredExpenses.map(expense => [
           expense.category.label,
           expense.description || 'Sem descrição',
-          formatCurrency(expense.amount),
+          formatBRL(expense.amount),
           formatDate(expense.date),
           expense.location?.name || '-',
           expense.event?.title || '-',
@@ -268,7 +262,7 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
         orientation: 'landscape',
         total: {
           label: 'Valor Total',
-          value: formatCurrency(totalAmount)
+          value: formatBRL(totalAmount)
         }
       });
 
@@ -430,7 +424,7 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
                     </Box>
                     <Box>
                       <Text fontSize="lg" fontWeight="bold" color={getStatusColor(expense.amount)}>
-                        {formatCurrency(expense.amount)}
+                        {formatBRL(expense.amount)}
                       </Text>
                       <Text fontSize="sm" color="gray.500">
                         {formatDate(expense.date)}
@@ -588,7 +582,7 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
                   </Td>
                   <Td>
                     <Text fontWeight="bold" color={getStatusColor(expense.amount)}>
-                      {formatCurrency(expense.amount)}
+                      {formatBRL(expense.amount)}
                     </Text>
                   </Td>
                   <Td>{formatDate(expense.date)}</Td>
@@ -667,7 +661,7 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
                 <Box>
                   <Text fontWeight="bold">Valor:</Text>
                   <Text fontSize="lg" color={getStatusColor(selectedExpense.amount)}>
-                    {formatCurrency(selectedExpense.amount)}
+                    {formatBRL(selectedExpense.amount)}
                   </Text>
                 </Box>
                 <Box>

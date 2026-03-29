@@ -55,6 +55,7 @@ import {
   Mail
 } from 'lucide-react'
 import jsPDF from 'jspdf'
+import { formatBRL } from '@/utils/money'
 
 interface Order {
   id: string
@@ -277,7 +278,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
       ['Tipo de Serviço:', order.service_type],
       ['Data de Entrada:', new Date(order.entry_date).toLocaleDateString()],
       ['Data de Saída:', order.exit_date ? new Date(order.exit_date).toLocaleDateString() : 'Em andamento'],
-      ['Valor Total:', `R$ ${order.total_price.toFixed(2)}`]
+      ['Valor Total:', formatBRL(order.total_price)]
     ]
 
     details.forEach(([label, value]) => {
@@ -526,7 +527,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
               </Box>
               <Box>
                 <Text color={textSecondary} fontSize="sm" fontWeight="medium">Valor Total</Text>
-                <Text color={textColor} fontWeight="semibold" fontSize="lg">R$ {order.total_price.toFixed(2)}</Text>
+                <Text color={textColor} fontWeight="semibold" fontSize="lg">{formatBRL(order.total_price)}</Text>
               </Box>
             </VStack>
           </CardBody>

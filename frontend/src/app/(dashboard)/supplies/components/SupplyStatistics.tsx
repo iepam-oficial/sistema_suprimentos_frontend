@@ -17,6 +17,7 @@ import {
   Container,
   VStack,
 } from '@chakra-ui/react';
+import { formatBRL, sumMoney } from '@/utils/money';
 
 const PERIODS = [
   { label: 'Últimos 7 dias', value: 7 },
@@ -83,7 +84,10 @@ export function SupplyStatistics() {
   const batchStatsFiltered = {
     total: filteredBatches.length,
     lastEntry: filteredBatches[0],
-    avgPrice: filteredBatches.length > 0 ? (filteredBatches.reduce((acc: any, b: any) => acc + b.unit_price, 0) / filteredBatches.length).toFixed(2) : 0,
+    avgPrice:
+      filteredBatches.length > 0
+        ? sumMoney(filteredBatches.map((b: any) => b.unit_price)) / filteredBatches.length
+        : null,
   };
 
   if (loading) return <Spinner size="lg" />;
@@ -126,7 +130,9 @@ export function SupplyStatistics() {
               </Stat>
               <Stat bg={cardBg} p={4} borderRadius="md" boxShadow="sm">
                 <StatLabel>Preço Médio dos Lotes</StatLabel>
-                <StatNumber>R$ {batchStatsFiltered.avgPrice ?? '-'}</StatNumber>
+                <StatNumber>
+                  {batchStatsFiltered.avgPrice != null ? formatBRL(batchStatsFiltered.avgPrice) : '-'}
+                </StatNumber>
                 <StatHelpText>Lote mais recente: {batchStatsFiltered.lastEntry?.quantity} un. em {batchStatsFiltered.lastEntry?.purchased_at?.slice(0,10)}</StatHelpText>
               </Stat>
             </SimpleGrid>

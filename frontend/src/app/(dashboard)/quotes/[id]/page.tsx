@@ -38,6 +38,7 @@ import {
 } from '@chakra-ui/react';
 import { PageHeader } from '@/components/PageHeader';
 import { generateQuotePDF } from '../components/QuotePDF';
+import { formatBRL } from '@/utils/money';
 
 interface QuoteItem {
   id?: string;
@@ -434,8 +435,8 @@ export default function QuoteDetailsPage() {
                         <Td>{item.product_name}</Td>
                         <Td>{item.manufacturer}</Td>
                         <Td isNumeric>{item.quantity}</Td>
-                        <Td isNumeric>R$ {item.unit_price.toFixed(2)}</Td>
-                        <Td isNumeric>R$ {item.total_price.toFixed(2)}</Td>
+                        <Td isNumeric>{formatBRL(item.unit_price)}</Td>
+                        <Td isNumeric>{formatBRL(item.total_price)}</Td>
                         <Td>
                           {item.link ? (
                             <Button
@@ -457,7 +458,7 @@ export default function QuoteDetailsPage() {
                     ))}
                     <Tr>
                       <Td colSpan={5} textAlign="right"><strong>Total:</strong></Td>
-                      <Td isNumeric><strong>R$ {quote.total_value.toFixed(2)}</strong></Td>
+                      <Td isNumeric><strong>{formatBRL(quote.total_value)}</strong></Td>
                     </Tr>
                   </Tbody>
                 </Table>
@@ -522,7 +523,7 @@ export default function QuoteDetailsPage() {
                             <Textarea size="sm" value={it.notes || ''} onChange={(e) => handleUpdateItem(idx, 'notes', e.target.value)} />
                           </FormControl>
                           <HStack justify="space-between">
-                            <Text fontSize="sm" color="gray.500">Total: R$ {Number(it.total_price || 0).toFixed(2)}</Text>
+                            <Text fontSize="sm" color="gray.500">Total: {formatBRL(Number(it.total_price || 0))}</Text>
                             <Button size="sm" colorScheme="red" variant="ghost" onClick={() => handleRemoveItem(idx)}>Remover</Button>
                           </HStack>
                         </VStack>
@@ -560,7 +561,7 @@ export default function QuoteDetailsPage() {
                               <Input type="number" size="sm" value={it.unit_price} onChange={(e) => handleUpdateItem(idx, 'unit_price', Number(e.target.value))} />
                             </Td>
                             <Td isNumeric>
-                              R$ {Number(it.total_price || 0).toFixed(2)}
+                              {formatBRL(Number(it.total_price || 0))}
                             </Td>
                             <Td>
                               <Input size="sm" value={it.link || ''} onChange={(e) => handleUpdateItem(idx, 'link', e.target.value)} />
