@@ -36,6 +36,7 @@ import { ArrowLeft, MapPin, Calendar, Tag, Hash, Building } from 'lucide-react';
 import { fetchInventoryItemById } from '@/utils/apiUtils';
 import { InventoryAllocationModal } from '@/components/InventoryAllocationModal';
 import { allocateInventoryItem } from '../../utils/requestUtils';
+import { formatBRL } from '@/utils/money';
 
 export default function InventoryDetailPage({ params }: { params: { id: string } }) {
   const [item, setItem] = useState<any>(null);
@@ -118,13 +119,6 @@ export default function InventoryDetailPage({ params }: { params: { id: string }
   if (!item) {
     return null;
   }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
@@ -257,13 +251,13 @@ export default function InventoryDetailPage({ params }: { params: { id: string }
                         <VStack align="start" spacing={2}>
                           <Text fontSize="sm" color="gray.500">Valor de Aquisição</Text>
                           <Text fontWeight="bold" color="green.600" fontSize="lg">
-                            {formatCurrency(item.acquisition_price)}
+                            {formatBRL(item.acquisition_price)}
                           </Text>
                         </VStack>
                         <VStack align="start" spacing={2}>
                           <Text fontSize="sm" color="gray.500">Valor Residual</Text>
                           <Text fontWeight="medium" color="blue.600">
-                            {formatCurrency(item.residual_value)}
+                            {formatBRL(item.residual_value)}
                           </Text>
                         </VStack>
                         <VStack align="start" spacing={2}>

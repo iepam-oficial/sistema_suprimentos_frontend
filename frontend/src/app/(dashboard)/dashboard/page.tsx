@@ -45,6 +45,7 @@ import {
   Plus
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { formatBRL } from '@/utils/money'
 
 interface DashboardStats {
   totalInventory: number
@@ -237,7 +238,7 @@ export default function DashboardPage() {
                     {stats.openServiceOrders} em aberto
                   </StatHelpText>
                   <StatHelpText fontSize="sm" color={textSecondary} mt={1}>
-                    Valor Total: R$ {stats.totalServiceOrdersValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Valor Total: {formatBRL(stats.totalServiceOrdersValue)}
                   </StatHelpText>
                 </Stat>
               </CardBody>
@@ -270,7 +271,7 @@ export default function DashboardPage() {
                     Itens cadastrados
                   </StatHelpText>
                   <StatHelpText fontSize="sm" color={textSecondary} mt={1}>
-                    Valor Total: R$ {stats.totalInventoryValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Valor Total: {formatBRL(stats.totalInventoryValue)}
                   </StatHelpText>
                 </Stat>
               </CardBody>

@@ -23,6 +23,7 @@ import { ShoppingCart, SearchIcon, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Supply } from '../../types';
 import { useFilters } from '@/contexts/GlobalContext';
+import { formatBRL } from '@/utils/money';
 
 interface CatalogTabProps {
   supplies: Supply[];
@@ -117,10 +118,7 @@ export function CatalogTab({ supplies, onAddToCart, onOpenCustomRequestModal }: 
                   <Badge colorScheme="blue">{supply.category.label}</Badge>
                 </HStack>
                 <Text fontSize={{ base: 'xs', md: 'sm' }} color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(supply.unit_price)}
+                  {formatBRL(supply.unit_price)}
                 </Text>
                 <Button 
                   colorScheme="blue" 

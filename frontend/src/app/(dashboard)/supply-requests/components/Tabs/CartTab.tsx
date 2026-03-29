@@ -21,6 +21,7 @@ import {
 } from '@chakra-ui/react';
 import { ShoppingCart, Trash2, Package, DollarSign } from 'lucide-react';
 import { Supply } from '../../types';
+import { formatBRL, mulMoney, sumMoney } from '@/utils/money';
 
 interface CartItem {
   id: string;
@@ -44,10 +45,9 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   
   // Calcular valor total estimado (se disponível)
-  const totalValue = cart.reduce((sum, item) => {
-    const unitPrice = item.supply?.unit_price || 0;
-    return sum + (unitPrice * item.quantity);
-  }, 0);
+  const totalValue = sumMoney(
+    cart.map((item) => mulMoney(item.supply?.unit_price || 0, item.quantity)),
+  );
 
   return (
     <Card bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'gray.50'} backdropFilter="blur(12px)" borderWidth="1px" borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}>
@@ -97,7 +97,7 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
                           </Text>
                         </HStack>
                         <Text fontSize="lg" fontWeight="bold" color="green.500">
-                          R$ {totalValue.toFixed(2).replace('.', ',')}
+                          {formatBRL(totalValue)}
                         </Text>
                       </VStack>
                     )}
@@ -182,7 +182,7 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
                                   Preço unitário:
                                 </Text>
                                 <Text fontSize="sm" color="green.500" fontWeight="medium">
-                                  R$ {item.supply.unit_price.toFixed(2).replace('.', ',')}
+                                  {formatBRL(item.supply.unit_price)}
                                 </Text>
                               </HStack>
                             )}
@@ -193,7 +193,7 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
                                   Subtotal:
                                 </Text>
                                 <Text fontSize="sm" color={colorMode === 'dark' ? 'white' : 'gray.800'} fontWeight="bold">
-                                  R$ {(item.supply.unit_price * item.quantity).toFixed(2).replace('.', ',')}
+                                  {formatBRL(mulMoney(item.supply.unit_price, item.quantity))}
                                 </Text>
                               </HStack>
                             )}

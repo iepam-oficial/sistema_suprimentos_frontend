@@ -36,6 +36,7 @@ import {
 import { FiEye, FiFileText } from 'react-icons/fi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatBRL, sumMoney } from '@/utils/money';
 
 export function SupplyBatchList() {
   const [batches, setBatches] = useState<any[]>([]);
@@ -86,9 +87,10 @@ export function SupplyBatchList() {
     : batches;
 
   // Calcular preço médio do item filtrado
-  const avgPrice = filteredBatches.length > 0
-    ? (filteredBatches.reduce((acc, b) => acc + b.unit_price, 0) / filteredBatches.length).toFixed(2)
-    : null;
+  const avgPrice =
+    filteredBatches.length > 0
+      ? sumMoney(filteredBatches.map((b) => b.unit_price)) / filteredBatches.length
+      : null;
 
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -97,7 +99,7 @@ export function SupplyBatchList() {
       b.supply?.name || '-',
       b.supplier?.name || '-',
       b.quantity,
-      `R$ ${b.unit_price.toFixed(2)}`,
+      formatBRL(b.unit_price),
       b.purchased_at?.slice(0, 10),
       b.expires_at ? b.expires_at.slice(0, 10) : '-',
       b.notes || '-',
@@ -137,7 +139,7 @@ export function SupplyBatchList() {
             {selectedItem && (
               <Stat bg={bgColor} p={2} borderRadius="md" boxShadow="sm" mb={4} maxW="300px">
                 <StatLabel>Preço Médio do Item</StatLabel>
-                <StatNumber>R$ {avgPrice ?? '-'}</StatNumber>
+                <StatNumber>{avgPrice != null ? formatBRL(avgPrice) : '-'}</StatNumber>
               </Stat>
             )}
             <Box overflowX="auto">
@@ -160,7 +162,7 @@ export function SupplyBatchList() {
                       <Td>{b.supply?.name || '-'}</Td>
                       <Td>{b.supplier?.name || '-'}</Td>
                       <Td>{b.quantity}</Td>
-                      <Td>R$ {b.unit_price.toFixed(2)}</Td>
+                      <Td>{formatBRL(b.unit_price)}</Td>
                       <Td>{b.purchased_at?.slice(0, 10)}</Td>
                       <Td>{b.expires_at ? b.expires_at.slice(0, 10) : '-'}</Td>
                       <Td>{b.notes || '-'}</Td>

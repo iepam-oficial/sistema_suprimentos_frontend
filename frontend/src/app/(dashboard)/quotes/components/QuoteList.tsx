@@ -37,6 +37,7 @@ import {
 import { SearchIcon, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { formatBRL } from '@/utils/money';
 
 interface Quote {
   id: string;
@@ -230,7 +231,7 @@ export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
                     {getStatusText(quote.status)}
                   </Badge>
                 </Td>
-                <Td isNumeric>R$ {quote.total_value.toFixed(2)}</Td>
+                <Td isNumeric>{formatBRL(quote.total_value)}</Td>
                 <Td>{new Date(quote.created_at).toLocaleDateString()}</Td>
                 <Td>
                   <HStack spacing={2}>

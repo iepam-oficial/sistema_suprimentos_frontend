@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatBRL, mulMoney } from '@/utils/money';
 
 interface QuotePDFProps {
   quote: {
@@ -44,12 +45,12 @@ export function generateQuotePDF({ quote }: QuotePDFProps) {
   const tableRows = quote.items.map(item => [
     item.product_name,
     item.quantity.toString(),
-    `R$ ${item.unit_price.toFixed(2)}`,
-    `R$ ${(item.quantity * item.unit_price).toFixed(2)}`
+    formatBRL(item.unit_price),
+    formatBRL(mulMoney(item.unit_price, item.quantity)),
   ]);
 
   // Adiciona o total
-  tableRows.push(['', '', 'Total:', `R$ ${quote.total_value.toFixed(2)}`]);
+  tableRows.push(['', '', 'Total:', formatBRL(quote.total_value)]);
 
   autoTable(doc, {
     head: [tableColumn],

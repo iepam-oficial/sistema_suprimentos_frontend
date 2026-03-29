@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { formatBRL, mulMoney, sumMoney } from '@/utils/money';
 
 interface Supplier {
   id: string;
@@ -108,7 +109,9 @@ export default function NewQuotePage() {
   };
 
   const calculateTotal = () => {
-    return formData.items.reduce((total, item) => total + (Number(item.quantity) * Number(item.unit_price)), 0);
+    return sumMoney(
+      formData.items.map((item) => mulMoney(item.unit_price, item.quantity)),
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -386,7 +389,7 @@ export default function NewQuotePage() {
               bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
             >
               <Text fontWeight="medium">
-                Valor Total: R$ {calculateTotal().toFixed(2)}
+                Valor Total: {formatBRL(calculateTotal())}
               </Text>
             </Box>
 

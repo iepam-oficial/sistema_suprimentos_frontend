@@ -32,6 +32,7 @@ import {
 } from '@chakra-ui/react';
 import { FiArrowLeft, FiFileText, FiCalendar, FiPackage, FiDollarSign, FiUser, FiTruck } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
+import { formatBRL } from '@/utils/money';
 
 interface SupplyBatchDetailsProps {
   batchId: string;
@@ -114,13 +115,6 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
   };
 
   const formatDate = (dateString: string) => {
@@ -281,12 +275,12 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
                     <Divider />
                     <Stat>
                       <StatLabel>Preço Unitário</StatLabel>
-                      <StatNumber>{formatCurrency(batch.unit_price)}</StatNumber>
+                      <StatNumber>{formatBRL(batch.unit_price)}</StatNumber>
                     </Stat>
                     <Divider />
                     <Stat>
                       <StatLabel>Valor Total</StatLabel>
-                      <StatNumber>{formatCurrency(batch.total_price)}</StatNumber>
+                      <StatNumber>{formatBRL(batch.total_price)}</StatNumber>
                     </Stat>
                   </VStack>
                 </CardBody>

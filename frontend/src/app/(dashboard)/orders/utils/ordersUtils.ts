@@ -1,5 +1,6 @@
 import { Order } from '../types'
 import jsPDF from 'jspdf'
+import { formatBRL } from '@/utils/money'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, PieController } from 'chart.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend, PieController)
@@ -129,7 +130,7 @@ export const generateOrdersPDF = async (
             order.serial_number,
             order.exit_date ? 'Concluída' : 'Em andamento',
             new Date(order.entry_date).toLocaleDateString(),
-            `R$ ${order.total_price.toFixed(2)}`
+            formatBRL(order.total_price)
         ]
 
         row.forEach((cell, i) => {

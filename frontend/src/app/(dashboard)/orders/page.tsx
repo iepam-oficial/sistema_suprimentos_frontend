@@ -53,6 +53,7 @@ import { SearchIcon } from '@chakra-ui/icons'
 import { Filter, FileText, Plus, Download, Search, Settings, Calendar, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
 import { Order, Filters } from './types'
 import { filterOrders, generateOrdersPDF } from './utils/ordersUtils'
+import { formatBRL } from '@/utils/money'
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -211,7 +212,7 @@ export default function OrdersPage() {
               </Box>
               <Box>
                 <Text fontWeight="semibold" color={textColor} fontSize="sm">Valor Total</Text>
-                <Text color={textColor} fontSize="sm" fontWeight="bold">R$ {order.total_price.toFixed(2)}</Text>
+                <Text color={textColor} fontSize="sm" fontWeight="bold">{formatBRL(order.total_price)}</Text>
               </Box>
             </Stack>
           </CardBody>
@@ -270,7 +271,7 @@ export default function OrdersPage() {
                   </Badge>
                 </Td>
                 <Td color={textSecondary} fontSize="sm">{new Date(order.entry_date).toLocaleDateString()}</Td>
-                <Td color={textColor} fontWeight="bold">R$ {order.total_price.toFixed(2)}</Td>
+                <Td color={textColor} fontWeight="bold">{formatBRL(order.total_price)}</Td>
               </Tr>
             ))}
           </Tbody>

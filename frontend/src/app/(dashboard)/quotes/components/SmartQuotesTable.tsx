@@ -15,6 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatBRL } from '@/utils/money';
 
 interface SmartQuote {
   id: string;
@@ -153,12 +154,12 @@ export function SmartQuotesTable() {
                 <Box>
                   {quote.items.map((item, index) => (
                     <Text key={index} fontSize="sm">
-                      {item.quantity}x {item.product_name} - R$ {item.unit_price.toFixed(2)}/un
+                      {item.quantity}x {item.product_name} - {formatBRL(item.unit_price)}/un
                     </Text>
                   ))}
                 </Box>
               </Td>
-              <Td isNumeric>R$ {quote.total_value.toFixed(2)}</Td>
+              <Td isNumeric>{formatBRL(quote.total_value)}</Td>
               <Td>{new Date(quote.created_at).toLocaleDateString()}</Td>
               <Td>
                 <Button
