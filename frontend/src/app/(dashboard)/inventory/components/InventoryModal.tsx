@@ -26,6 +26,7 @@ import {
 import { useState, useEffect } from 'react'
 import { uploadImage, handleImageChange } from '@/utils/imageUtils'
 import formatCurrency from '../utils/formatCurrency'
+import { fetchChartOfAccounts, ChartOfAccount } from '@/utils/apiUtils'
 
 interface InventoryModalProps {
     isOpen: boolean
@@ -55,6 +56,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         image_url: '',
         residual_value: '',
         service_life: '',
+        chart_of_account_id: '',
     })
 
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -64,6 +66,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
     const [subcategories, setSubcategories] = useState<{ id: string; label: string }[]>([])
     const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
     const [locales, setLocales] = useState<{ id: string; name: string; location_id: string }[]>([])
+    const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([])
     const [errors, setErrors] = useState<Record<string, string>>({})
     const toast = useToast()
     const [isDepreciable, setIsDepreciable] = useState(false);
@@ -92,6 +95,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                     image_url: initialData.image_url || '',
                     residual_value: initialData.residual_value !== undefined ? String(initialData.residual_value) : '',
                     service_life: initialData.service_life !== undefined ? String(initialData.service_life) : '',
+                    chart_of_account_id: initialData.chartOfAccount?.id || '',
                 });
                 console.log('DADOS DO formData:', formData)
                 
@@ -122,6 +126,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                     image_url: '',
                     residual_value: '',
                     service_life: '',
+                    chart_of_account_id: '',
                 });
                 setIsDepreciable(false);
             }
@@ -154,6 +159,15 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
             setCategories(Array.isArray(categoriesData) ? categoriesData : [])
             setSuppliers(Array.isArray(suppliersData) ? suppliersData : [])
             setLocales(Array.isArray(localesData) ? localesData : [])
+
+            // Buscar planos de contas (apenas ATIVO para inventário)
+            try {
+                const chartOfAccountsData = await fetchChartOfAccounts('ATIVO');
+                setChartOfAccounts(chartOfAccountsData);
+            } catch (error) {
+                console.error('Erro ao buscar planos de contas:', error);
+                setChartOfAccounts([]);
+            }
         } catch (error) {
             toast({
                 title: 'Erro ao carregar dados',
@@ -237,6 +251,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         if (!formData.location_id) newErrors.location_id = 'Localização é obrigatória'
         if (!formData.category_id) newErrors.category_id = 'Categoria é obrigatória'
         if (!formData.subcategory_id) newErrors.subcategory_id = 'Subcategoria é obrigatória'
+        if (!formData.chart_of_account_id) newErrors.chart_of_account_id = 'Plano de conta é obrigatório'
 
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
@@ -256,17 +271,13 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                 imageUrl = await uploadImage(selectedImage);
             }
 
-            const token = localStorage.getItem('@ti-assistant:token')
             const dataToSend: any = {
                 ...formData,
                 image_url: imageUrl,
                 acquisition_price: parseFloat(formData.acquisition_price),
                 freight: formData.freight ? parseFloat(formData.freight) : 0,
                 acquisition_date: new Date(formData.acquisition_date).toISOString(),
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                chart_of_account_id: formData.chart_of_account_id || null,
             };
             if (isDepreciable) {
                 dataToSend.residual_value = formData.residual_value ? parseFloat(formData.residual_value) : 0;
@@ -524,6 +535,21 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                                             </option>
                                         ))}
                                     </Select>
+                                </FormControl>
+                                <FormControl isInvalid={!!errors.chart_of_account_id} isRequired>
+                                    <FormLabel>Plano de Conta</FormLabel>
+                                    <Select
+                                        value={formData.chart_of_account_id}
+                                        onChange={(e) => setFormData({ ...formData, chart_of_account_id: e.target.value })}
+                                        placeholder="Selecione o plano de conta"
+                                    >
+                                        {Array.isArray(chartOfAccounts) && chartOfAccounts.map((account) => (
+                                            <option key={account.id} value={account.id}>
+                                                {account.codigo} - {account.nome}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                    <FormErrorMessage>{errors.chart_of_account_id}</FormErrorMessage>
                                 </FormControl>
                                 <FormControl>
                                     <FormLabel>Descrição</FormLabel>

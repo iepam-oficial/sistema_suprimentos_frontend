@@ -23,7 +23,7 @@ import {
   InputGroup,
   InputLeftElement,
 } from '@chakra-ui/react'
-import { Menu as MenuIcon, X, Home, Printer, Server, Wrench, Box as BoxIcon, Settings, LogOut, Bell, Calendar, BarChart, Package, ShoppingCart, ArrowLeft, Timer, FileText, ChevronDown, ChevronRight, SearchIcon, ListTodo } from 'lucide-react'
+import { Menu as MenuIcon, X, Home, Printer, Wrench, Box as BoxIcon, Settings, LogOut, Bell, Calendar, BarChart, Package, ShoppingCart, ArrowLeft, Timer, FileText, ChevronDown, ChevronRight, SearchIcon, ListTodo } from 'lucide-react'
 import NextLink from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -94,6 +94,7 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
     ...(!isEmployee ? [{ label: 'Ambientes', href: '/settings/enviroments' }] : []),
     ...(!isEmployee ? [{ label: 'Setores', href: '/settings/sectors' }] : []),
     ...(!isEmployee ? [{ label: 'Fornecedores', href: '/settings/suppliers' }] : []),
+    ...(!isEmployee ? [{ label: 'Planos de Conta', href: '/chart-of-accounts' }] : []),
     ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
   ]
 

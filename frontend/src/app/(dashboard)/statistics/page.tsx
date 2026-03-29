@@ -12,6 +12,9 @@ import {
     HStack,
     useBreakpointValue,
     useColorMode,
+    FormControl,
+    FormLabel,
+    Skeleton,
 } from '@chakra-ui/react';
 import {
     BarChart,
@@ -22,8 +25,6 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
-    PieChart,
-    Pie,
     Cell,
     LineChart,
     Line,
@@ -32,13 +33,44 @@ import { useRouter } from 'next/navigation';
 import { MobileStatistics } from './components/MobileStatistics';
 
 interface StatisticsData {
-    serversByStatus: { status: string; count: number }[];
     serviceOrdersByMonth: { month: string; count: number }[];
     inventoryByType: { type: string; count: number }[];
     alertsByLevel: { level: string; count: number }[];
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+function getAlertColor(level: string): string {
+    const l = (level ?? '').toLowerCase();
+    if (l.includes('crítico') || l.includes('critico')) return '#DC2626';
+    if (l.includes('alto')) return '#EA580C';
+    if (l.includes('médio') || l.includes('medio')) return '#CA8A04';
+    if (l.includes('baixo')) return '#16A34A';
+    return '#8884D8';
+}
+
+function getKpis(data: StatisticsData) {
+    const totalOrders = data.serviceOrdersByMonth.reduce((s, x) => s + x.count, 0);
+    const totalInventory = data.inventoryByType.reduce((s, x) => s + x.count, 0);
+    const totalAlerts = data.alertsByLevel.reduce((s, x) => s + x.count, 0);
+    return { totalOrders, totalInventory, totalAlerts };
+}
+
+const cardBoxProps = (colorMode: string, isMobile: boolean) => ({
+    shadow: 'base' as const,
+    rounded: 'lg',
+    bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+    backdropFilter: 'blur(12px)',
+    border: '1px solid',
+    borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+    p: isMobile ? 4 : 6,
+    transition: 'all 0.3s ease',
+    _hover: {
+        bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+        transform: 'translateY(-2px)',
+        shadow: 'lg',
+    },
+});
 
 export default function StatisticsPage() {
     const [data, setData] = useState<StatisticsData | null>(null);
@@ -99,7 +131,6 @@ export default function StatisticsPage() {
 
             const statisticsData = await response.json();
             // Ordenar os dados para melhor visualização
-            statisticsData.serversByStatus = [...statisticsData.serversByStatus].sort((a, b) => b.count - a.count);
             statisticsData.inventoryByType = [...statisticsData.inventoryByType].sort((a, b) => b.count - a.count);
             statisticsData.alertsByLevel = [...statisticsData.alertsByLevel].sort((a, b) => b.count - a.count);
             // Ordenar meses cronologicamente (assumindo meses abreviados em pt-BR)
@@ -122,7 +153,26 @@ export default function StatisticsPage() {
     };
 
     if (loading) {
-        return <Box p={8}>Carregando...</Box>;
+        return (
+            <Box p={8}>
+                <VStack spacing={6} align="stretch">
+                    <HStack justify="space-between">
+                        <Skeleton height="32px" width="180px" />
+                        <Skeleton height="40px" width="200px" />
+                    </HStack>
+                    <SimpleGrid columns={{ base: 2, md: 3 }} spacing={4}>
+                        {[1, 2, 3].map((i) => (
+                            <Skeleton key={i} height="80px" rounded="lg" />
+                        ))}
+                    </SimpleGrid>
+                    <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
+                        {[1, 2, 3].map((i) => (
+                            <Skeleton key={i} height="300px" rounded="lg" />
+                        ))}
+                    </SimpleGrid>
+                </VStack>
+            </Box>
+        );
     }
 
     if (!data) {
@@ -139,34 +189,69 @@ export default function StatisticsPage() {
         );
     }
 
+    const kpis = getKpis(data);
+
     return (
         <Box p={isMobile ? 4 : 8}>
             <VStack spacing={isMobile ? 4 : 8} align="stretch">
-                <HStack justify="space-between">
+                <HStack justify="space-between" flexWrap="wrap" gap={2}>
                     <Heading size={isMobile ? "md" : "lg"} color={colorMode === 'dark' ? 'white' : 'gray.800'}>
                         Estatísticas
                     </Heading>
-                    <Select
-                        value={timeRange}
-                        onChange={(e) => setTimeRange(e.target.value)}
-                        width="200px"
-                        bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
-                        backdropFilter="blur(12px)"
-                        borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-                        _hover={{
-                            borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
-                        }}
-                        _focus={{
-                            borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500',
-                            boxShadow: 'none',
-                        }}
-                    >
-                        <option value="7">Últimos 7 dias</option>
-                        <option value="30">Últimos 30 dias</option>
-                        <option value="90">Últimos 90 dias</option>
-                        <option value="365">Último ano</option>
-                    </Select>
+                    <FormControl width="auto" display="flex" alignItems="center" gap={2}>
+                        <FormLabel mb={0} fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>
+                            Período
+                        </FormLabel>
+                        <Select
+                            value={timeRange}
+                            onChange={(e) => setTimeRange(e.target.value)}
+                            width="200px"
+                            bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
+                            backdropFilter="blur(12px)"
+                            borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
+                            _hover={{
+                                borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+                            }}
+                            _focus={{
+                                borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500',
+                                boxShadow: 'none',
+                            }}
+                        >
+                            <option value="7">Últimos 7 dias</option>
+                            <option value="30">Últimos 30 dias</option>
+                            <option value="90">Últimos 90 dias</option>
+                            <option value="365">Último ano</option>
+                        </Select>
+                    </FormControl>
                 </HStack>
+
+                {/* KPI cards */}
+                <SimpleGrid columns={{ base: 2, md: 3 }} spacing={4}>
+                    <Box {...cardBoxProps(colorMode, isMobile ?? false)}>
+                        <Text fontSize="xs" color={colorMode === 'dark' ? 'gray.400' : 'gray.500'} mb={1}>
+                            Ordens (período)
+                        </Text>
+                        <Text fontSize="2xl" fontWeight="bold" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
+                            {kpis.totalOrders}
+                        </Text>
+                    </Box>
+                    <Box {...cardBoxProps(colorMode, isMobile ?? false)}>
+                        <Text fontSize="xs" color={colorMode === 'dark' ? 'gray.400' : 'gray.500'} mb={1}>
+                            Inventário
+                        </Text>
+                        <Text fontSize="2xl" fontWeight="bold" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
+                            {kpis.totalInventory}
+                        </Text>
+                    </Box>
+                    <Box {...cardBoxProps(colorMode, isMobile ?? false)}>
+                        <Text fontSize="xs" color={colorMode === 'dark' ? 'gray.400' : 'gray.500'} mb={1}>
+                            Alertas
+                        </Text>
+                        <Text fontSize="2xl" fontWeight="bold" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
+                            {kpis.totalAlerts}
+                        </Text>
+                    </Box>
+                </SimpleGrid>
 
                 <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
                     {/* Gráfico de Ordens de Serviço por Mês */}
@@ -190,7 +275,12 @@ export default function StatisticsPage() {
                             Ordens de Serviço por Mês
                         </Heading>
                         <Box height="300px">
-                            <ResponsiveContainer width="100%" height="100%">
+                            {data.serviceOrdersByMonth.length === 0 ? (
+                                <Box height="100%" display="flex" alignItems="center" justifyContent="center" color={colorMode === 'dark' ? 'gray.400' : 'gray.500'}>
+                                    Nenhuma ordem de serviço no período selecionado
+                                </Box>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={data.serviceOrdersByMonth} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? 'gray.600' : 'gray.200'} />
                                     <XAxis
@@ -223,6 +313,7 @@ export default function StatisticsPage() {
                                     />
                                 </LineChart>
                             </ResponsiveContainer>
+                            )}
                         </Box>
                     </Box>
 
@@ -246,7 +337,12 @@ export default function StatisticsPage() {
                             Itens do Inventário por Tipo
                         </Text>
                         <Box height="300px">
-                            <ResponsiveContainer width="100%" height="100%">
+                            {data.inventoryByType.length === 0 ? (
+                                <Box height="100%" display="flex" alignItems="center" justifyContent="center" color={colorMode === 'dark' ? 'gray.400' : 'gray.500'}>
+                                    Nenhum item no inventário
+                                </Box>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={data.inventoryByType}>
                                     <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? 'gray.600' : 'gray.200'} />
                                     <XAxis
@@ -266,6 +362,7 @@ export default function StatisticsPage() {
                                     <Bar dataKey="count" fill="#8884d8" name="Quantidade" />
                                 </BarChart>
                             </ResponsiveContainer>
+                            )}
                         </Box>
                     </Box>
 
@@ -289,7 +386,12 @@ export default function StatisticsPage() {
                             Alertas por Nível
                         </Text>
                         <Box height="300px">
-                            <ResponsiveContainer width="100%" height="100%">
+                            {data.alertsByLevel.length === 0 ? (
+                                <Box height="100%" display="flex" alignItems="center" justifyContent="center" color={colorMode === 'dark' ? 'gray.400' : 'gray.500'}>
+                                    Nenhum alerta
+                                </Box>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={data.alertsByLevel}>
                                     <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? 'gray.600' : 'gray.200'} />
                                     <XAxis
@@ -306,9 +408,14 @@ export default function StatisticsPage() {
                                             color: colorMode === 'dark' ? 'white' : 'gray.800'
                                         }}
                                     />
-                                    <Bar dataKey="count" fill="#ff4444" name="Quantidade" />
+                                    <Bar dataKey="count" name="Quantidade">
+                                        {data.alertsByLevel.map((entry, index) => (
+                                            <Cell key={`alert-${index}`} fill={getAlertColor(entry.level)} />
+                                        ))}
+                                    </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
+                            )}
                         </Box>
                     </Box>
                 </SimpleGrid>

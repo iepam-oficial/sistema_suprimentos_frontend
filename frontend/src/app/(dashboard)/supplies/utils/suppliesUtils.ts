@@ -45,6 +45,8 @@ export const initializeFormData = (initialData?: Supply) => {
       supplier_id: initialData.supplier?.id || '',
       image_url: initialData.image_url || '',
       unit_price: displayCurrencyFromApi((initialData as { unit_price?: unknown }).unit_price),
+      chart_of_account_id:
+        (initialData as { chartOfAccount?: { id?: string } }).chartOfAccount?.id || '',
     };
   }
   return {
@@ -57,6 +59,7 @@ export const initializeFormData = (initialData?: Supply) => {
     supplier_id: '',
     image_url: '',
     unit_price: '',
+    chart_of_account_id: '',
   };
 };
 

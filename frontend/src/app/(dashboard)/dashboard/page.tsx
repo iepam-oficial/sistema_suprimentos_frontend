@@ -55,6 +55,7 @@ interface DashboardStats {
   openServiceOrders: number
   criticalAlerts: number
   consumptionTrends: { date: string; quantity: number }[]
+  averageDeliveryTimeTrends: { date: string; averageDays: number }[]
   totalSuppliers: number
   totalQuotes: number
   pendingQuotes: number
@@ -459,6 +460,81 @@ export default function DashboardPage() {
                         dataKey="quantity"
                         name="Consumo"
                         stroke="#8884d8"
+                        activeDot={{ r: 8 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Box>
+              </CardBody>
+            </Card>
+
+            {/* Gráfico de Linha - Tempo Médio de Entrega */}
+            <Card
+              bg={cardBg}
+              border="1px solid"
+              borderColor={cardBorder}
+              shadow="lg"
+              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
+              transition="all 0.3s"
+              cursor="pointer"
+              onClick={() => router.push('/supply-requests/admin')}
+            >
+              <CardBody p={5}>
+                <HStack spacing={3} mb={3}>
+                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, teal.500, cyan.500)" color="white">
+                    <Clock size={20} />
+                  </Box>
+                  <VStack align="start" spacing={1}>
+                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Tempo Médio de Entrega</Text>
+                    <Text fontSize="sm" color={textSecondary}>Dias (requisições entregues)</Text>
+                  </VStack>
+                </HStack>
+                <Box height="280px">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={stats.averageDeliveryTimeTrends ?? []}
+                      margin={{
+                        top: 5,
+                        right: 30,
+                        left: 20,
+                        bottom: 5,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke={colorMode === 'dark' ? 'gray.600' : 'gray.200'} />
+                      <XAxis
+                        dataKey="date"
+                        stroke={colorMode === 'dark' ? 'gray.400' : 'gray.600'}
+                        tickFormatter={(value) => {
+                          const [year, month] = value.split('-');
+                          return `${month}/${year}`;
+                        }}
+                      />
+                      <YAxis
+                        stroke={colorMode === 'dark' ? 'gray.400' : 'gray.600'}
+                        label={{
+                          value: 'Dias',
+                          angle: -90,
+                          position: 'insideLeft',
+                          style: { textAnchor: 'middle' }
+                        }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: colorMode === 'dark' ? 'gray.800' : 'white',
+                          border: `1px solid ${colorMode === 'dark' ? 'gray.700' : 'gray.200'}`,
+                          color: colorMode === 'dark' ? 'white' : 'gray.800'
+                        }}
+                        labelFormatter={(value) => {
+                          const [year, month] = value.split('-');
+                          return `${month}/${year}`;
+                        }}
+                        formatter={(value: number) => [`${value} dias`, 'Média']}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="averageDays"
+                        name="Média (dias)"
+                        stroke="#0d9488"
                         activeDot={{ r: 8 }}
                       />
                     </LineChart>
