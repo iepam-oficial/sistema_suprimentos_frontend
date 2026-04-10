@@ -60,7 +60,7 @@ import {
 import { SearchIcon, ShoppingCart, TimerIcon, CheckCircle, Trash2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import { CustomSupplyRequestModal, CustomSupplyRequestData } from './components/CustomSupplyRequestModal';
+import { CustomSupplyRequestModal, CustomSupplyRequestBatchPayload } from './components/CustomSupplyRequestModal';
 import { Supply, SupplyRequest } from './types';
 import {
   fetchSupplies,
@@ -182,6 +182,7 @@ function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = '
               {/* Botão Pedido Customizado só na aba Catálogo (índice 0) */}
               {activeTab === 0 && onOpenCustomRequestModal && (
                 <Button
+                  data-testid="custom-request-open-button"
                   colorScheme="blue"
                   leftIcon={<Plus size={18} />}
                   onClick={onOpenCustomRequestModal}
@@ -509,14 +510,14 @@ export default function SupplyRequestsPage() {
     }
   };
 
-  const handleCustomRequest = async (data: CustomSupplyRequestData) => {
+  const handleCustomRequest = async (data: CustomSupplyRequestBatchPayload) => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
       if (!token) {
         throw new Error('Token não encontrado');
       }
 
-      const response = await fetch('/api/supply-requests/custom', {
+      const response = await fetch('/api/supply-requests/custom/many', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -527,12 +528,16 @@ export default function SupplyRequestsPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao criar requisição customizada');
+        throw new Error(errorData.message || 'Erro ao criar requisições customizadas');
       }
 
+      const n = data.items.length;
       toast({
         title: 'Sucesso',
-        description: 'Requisição customizada criada com sucesso!',
+        description:
+          n === 1
+            ? 'Requisição customizada criada com sucesso.'
+            : `${n} requisições customizadas criadas com sucesso.`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -544,12 +549,12 @@ export default function SupplyRequestsPage() {
     } catch (error) {
       toast({
         title: 'Erro',
-        description: error instanceof Error ? error.message : 'Erro ao criar requisição customizada',
+        description: error instanceof Error ? error.message : 'Erro ao criar requisições customizadas',
         status: 'error',
         duration: 3000,
         isClosable: true,
       });
-      throw error; // Re-throw para que o modal possa capturar o erro
+      throw error;
     }
   };
 
