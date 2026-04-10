@@ -281,6 +281,7 @@ function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = '
                             return (
                                 <Tab
                                     key={label}
+                                    data-testid={index === 0 ? 'admin-tab-suprimentos' : undefined}
                                     _selected={{ bg: tabSelectedBg, color: tabSelectedColor, boxShadow: 'sm', border: '1px solid', borderColor: tabSelectedBorder }}
                                     _hover={{ bg: tabHoverBg }}
                                     transition="all 0.2s ease"

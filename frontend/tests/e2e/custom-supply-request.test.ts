@@ -27,16 +27,33 @@
  * - `E2E_EMAIL` / `E2E_PASSWORD` — sobrescrevem o usuário padrão do seed (`usuario@example.com`).
  * - `E2E_MANAGER_EMAIL` — e-mail do gerente para o passo “visão admin” (padrão: `gerente@example.com`; mesma senha que `E2E_PASSWORD` / seed).
  * - `E2E_SKIP=1` — ignora a suíte (útil em CI sem stack ou Chrome).
- * - `E2E_HEADLESS=1` — opcional; roda Chrome em modo headless (útil em CI).
+ * - `E2E_HEADLESS=1` — opcional; roda Chrome em modo **headless** (útil em CI). Por omissão o Chrome abre
+ *   **janela visível**; se não vir o navegador, confirme que `E2E_HEADLESS` não está a `1` no ambiente e use
+ *   `npm run test:e2e:headed` para forçar modo com janela.
  *
  * Execução:
  *   npm run test:e2e
+ *   npm run test:e2e:headed   # força janela visível (ignora E2E_HEADLESS=1 no shell)
  *
  * Dentro de cada suíte, os `it` rodam em sequência no mesmo navegador dessa suíte.
  */
 
 import { Builder, By, until, WebDriver, WebElement } from 'selenium-webdriver';
 import * as chrome from 'selenium-webdriver/chrome';
+
+/** Só headless com opt-in explícito — em desenvolvimento local o Chrome deve mostrar janela. */
+function buildChromeOptions(): chrome.Options {
+    const options = new chrome.Options();
+    if (process.env.E2E_HEADLESS === '1') {
+        options.addArguments('--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage');
+    }
+    options.addArguments('--window-size=1400,900');
+    return options;
+}
+
+async function createChromeDriver(): Promise<WebDriver> {
+    return new Builder().forBrowser('chrome').setChromeOptions(buildChromeOptions()).build();
+}
 
 const baseUrl = (process.env.E2E_BASE_URL || 'http://localhost:3002').replace(/\/$/, '');
 
@@ -106,11 +123,20 @@ async function e2eLogin(driver: WebDriver, mail: string, pass: string) {
  * Input Chakra controlado: define `value` e dispara eventos.
  */
 async function adminSearchSupplies(driver: WebDriver, query: string) {
-    // Tabs podem ser `button` ou outro nó com `role="tab"` (Chakra).
+    // Preferir data-testid (estável); fallback XPath para builds antigos.
     const supTab = await driver.wait(
-        until.elementLocated(By.xpath("//*[@role='tab' and contains(., 'Suprimentos')]")),
-        30000
+        async () => {
+            const byTestId = await driver.findElements(By.css('[data-testid="admin-tab-suprimentos"]'));
+            if (byTestId.length > 0) return byTestId[0];
+            const byRole = await driver.findElements(
+                By.xpath("//*[@role='tab' and contains(., 'Suprimentos')]")
+            );
+            return byRole[0];
+        },
+        60000,
+        'Aba Suprimentos em /supply-requests/admin'
     );
+    await driver.wait(until.elementIsVisible(supTab), 15000);
     await supTab.click();
 
     let searchInput: WebElement | undefined;
@@ -225,12 +251,7 @@ async function selectNativeOptionByIndex(driver: WebDriver, selectEl: WebElement
     let singleItemMarker: number;
 
     beforeAll(async () => {
-        const options = new chrome.Options();
-        if (process.env.E2E_HEADLESS === '1') {
-            options.addArguments('--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage');
-        }
-        options.addArguments('--window-size=1400,900');
-        driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
+        driver = await createChromeDriver();
     });
 
     afterAll(async () => {
@@ -420,12 +441,7 @@ async function selectNativeOptionByIndex(driver: WebDriver, selectEl: WebElement
     let batchId: number;
 
     beforeAll(async () => {
-        const options = new chrome.Options();
-        if (process.env.E2E_HEADLESS === '1') {
-            options.addArguments('--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage');
-        }
-        options.addArguments('--window-size=1400,900');
-        driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
+        driver = await createChromeDriver();
     });
 
     afterAll(async () => {

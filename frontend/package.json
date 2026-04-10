@@ -10,7 +10,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:e2e": "jest --config jest.e2e.config.js"
+    "test:e2e": "jest --config jest.e2e.config.js",
+    "test:e2e:headed": "E2E_HEADLESS=0 jest --config jest.e2e.config.js",
+    "test:e2e:ci": "E2E_HEADLESS=1 jest --config jest.e2e.config.js"
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
