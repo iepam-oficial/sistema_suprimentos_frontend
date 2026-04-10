@@ -84,7 +84,8 @@ function createEmptyLine(): LineState {
 }
 
 /** Nome, quantidade válida e unidade — campos obrigatórios do item. */
-function isLineComplete(line: LineState): boolean {
+function isLineComplete(line: LineState | undefined): boolean {
+    if (!line) return false;
     return (
         Boolean(line.item_name?.trim()) &&
         Number(line.quantity) >= 1 &&
@@ -119,6 +120,12 @@ export function CustomSupplyRequestModal({
             setDeliveryDeadline('');
         }
     }, [isOpen]);
+
+    /** Evita `expandedLineIndex` fora do intervalo (ex.: após remoções ou atualizações de estado). */
+    useEffect(() => {
+        if (lines.length === 0) return;
+        setExpandedLineIndex((i) => Math.min(i, lines.length - 1));
+    }, [lines.length]);
 
     const fetchUnits = async () => {
         try {
