@@ -136,8 +136,12 @@ export const submitRequest = async (cart: { supply: Supply; quantity: number }[]
     return response.json();
 };
 
-export const handleCustomRequest = async (data: any, token: string) => {
-    const response = await fetch('/api/supply-requests/custom', {
+/** Payload com `items` para POST /api/supply-requests/custom/many */
+export const handleCustomRequest = async (
+    data: { items: Array<Record<string, unknown>> },
+    token: string
+) => {
+    const response = await fetch('/api/supply-requests/custom/many', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -147,7 +151,8 @@ export const handleCustomRequest = async (data: any, token: string) => {
     });
 
     if (!response.ok) {
-        throw new Error('Erro ao criar requisição customizada');
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { message?: string }).message || 'Erro ao criar requisições customizadas');
     }
 
     return response.json();

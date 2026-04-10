@@ -46,6 +46,7 @@ export function CatalogTab({ supplies, onAddToCart, onOpenCustomRequestModal }: 
       {onOpenCustomRequestModal && isMobile && (
         <Flex mb={6} justify="center">
           <Button
+            data-testid="custom-request-open-button"
             colorScheme="blue"
             leftIcon={<Plus size={18} />}
             onClick={onOpenCustomRequestModal}
