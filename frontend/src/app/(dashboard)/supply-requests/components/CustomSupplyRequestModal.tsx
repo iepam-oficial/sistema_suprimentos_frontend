@@ -83,6 +83,15 @@ function createEmptyLine(): LineState {
     };
 }
 
+/** Nome, quantidade válida e unidade — campos obrigatórios do item. */
+function isLineComplete(line: LineState): boolean {
+    return (
+        Boolean(line.item_name?.trim()) &&
+        Number(line.quantity) >= 1 &&
+        Boolean(line.unit_id)
+    );
+}
+
 export function CustomSupplyRequestModal({
     isOpen,
     onClose,
@@ -92,6 +101,8 @@ export function CustomSupplyRequestModal({
     setLocaleId,
 }: CustomSupplyRequestModalProps) {
     const [lines, setLines] = useState<LineState[]>([createEmptyLine()]);
+    /** Índice da linha em edição (formulário completo); as restantes aparecem colapsadas. */
+    const [expandedLineIndex, setExpandedLineIndex] = useState(0);
     const [deliveryDeadline, setDeliveryDeadline] = useState('');
     const [units, setUnits] = useState<Unit[]>([]);
     const [loading, setLoading] = useState(false);
@@ -104,6 +115,7 @@ export function CustomSupplyRequestModal({
     useEffect(() => {
         if (isOpen) {
             setLines([createEmptyLine()]);
+            setExpandedLineIndex(0);
             setDeliveryDeadline('');
         }
     }, [isOpen]);
@@ -127,11 +139,38 @@ export function CustomSupplyRequestModal({
         setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
     };
 
-    const addLine = () => setLines((prev) => [...prev, createEmptyLine()]);
+    const tryAddLine = () => {
+        const current = lines[expandedLineIndex];
+        if (!current || !isLineComplete(current)) {
+            toast({
+                title: 'Item incompleto',
+                description: 'Preencha nome, quantidade e unidade de medida antes de adicionar outro item.',
+                status: 'warning',
+                duration: 3500,
+                isClosable: true,
+            });
+            return;
+        }
+        const newExpandedIndex = lines.length;
+        setLines((prev) => [...prev, createEmptyLine()]);
+        setExpandedLineIndex(newExpandedIndex);
+    };
 
     const removeLine = (id: string) => {
-        setLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.id !== id)));
+        setLines((prev) => {
+            if (prev.length <= 1) return prev;
+            const idx = prev.findIndex((l) => l.id === id);
+            const next = prev.filter((l) => l.id !== id);
+            setExpandedLineIndex((e) => {
+                if (idx < e) return e - 1;
+                if (idx === e) return Math.min(e, next.length - 1);
+                return e;
+            });
+            return next;
+        });
     };
+
+    const unitLabel = (unitId: string) => units.find((u) => u.id === unitId)?.name ?? '—';
 
     const handleSubmit = async () => {
         if (!deliveryDeadline || !localeId) {
@@ -287,8 +326,56 @@ export function CustomSupplyRequestModal({
                             </Badge>
                         </HStack>
 
-                        {/* Cards de item */}
-                        {lines.map((line, index) => (
+                        {/* Lista: itens anteriores colapsados; um formulário completo por vez */}
+                        {lines.map((line, index) =>
+                            index !== expandedLineIndex ? (
+                                <Box
+                                    key={line.id}
+                                    data-testid={`custom-request-item-summary-${index}`}
+                                    border="1px solid"
+                                    borderColor="gray.200"
+                                    borderRadius="lg"
+                                    px={4}
+                                    py={3}
+                                    bg="gray.50"
+                                    _dark={{ borderColor: 'gray.600', bg: 'gray.700' }}
+                                >
+                                    <HStack justify="space-between" align="center" spacing={3}>
+                                        <HStack
+                                            flex={1}
+                                            spacing={3}
+                                            minW={0}
+                                            cursor="pointer"
+                                            onClick={() => setExpandedLineIndex(index)}
+                                            role="group"
+                                            _hover={{ opacity: 0.9 }}
+                                        >
+                                            <Badge colorScheme="blue" borderRadius="md" fontSize="xs">
+                                                Item {index + 1}
+                                            </Badge>
+                                            <Text fontSize="sm" fontWeight="medium" noOfLines={1} flex={1}>
+                                                {line.item_name?.trim() || 'Sem nome'}
+                                            </Text>
+                                            <Text fontSize="xs" color="gray.600" whiteSpace="nowrap">
+                                                {line.quantity} {unitLabel(line.unit_id)}
+                                            </Text>
+                                        </HStack>
+                                        {lines.length > 1 && (
+                                            <IconButton
+                                                aria-label="Remover item"
+                                                icon={<DeleteIcon />}
+                                                size="xs"
+                                                variant="ghost"
+                                                colorScheme="red"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeLine(line.id);
+                                                }}
+                                            />
+                                        )}
+                                    </HStack>
+                                </Box>
+                            ) : (
                             <Box
                                 key={line.id}
                                 border="1px solid"
@@ -461,15 +548,17 @@ export function CustomSupplyRequestModal({
                                     </FormControl>
                                 </VStack>
                             </Box>
-                        ))}
+                            )
+                        )}
 
-                        {/* Botão adicionar item */}
+                        {/* Botão adicionar item — só com o item em edição válido */}
                         <Button
                             data-testid="custom-request-add-line"
                             size="sm"
                             variant="outline"
                             leftIcon={<AddIcon boxSize={2.5} />}
-                            onClick={addLine}
+                            onClick={tryAddLine}
+                            isDisabled={!isLineComplete(lines[expandedLineIndex])}
                             alignSelf="flex-start"
                             borderStyle="dashed"
                             colorScheme="blue"

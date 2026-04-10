@@ -506,9 +506,25 @@ async function selectNativeOptionByIndex(driver: WebDriver, selectEl: WebElement
     });
 
     describe('4. Modal — segunda linha (Adicionar item)', () => {
-        it('deve exibir a segunda linha após clicar em Adicionar item', async () => {
+        it('deve exibir a segunda linha só após completar o item atual; o anterior colapsa', async () => {
+            batchId = Date.now();
+            const deadlineInput = await driver.findElement(
+                By.css('[data-testid="custom-request-delivery-deadline"]')
+            );
+            await setReactControlledDateInput(driver, deadlineInput, tomorrowLocalISODate());
+
+            const destEl = await driver.findElement(By.css('[data-testid="custom-request-destination"]'));
+            await selectNativeOptionByIndex(driver, destEl, 1);
+
+            const unit0 = await driver.findElement(By.css('[data-testid="custom-request-item-unit-0"]'));
+            await selectNativeOptionByIndex(driver, unit0, 1);
+            const name0 = await driver.findElement(By.css('[data-testid="custom-request-item-name-0"]'));
+            await name0.clear();
+            await name0.sendKeys(`E2E lote A ${batchId}`);
+
             const addBtn = await driver.findElement(By.css('[data-testid="custom-request-add-line"]'));
-            await driver.wait(until.elementIsVisible(addBtn), 5000);
+            await driver.wait(until.elementIsEnabled(addBtn), 15000);
+            expect(await addBtn.isEnabled()).toBe(true);
             await addBtn.click();
 
             await driver.wait(
@@ -517,6 +533,11 @@ async function selectNativeOptionByIndex(driver: WebDriver, selectEl: WebElement
             );
             const name1 = await driver.findElement(By.css('[data-testid="custom-request-item-name-1"]'));
             expect(await name1.isDisplayed()).toBe(true);
+
+            const summary0 = await driver.findElement(
+                By.css('[data-testid="custom-request-item-summary-0"]')
+            );
+            expect(await summary0.getText()).toContain(`E2E lote A ${batchId}`);
         });
 
         it('deve carregar opções de unidade na segunda linha', async () => {
@@ -534,29 +555,13 @@ async function selectNativeOptionByIndex(driver: WebDriver, selectEl: WebElement
     });
 
     describe('5. Modal — preenchimento de duas linhas e envio', () => {
-        it('deve preencher data, destino e dois itens distintos', async () => {
-            batchId = Date.now();
-            const deadlineInput = await driver.findElement(
-                By.css('[data-testid="custom-request-delivery-deadline"]')
-            );
-            await setReactControlledDateInput(driver, deadlineInput, tomorrowLocalISODate());
-
-            const destEl = await driver.findElement(By.css('[data-testid="custom-request-destination"]'));
-            await selectNativeOptionByIndex(driver, destEl, 1);
-
-            const unit0 = await driver.findElement(By.css('[data-testid="custom-request-item-unit-0"]'));
-            await selectNativeOptionByIndex(driver, unit0, 1);
-            const name0 = await driver.findElement(By.css('[data-testid="custom-request-item-name-0"]'));
-            await name0.clear();
-            await name0.sendKeys(`E2E lote A ${batchId}`);
-
+        it('deve preencher o segundo item (o primeiro já está na lista colapsada)', async () => {
             const unit1 = await driver.findElement(By.css('[data-testid="custom-request-item-unit-1"]'));
             await selectNativeOptionByIndex(driver, unit1, 1);
             const name1 = await driver.findElement(By.css('[data-testid="custom-request-item-name-1"]'));
             await name1.clear();
             await name1.sendKeys(`E2E lote B ${batchId}`);
 
-            expect(await name0.getAttribute('value')).toContain('E2E lote A');
             expect(await name1.getAttribute('value')).toContain('E2E lote B');
         });
 
