@@ -8,7 +8,6 @@ import {
   VStack,
   IconButton,
   HStack,
-  Text,
   useBreakpointValue,
   Button,
   Link,
@@ -23,8 +22,9 @@ import {
   InputGroup,
   InputLeftElement,
 } from '@chakra-ui/react'
-import { Menu as MenuIcon, X, Home, Printer, Wrench, Box as BoxIcon, Settings, LogOut, Bell, Calendar, BarChart, Package, ShoppingCart, ArrowLeft, Timer, FileText, ChevronDown, ChevronRight, SearchIcon, ListTodo } from 'lucide-react'
+import { Menu as MenuIcon, X, Home, Printer, Wrench, Box as BoxIcon, Settings, LogOut, Bell, Calendar, BarChart, Package, ShoppingCart, ArrowLeft, Timer, FileText, ChevronDown, ChevronRight, SearchIcon, Headphones } from 'lucide-react'
 import NextLink from 'next/link'
+import NextImage from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { FiHome, FiMessageSquare, FiFileText, FiShoppingCart, FiPackage, FiUsers } from 'react-icons/fi'
@@ -55,6 +55,13 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
 
   const { logout: handleLogout } = useLogout()
 
+  const isMenuItemActive = (href: string) => {
+    if (href === '/maintenance-schedules') {
+      return pathname.startsWith('/maintenance-schedules')
+    }
+    return pathname === href
+  }
+
   const handleNavigation = (href: string) => {
     router.push(href)
     if (isMobile) {
@@ -70,10 +77,12 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
 
   const menuItems = [
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role) ? [{ icon: Home, label: 'Dashboard', href: '/dashboard' }] : []),
+    ...(user && ['EMPLOYEE', 'ORGANIZER', 'SUPPORT', 'ADMIN', 'MANAGER', 'TECHNICIAN'].includes(user.role)
+      ? [{ icon: Headphones, label: 'Chamados', href: '/support-tickets' }]
+      : []),
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role) ? [{ icon: Wrench, label: 'OS Externas', href: '/orders' }] : []),
     ...(user && user.role === 'TECHNICIAN' ? [{ icon: Wrench, label: 'OS Internas', href: '/internal-service-orders' }] : []),
-    ...(user && user.role === 'TECHNICIAN' ? [{ icon: Settings, label: 'Agendamentos', href: '/maintenance-schedules' }] : []),
-    ...(user && user.role === 'TECHNICIAN' ? [{ icon: ListTodo, label: 'Tarefas', href: '/tasks' }] : []),
+    ...(user && user.role === 'TECHNICIAN' ? [{ icon: Settings, label: 'Manutenção', href: '/maintenance-schedules' }] : []),
     ...(user && user.role === 'MANAGER' ? [{ icon: Package, label: 'Inventário', href: '/inventory' }] : []),
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role) ? [{ icon: Package, label: 'Suprimentos', href: '/supplies' }] : []),
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role) ? [{ icon: Package, label: 'Requisições', href: '/supply-requests/admin' }] : []),
@@ -82,7 +91,7 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role) ? [{ icon: Timer, label: 'Gastos Extras', href: '/extra-expenses' }] : []),
     ...(user && ['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role) ? [{ icon: Bell, label: 'Alertas', href: '/alerts' }] : []),
     { icon: Calendar, label: 'Eventos', href: '/events' },
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role) ? [{ icon: BarChart, label: 'Estatísticas', href: '/statistics' }] : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role) ? [{ icon: BarChart, label: 'Relatórios', href: '/reports' }] : []),
   ]
 
   const settingsItems = [
@@ -109,8 +118,22 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
       borderColor={borderColor}
       p={4}
     >
-      <HStack justify="space-between" mb={4}>
-        <Text fontSize="xl" fontWeight="bold">IEPAM suprimentos</Text>
+      <HStack justify="space-between" mb={4} align="center" spacing={3}>
+        <Box
+          position="relative"
+          h="88px"
+          flex={1}
+          minW={0}
+        >
+          <NextImage
+            src="/logo%20IEPAM%20.png"
+            alt="IEPAM"
+            fill
+            sizes="218px"
+            style={{ objectFit: 'contain', objectPosition: 'left center' }}
+            priority
+          />
+        </Box>
         {isMobile && (
           <IconButton
             aria-label="Fechar menu"
@@ -130,10 +153,10 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
             justifyContent="flex-start"
             leftIcon={<item.icon size={20} />}
             size={isMobile ? "sm" : "md"}
-            bg={pathname === item.href ? activeBgColor : 'transparent'}
-            color={pathname === item.href ? activeColor : 'inherit'}
+            bg={isMenuItemActive(item.href) ? activeBgColor : 'transparent'}
+            color={isMenuItemActive(item.href) ? activeColor : 'inherit'}
             _hover={{
-              bg: pathname === item.href ? activeBgColor : 'gray.100',
+              bg: isMenuItemActive(item.href) ? activeBgColor : 'gray.100',
             }}
             onClick={() => handleNavigation(item.href)}
           >

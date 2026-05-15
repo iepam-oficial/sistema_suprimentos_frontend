@@ -20,6 +20,6 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/inventory/:path*',
-    '/inventory/statistics/:path*',
+    '/reports/:path*',
   ],
 }; 

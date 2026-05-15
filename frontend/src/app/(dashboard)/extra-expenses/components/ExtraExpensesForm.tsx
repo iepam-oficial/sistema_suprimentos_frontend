@@ -209,7 +209,7 @@ export default function ExtraExpensesForm({ isOpen, onClose, editingExpense }: E
           console.error('Erro no upload da imagem:', uploadError);
           toast({
             title: 'Erro no Upload',
-            description: uploadError.message || 'Erro ao enviar imagem. Verifique se a chave da API está configurada.',
+            description: uploadError.message || 'Erro ao enviar imagem.',
             status: 'error',
             duration: 5000,
             isClosable: true,

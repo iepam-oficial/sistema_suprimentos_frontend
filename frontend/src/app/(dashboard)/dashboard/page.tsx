@@ -5,7 +5,6 @@ import {
   Box,
   SimpleGrid,
   Stat,
-  StatLabel,
   StatNumber,
   StatHelpText,
   StatArrow,
@@ -16,16 +15,11 @@ import {
   Text,
   Badge,
   useBreakpointValue,
-  Icon,
-  Flex,
   useColorMode,
   Spinner,
-  Container,
   useColorModeValue,
   Card,
   CardBody,
-  CardHeader,
-  Button,
 } from '@chakra-ui/react'
 import { useRouter } from 'next/navigation'
 import {
@@ -36,15 +30,9 @@ import {
   Users,
   FileText,
   ShoppingCart,
-  Activity,
-  BarChart3,
   Clock,
-  CheckCircle,
-  AlertCircle,
-  Settings,
-  Plus
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatBRL } from '@/utils/money'
 
 interface DashboardStats {
@@ -90,7 +78,7 @@ export default function DashboardPage() {
   const toast = useToast()
   const { colorMode } = useColorMode()
 
-  const isMobile = useBreakpointValue({ base: true, md: false })
+  const chartHeight = useBreakpointValue({ base: '200px', md: '240px', lg: '260px' }) ?? '240px'
 
   // Cores responsivas
   const bgGradient = useColorModeValue(
@@ -105,8 +93,6 @@ export default function DashboardPage() {
   const successColor = useColorModeValue('green.500', 'green.300');
   const warningColor = useColorModeValue('yellow.500', 'yellow.300');
   const dangerColor = useColorModeValue('red.500', 'red.300');
-  const inputBg = useColorModeValue('white', 'gray.700');
-  const inputBorder = useColorModeValue('gray.300', 'gray.600');
 
   useEffect(() => {
     const token = localStorage.getItem('@ti-assistant:token')
@@ -176,64 +162,52 @@ export default function DashboardPage() {
 
   return (
     <>
-      <VStack spacing={6} align="stretch" bgGradient={bgGradient} minH="100vh" py={ isMobile ? "7vh" : 4}>
-        {/* Header */}
-        <Card bg={cardBg} border="1px solid" borderColor={cardBorder} shadow="xl">
-          <CardBody p={6}>
-            <Flex justify="space-between" align="center" flexWrap="wrap" gap={4}>
-              <Box>
-                <HStack spacing={3} mb={2}>
-                  <Box p={3} borderRadius="full" bgGradient="linear(to-r, blue.500, purple.500)" color="white">
-                    <BarChart3 size={24} />
-                  </Box>
-                  <VStack align="start" spacing={1}>
-                    <Heading size="lg" color={textColor} fontWeight="bold">
-                      Dashboard
-                    </Heading>
-                    <Text color={textSecondary} fontSize="md">
-                      Visão geral do sistema de gestão
-                    </Text>
-                  </VStack>
-                </HStack>
-              </Box>
-              
-            </Flex>
-          </CardBody>
-        </Card>
+      <VStack
+        spacing={{ base: 3, md: 4 }}
+        align="stretch"
+        bgGradient={bgGradient}
+        minH="0"
+        py={{ base: 2, md: 3 }}
+        px={{ base: 3, md: 4, lg: 5 }}
+      >
+        {/* Cabeçalho compacto */}
+        <Box pb={2} borderBottomWidth="1px" borderColor={cardBorder}>
+          <Heading size="md" color={textColor} fontWeight="bold" lineHeight="shorter">
+            Dashboard
+          </Heading>
+          <Text color={textSecondary} fontSize="sm" noOfLines={1}>
+            Visão geral do sistema de gestão
+          </Text>
+        </Box>
 
         {/* Grupo 1: Operações */}
         <Box>
-          <Heading size="md" mb={4} color={textColor} fontWeight="bold">
-            <HStack spacing={2}>
-              <Box p={2} borderRadius="full" bgGradient="linear(to-r, orange.500, red.500)" color="white">
-                <Activity size={20} />
-              </Box>
-              Operações
-            </HStack>
+          <Heading size="sm" mb={2} color={textColor} fontWeight="bold" letterSpacing="tight">
+            Operações
           </Heading>
-          <SimpleGrid columns={{ base: 1, sm: 2, md: 2, lg: 2 }} spacing={4}>
+          <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
             <Card
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
               onClick={() => router.push('/orders')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={3} borderRadius="full" bgGradient="linear(to-r, orange.500, red.500)" color="white">
-                    <Wrench size={24} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, orange.500, red.500)" color="white">
+                    <Wrench size={20} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Ordens de Serviço</Text>
-                    <Text fontSize="sm" color={textSecondary}>Gestão de serviços</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Ordens de Serviço</Text>
+                    <Text fontSize="xs" color={textSecondary}>Gestão de serviços</Text>
                   </VStack>
                 </HStack>
                 <Stat>
-                  <StatNumber fontSize="3xl" fontWeight="bold" color={textColor}>{stats.totalServiceOrders}</StatNumber>
+                  <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>{stats.totalServiceOrders}</StatNumber>
                   <StatHelpText fontSize="sm" color={textSecondary}>
                     <StatArrow type={stats.openServiceOrders > 0 ? 'increase' : 'decrease'} />
                     {stats.openServiceOrders} em aberto
@@ -249,24 +223,24 @@ export default function DashboardPage() {
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
               onClick={() => router.push('/inventory')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={3} borderRadius="full" bgGradient="linear(to-r, purple.500, pink.500)" color="white">
-                    <BoxIcon size={24} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, purple.500, pink.500)" color="white">
+                    <BoxIcon size={20} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Inventário</Text>
-                    <Text fontSize="sm" color={textSecondary}>Gestão de equipamentos</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Inventário</Text>
+                    <Text fontSize="xs" color={textSecondary}>Gestão de equipamentos</Text>
                   </VStack>
                 </HStack>
                 <Stat>
-                  <StatNumber fontSize="3xl" fontWeight="bold" color={textColor}>{stats.totalInventory}</StatNumber>
+                  <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>{stats.totalInventory}</StatNumber>
                   <StatHelpText fontSize="sm" color={textSecondary}>
                     <StatArrow type="increase" />
                     Itens cadastrados
@@ -282,37 +256,32 @@ export default function DashboardPage() {
 
         {/* Grupo 2: Suprimentos */}
         <Box>
-          <Heading size="md" mb={4} color={textColor} fontWeight="bold">
-            <HStack spacing={2}>
-              <Box p={2} borderRadius="full" bgGradient="linear(to-r, blue.500, teal.500)" color="white">
-                <ShoppingCart size={20} />
-              </Box>
-              Suprimentos
-            </HStack>
+          <Heading size="sm" mb={2} color={textColor} fontWeight="bold" letterSpacing="tight">
+            Suprimentos
           </Heading>
-          <SimpleGrid columns={{ base: 1, sm: 2, md: 2, lg: 3 }} spacing={4}>
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={3}>
             <Card
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
               onClick={() => router.push('/suppliers')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={3} borderRadius="full" bgGradient="linear(to-r, blue.500, cyan.500)" color="white">
-                    <Users size={24} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, blue.500, cyan.500)" color="white">
+                    <Users size={20} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Fornecedores</Text>
-                    <Text fontSize="sm" color={textSecondary}>Parceiros comerciais</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Fornecedores</Text>
+                    <Text fontSize="xs" color={textSecondary}>Parceiros comerciais</Text>
                   </VStack>
                 </HStack>
                 <Stat>
-                  <StatNumber fontSize="3xl" fontWeight="bold" color={textColor}>{stats.totalSuppliers}</StatNumber>
+                  <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>{stats.totalSuppliers}</StatNumber>
                   <StatHelpText fontSize="sm" color={textSecondary}>
                     <StatArrow type="increase" />
                     Total de fornecedores
@@ -325,24 +294,24 @@ export default function DashboardPage() {
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
               onClick={() => router.push('/quotes')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={3} borderRadius="full" bgGradient="linear(to-r, purple.500, violet.500)" color="white">
-                    <FileText size={24} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, purple.500, violet.500)" color="white">
+                    <FileText size={20} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Cotações</Text>
-                    <Text fontSize="sm" color={textSecondary}>Propostas comerciais</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Cotações</Text>
+                    <Text fontSize="xs" color={textSecondary}>Propostas comerciais</Text>
                   </VStack>
                 </HStack>
                 <Stat>
-                  <StatNumber fontSize="3xl" fontWeight="bold" color={textColor}>{stats.totalQuotes}</StatNumber>
+                  <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>{stats.totalQuotes}</StatNumber>
                   <StatHelpText fontSize="sm" color={textSecondary}>
                     <StatArrow type={stats.pendingQuotes > 0 ? 'increase' : 'decrease'} />
                     {stats.pendingQuotes} pendentes
@@ -355,24 +324,24 @@ export default function DashboardPage() {
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
               onClick={() => router.push('/supply-requests/admin')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={3} borderRadius="full" bgGradient="linear(to-r, teal.500, green.500)" color="white">
-                    <ShoppingCart size={24} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, teal.500, green.500)" color="white">
+                    <ShoppingCart size={20} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Requisições</Text>
-                    <Text fontSize="sm" color={textSecondary}>Pedidos de suprimentos</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Requisições</Text>
+                    <Text fontSize="xs" color={textSecondary}>Pedidos de suprimentos</Text>
                   </VStack>
                 </HStack>
                 <Stat>
-                  <StatNumber fontSize="3xl" fontWeight="bold" color={textColor}>{stats.totalSupplyRequests}</StatNumber>
+                  <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>{stats.totalSupplyRequests}</StatNumber>
                   <StatHelpText fontSize="sm" color={textSecondary}>
                     <StatArrow type={stats.pendingSupplyRequests > 0 ? 'increase' : 'decrease'} />
                     {stats.pendingSupplyRequests} pendentes
@@ -385,37 +354,32 @@ export default function DashboardPage() {
 
         {/* Grupo 3: Monitoramento */}
         <Box>
-          <Heading size="md" mb={4} color={textColor} fontWeight="bold">
-            <HStack spacing={2}>
-              <Box p={2} borderRadius="full" bgGradient="linear(to-r, green.500, emerald.500)" color="white">
-                <TrendingUp size={20} />
-              </Box>
-              Monitoramento
-            </HStack>
+          <Heading size="sm" mb={2} color={textColor} fontWeight="bold" letterSpacing="tight">
+            Monitoramento
           </Heading>
-          <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
+          <SimpleGrid columns={{ base: 1, lg: 2, '2xl': 3 }} spacing={3}>
             {/* Gráfico de Linha - Tendências de Consumo */}
             <Card
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
-              onClick={() => router.push('/statistics')}
+              onClick={() => router.push('/reports')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, blue.500, purple.500)" color="white">
-                    <TrendingUp size={20} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={1.5} borderRadius="full" bgGradient="linear(to-r, blue.500, purple.500)" color="white">
+                    <TrendingUp size={18} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Tendências de Consumo</Text>
-                    <Text fontSize="sm" color={textSecondary}>Análise de dados</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Tendências de Consumo</Text>
+                    <Text fontSize="xs" color={textSecondary}>Análise de dados</Text>
                   </VStack>
                 </HStack>
-                <Box height="280px">
+                <Box h={chartHeight} minH={chartHeight}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={stats.consumptionTrends}
@@ -473,23 +437,23 @@ export default function DashboardPage() {
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
               onClick={() => router.push('/supply-requests/admin')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, teal.500, cyan.500)" color="white">
-                    <Clock size={20} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={1.5} borderRadius="full" bgGradient="linear(to-r, teal.500, cyan.500)" color="white">
+                    <Clock size={18} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Tempo Médio de Entrega</Text>
-                    <Text fontSize="sm" color={textSecondary}>Dias (requisições entregues)</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Tempo Médio de Entrega</Text>
+                    <Text fontSize="xs" color={textSecondary}>Dias (requisições entregues)</Text>
                   </VStack>
                 </HStack>
-                <Box height="280px">
+                <Box h={chartHeight} minH={chartHeight}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={stats.averageDeliveryTimeTrends ?? []}
@@ -548,23 +512,32 @@ export default function DashboardPage() {
               bg={cardBg}
               border="1px solid"
               borderColor={cardBorder}
-              shadow="lg"
-              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-              transition="all 0.3s"
+              shadow="md"
+              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+              transition="all 0.2s"
               cursor="pointer"
               onClick={() => router.push('/alerts')}
             >
-              <CardBody p={5}>
-                <HStack spacing={3} mb={3}>
-                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, red.500, orange.500)" color="white">
-                    <AlertTriangle size={20} />
+              <CardBody p={4}>
+                <HStack spacing={2} mb={2}>
+                  <Box p={1.5} borderRadius="full" bgGradient="linear(to-r, red.500, orange.500)" color="white">
+                    <AlertTriangle size={18} />
                   </Box>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="bold" color={textColor}>Alertas Recentes</Text>
-                    <Text fontSize="sm" color={textSecondary}>Notificações importantes</Text>
+                  <VStack align="start" spacing={0}>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Alertas Recentes</Text>
+                    <Text fontSize="xs" color={textSecondary}>Notificações importantes</Text>
                   </VStack>
                 </HStack>
-                <VStack align="stretch" spacing={2}>
+                <VStack
+                  align="stretch"
+                  spacing={2}
+                  maxH={{ base: '220px', md: 'min(40vh, 280px)' }}
+                  overflowY="auto"
+                  pr={1}
+                  sx={{
+                    scrollbarGutter: 'stable',
+                  }}
+                >
                   {recentAlerts.map((alert) => (
                     <Box
                       key={alert.id}
@@ -607,36 +580,38 @@ export default function DashboardPage() {
         </Box>
 
         {/* Grupo 4: Atividades Recentes */}
-        <Box>
-          <Heading size="md" mb={4} color={textColor} fontWeight="bold">
-            <HStack spacing={2}>
-              <Box p={2} borderRadius="full" bgGradient="linear(to-r, yellow.500, orange.500)" color="white">
-                <Clock size={20} />
-              </Box>
-              Atividades Recentes
-            </HStack>
+        <Box pb={2}>
+          <Heading size="sm" mb={2} color={textColor} fontWeight="bold" letterSpacing="tight">
+            Atividades Recentes
           </Heading>
           <Card
             bg={cardBg}
             border="1px solid"
             borderColor={cardBorder}
-            shadow="lg"
-            _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-            transition="all 0.3s"
+            shadow="md"
+            _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
+            transition="all 0.2s"
             cursor="pointer"
             onClick={() => router.push('/orders')}
           >
-            <CardBody p={5}>
-              <HStack spacing={3} mb={3}>
-                <Box p={2} borderRadius="full" bgGradient="linear(to-r, blue.500, cyan.500)" color="white">
-                  <FileText size={20} />
+            <CardBody p={4}>
+              <HStack spacing={2} mb={2}>
+                <Box p={1.5} borderRadius="full" bgGradient="linear(to-r, blue.500, cyan.500)" color="white">
+                  <FileText size={18} />
                 </Box>
-                <VStack align="start" spacing={1}>
-                  <Text fontSize="lg" fontWeight="bold" color={textColor}>Ordens de Serviço Recentes</Text>
-                  <Text fontSize="sm" color={textSecondary}>Últimas atividades</Text>
+                <VStack align="start" spacing={0}>
+                  <Text fontSize="md" fontWeight="bold" color={textColor}>Ordens de Serviço Recentes</Text>
+                  <Text fontSize="xs" color={textSecondary}>Últimas atividades</Text>
                 </VStack>
               </HStack>
-              <VStack align="stretch" spacing={2}>
+              <VStack
+                align="stretch"
+                spacing={2}
+                maxH={{ base: '240px', md: 'min(45vh, 360px)' }}
+                overflowY="auto"
+                pr={1}
+                sx={{ scrollbarGutter: 'stable' }}
+              >
                 {recentServiceOrders.map((order) => (
                   <Box
                     key={order.id}
