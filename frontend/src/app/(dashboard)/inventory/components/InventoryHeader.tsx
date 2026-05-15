@@ -21,7 +21,7 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({ onOpen, onExpo
       {isMobile ? (
         <VStack spacing={2} w="100%">
           <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onOpen} size="sm" w="100%">Novo Item</Button>
-          <Button leftIcon={<FiBarChart2 />} colorScheme="purple" as={Link} href="/inventory/statistics" size="sm" w="100%">Estatísticas</Button>
+          <Button leftIcon={<FiBarChart2 />} colorScheme="purple" as={Link} href="/reports?report=inventory-overview" size="sm" w="100%">Relatórios</Button>
           <Button colorScheme="green" onClick={onExportPDF} size="sm" w="100%">Exportar PDF</Button>
           <Button colorScheme="orange" onClick={onDepreciateAll} size="sm" w="100%">Atualizar Depreciação</Button>
         </VStack>
@@ -37,7 +37,7 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({ onOpen, onExpo
               <MenuItem onClick={() => setGroupBy('subcategory')}>Subcategoria</MenuItem>
             </MenuList>
           </Menu>
-          <Button leftIcon={<FiBarChart2 />} colorScheme="purple" as={Link} href="/inventory/statistics" size="md">Estatísticas</Button>
+          <Button leftIcon={<FiBarChart2 />} colorScheme="purple" as={Link} href="/reports?report=inventory-overview" size="md">Relatórios</Button>
           <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onOpen} size="md">Novo Item</Button>
           <Button colorScheme="green" onClick={onExportPDF} size="md">Exportar PDF</Button>
           <Button colorScheme="orange" onClick={onDepreciateAll} size="md">Atualizar Depreciação</Button>

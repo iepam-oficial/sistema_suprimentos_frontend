@@ -1,6 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: 'standalone',
+    async redirects() {
+        return [
+            {
+                source: '/statistics',
+                destination: '/reports',
+                permanent: true,
+            },
+            {
+                source: '/statistics/:path*',
+                destination: '/reports',
+                permanent: true,
+            },
+            {
+                source: '/inventory/statistics',
+                destination: '/reports?report=inventory-overview',
+                permanent: true,
+            },
+        ];
+    },
     logging: {
         fetches: {
             fullUrl: true

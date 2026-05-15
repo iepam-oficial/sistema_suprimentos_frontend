@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   title: "IEPAM suprimentos",
   description: "Sistema de gerenciamento de IEPAM",
   icons: {
-    icon: "/iepam-favicon.ico",
-    shortcut: "/iepam-favicon.ico",
-    apple: "/iepam-favicon.ico"
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
 };
 
