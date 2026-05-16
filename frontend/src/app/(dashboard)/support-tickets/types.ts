@@ -153,3 +153,27 @@ export function ticketTypeLabel(kind: string): string {
 export function formatTicketDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { timeZone: DISPLAY_TIMEZONE });
 }
+
+export function shortTicketId(id: string): string {
+  return id.slice(0, 8).toUpperCase();
+}
+
+export function ticketMatchesSearch(ticket: SupportTicket, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const haystack = [
+    ticket.subject,
+    ticket.description,
+    ticket.id,
+    shortTicketId(ticket.id),
+    ticket.requester?.name,
+    ticket.requester?.email,
+    ticket.assigned_to?.name,
+    ticket.location?.name,
+    ticket.sector?.name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(q);
+}

@@ -1,15 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Box, Button, Spinner, Flex, Text, useColorModeValue } from '@chakra-ui/react';
-import { ArrowLeft } from 'lucide-react';
 import {
-  SupportTicket,
-  canViewSupportTickets,
-  SupportTicketKind,
-  TicketStatus,
-} from '../types';
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  Spinner,
+  Flex,
+  Text,
+} from '@chakra-ui/react';
+import { SupportTicket, SupportTicketKind, TicketStatus, canViewSupportTickets } from './types';
 import {
   SupportTicketReadOnlySummary,
   SupportTicketResolvedAlert,
@@ -20,20 +23,30 @@ import {
   SupportTicketDeleteButton,
   useSupportTicketResources,
   useSupportTicketMutations,
-} from '../SupportTicketDetailSections';
+} from './SupportTicketDetailSections';
 
-export default function SupportTicketDetailPage() {
-  const params = useParams();
-  const id = params?.id as string;
-  const router = useRouter();
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+export interface SupportTicketDeskModalProps {
+  ticketId: string | null;
+  isOpen: boolean;
+  onClose: () => void;
+  userRole: string | null;
+  userId: string | null;
+  onTicketUpdated: (ticket: SupportTicket) => void;
+  onTicketDeleted?: (ticketId: string) => void;
+}
 
+export function SupportTicketDeskModal({
+  ticketId,
+  isOpen,
+  onClose,
+  userRole,
+  userId,
+  onTicketUpdated,
+  onTicketDeleted,
+}: SupportTicketDeskModalProps) {
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
 
   const [assigneeId, setAssigneeId] = useState('');
   const [subject, setSubject] = useState('');
@@ -51,7 +64,7 @@ export default function SupportTicketDetailPage() {
   const [deleting, setDeleting] = useState(false);
 
   const { locations, sectors, technicians, loadSectorsForLocation } = useSupportTicketResources();
-  const { putTicket, deleteTicket, showError, showSuccess } = useSupportTicketMutations(id);
+  const { putTicket, deleteTicket, showError, showSuccess } = useSupportTicketMutations(ticketId ?? undefined);
 
   const syncForm = useCallback((data: SupportTicket) => {
     setSubject(data.subject);
@@ -65,38 +78,20 @@ export default function SupportTicketDetailPage() {
   }, []);
 
   const loadTicket = useCallback(async () => {
+    if (!ticketId) return;
     const token = localStorage.getItem('@ti-assistant:token');
     const userRaw = localStorage.getItem('@ti-assistant:user');
-    if (!token || !userRaw) {
-      router.push('/');
-      return;
-    }
-    const user = JSON.parse(userRaw) as { id?: string; role?: string };
-    const role = user.role ?? '';
-    const uid = user.id ?? '';
-    setUserId(uid);
-    setUserRole(role);
-    if (!canViewSupportTickets(role)) {
-      router.push('/unauthorized');
-      return;
-    }
+    if (!token || !userRaw) return;
+    const user = JSON.parse(userRaw) as { role?: string };
+    if (!canViewSupportTickets(user.role ?? '')) return;
 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/support-tickets/${id}`, {
+      const res = await fetch(`/api/support-tickets/${ticketId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
       if (!res.ok) {
-        if (res.status === 404) {
-          setError('Chamado não encontrado ou sem permissão para visualizar.');
-          setTicket(null);
-          return;
-        }
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || 'Erro ao carregar chamado');
       }
@@ -105,14 +100,19 @@ export default function SupportTicketDetailPage() {
       syncForm(data);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar');
+      setTicket(null);
     } finally {
       setLoading(false);
     }
-  }, [id, router, syncForm]);
+  }, [ticketId, syncForm]);
 
   useEffect(() => {
-    if (id) loadTicket();
-  }, [id, loadTicket]);
+    if (isOpen && ticketId) loadTicket();
+    if (!isOpen) {
+      setTicket(null);
+      setError(null);
+    }
+  }, [isOpen, ticketId, loadTicket]);
 
   useEffect(() => {
     if (locationId) loadSectorsForLocation(locationId);
@@ -122,16 +122,16 @@ export default function SupportTicketDetailPage() {
   const isRequester = ticket && userId && ticket.requester_id === userId;
   const isAssigneeTech =
     ticket && userId && ticket.assigned_to_id === userId && userRole === 'TECHNICIAN';
-
   const isResolved = !!ticket && ticket.status === 'RESOLVED';
-  const showRequesterForm = ticket && (isRequester || isPrivileged) && !isResolved;
-  const showTechForm = ticket && isAssigneeTech && !isResolved;
   const showAssign = ticket && isPrivileged && !isResolved;
+  const showEdit = ticket && (isRequester || isPrivileged) && !isResolved;
+  const showTech = ticket && isAssigneeTech && !isResolved;
   const showAdminStatus = ticket && isPrivileged && !isResolved;
 
   const applyUpdate = (updated: SupportTicket) => {
     setTicket(updated);
     syncForm(updated);
+    onTicketUpdated(updated);
   };
 
   const handleSaveAssign = async () => {
@@ -175,7 +175,7 @@ export default function SupportTicketDetailPage() {
     try {
       const updated = await putTicket({ status: techStatus });
       applyUpdate(updated);
-      showSuccess('Atualizado');
+      showSuccess('Status atualizado');
     } catch (e) {
       showError(e);
     } finally {
@@ -203,7 +203,8 @@ export default function SupportTicketDetailPage() {
     try {
       await deleteTicket();
       showSuccess('Chamado excluído');
-      router.push('/support-tickets');
+      onTicketDeleted?.(ticket.id);
+      onClose();
     } catch (e) {
       showError(e);
     } finally {
@@ -211,91 +212,84 @@ export default function SupportTicketDetailPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <Flex justify="center" align="center" minH="240px" p={8}>
-        <Spinner size="xl" />
-      </Flex>
-    );
-  }
-
-  if (error || !ticket) {
-    return (
-      <Box p={8}>
-        <Button variant="ghost" leftIcon={<ArrowLeft size={18} />} mb={4} onClick={() => router.push('/support-tickets')}>
-          Voltar
-        </Button>
-        <Text color="red.500">{error || 'Chamado não encontrado.'}</Text>
-      </Box>
-    );
-  }
-
   return (
-    <Box p={{ base: 4, md: 8 }} maxW="800px" mx="auto">
-      <Button variant="ghost" leftIcon={<ArrowLeft size={18} />} mb={4} onClick={() => router.push('/support-tickets')}>
-        Voltar à lista
-      </Button>
-
-      <Box bg={cardBg} p={6} borderRadius="md" borderWidth={1} borderColor={borderColor} mb={6}>
-        <SupportTicketReadOnlySummary ticket={ticket} />
-      </Box>
-
-      {isResolved && <SupportTicketResolvedAlert />}
-
-      {showAdminStatus && (
-        <SupportTicketAdminStatusActions
-          currentStatus={ticket.status}
-          onStatusChange={handleAdminStatus}
-          isLoading={savingStatus}
-        />
-      )}
-
-      {showAssign && (
-        <SupportTicketAssignPanel
-          assigneeId={assigneeId}
-          onAssigneeChange={setAssigneeId}
-          technicians={technicians}
-          onSave={handleSaveAssign}
-          isLoading={savingAssign}
-        />
-      )}
-
-      {showRequesterForm && (
-        <SupportTicketEditPanel
-          subject={subject}
-          description={description}
-          priority={priority}
-          ticketType={ticketType}
-          locationId={locationId}
-          sectorId={sectorId}
-          locations={locations}
-          sectors={sectors}
-          onSubjectChange={setSubject}
-          onDescriptionChange={setDescription}
-          onPriorityChange={setPriority}
-          onTicketTypeChange={setTicketType}
-          onLocationChange={(locId) => {
-            setLocationId(locId);
-            setSectorId('');
-            loadSectorsForLocation(locId);
-          }}
-          onSectorChange={setSectorId}
-          onSave={handleSaveDetails}
-          isLoading={savingDetails}
-          isPrivileged={isPrivileged}
-        />
-      )}
-
-      {showTechForm && (
-        <SupportTicketTechStatusPanel
-          techStatus={techStatus}
-          onStatusChange={setTechStatus}
-          onSave={handleSaveTech}
-          isLoading={savingTech}
-        />
-      )}
-
-      {isPrivileged && <SupportTicketDeleteButton onDelete={handleDelete} isLoading={deleting} />}
-    </Box>
+    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside" isCentered>
+      <ModalOverlay backdropFilter="blur(4px)" />
+      <ModalContent maxH="90vh" mx={4}>
+        <ModalHeader borderBottomWidth="1px" py={4}>
+          {ticket ? ticket.subject : 'Detalhes do chamado'}
+        </ModalHeader>
+        <ModalCloseButton />
+        <ModalBody py={5} px={6}>
+          {loading ? (
+            <Flex justify="center" py={12}>
+              <Spinner size="lg" />
+            </Flex>
+          ) : error ? (
+            <Text color="red.500">{error}</Text>
+          ) : ticket ? (
+            <>
+              <SupportTicketReadOnlySummary ticket={ticket} />
+              {isResolved && <SupportTicketResolvedAlert />}
+              {showAdminStatus && ticket && (
+                <SupportTicketAdminStatusActions
+                  currentStatus={ticket.status}
+                  onStatusChange={handleAdminStatus}
+                  isLoading={savingStatus}
+                />
+              )}
+              {showAssign && (
+                <SupportTicketAssignPanel
+                  assigneeId={assigneeId}
+                  onAssigneeChange={setAssigneeId}
+                  technicians={technicians}
+                  onSave={handleSaveAssign}
+                  isLoading={savingAssign}
+                  compact
+                />
+              )}
+              {showEdit && (
+                <SupportTicketEditPanel
+                  subject={subject}
+                  description={description}
+                  priority={priority}
+                  ticketType={ticketType}
+                  locationId={locationId}
+                  sectorId={sectorId}
+                  locations={locations}
+                  sectors={sectors}
+                  onSubjectChange={setSubject}
+                  onDescriptionChange={setDescription}
+                  onPriorityChange={setPriority}
+                  onTicketTypeChange={setTicketType}
+                  onLocationChange={(id) => {
+                    setLocationId(id);
+                    setSectorId('');
+                    loadSectorsForLocation(id);
+                  }}
+                  onSectorChange={setSectorId}
+                  onSave={handleSaveDetails}
+                  isLoading={savingDetails}
+                  isPrivileged={isPrivileged}
+                  compact
+                />
+              )}
+              {showTech && (
+                <SupportTicketTechStatusPanel
+                  techStatus={techStatus}
+                  onStatusChange={setTechStatus}
+                  onSave={handleSaveTech}
+                  isLoading={savingTech}
+                  compact
+                />
+              )}
+              {isPrivileged && !isResolved && (
+                <SupportTicketDeleteButton onDelete={handleDelete} isLoading={deleting} />
+              )}
+            </>
+          ) : null}
+        </ModalBody>
+      </ModalContent>
+    </Modal>
   );
 }
