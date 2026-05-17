@@ -59,11 +59,12 @@ const baseUrl = (process.env.E2E_BASE_URL || 'http://localhost:3002').replace(/\
 
 /** Mesmos valores criados em `devSeeds.ts` (usuário EMPLOYEE). */
 const SEED_DEV_DEFAULT_EMAIL = 'usuario@example.com';
-const SEED_DEV_DEFAULT_PASSWORD =
-    'UUiIIIuUUUUyhdajfjdsjflkdjsçalfjdslçfajdskfaçdjsflakçdsfj';
 
 const email = process.env.E2E_EMAIL || SEED_DEV_DEFAULT_EMAIL;
-const password = process.env.E2E_PASSWORD || SEED_DEV_DEFAULT_PASSWORD;
+const password =
+    process.env.E2E_PASSWORD?.trim() ||
+    process.env.DEV_SEED_PASSWORD?.trim() ||
+    '';
 
 const SEED_MANAGER_EMAIL = 'gerente@example.com';
 const managerEmail = process.env.E2E_MANAGER_EMAIL || SEED_MANAGER_EMAIL;

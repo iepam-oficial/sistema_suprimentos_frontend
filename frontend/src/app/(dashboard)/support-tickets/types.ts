@@ -64,11 +64,11 @@ export function canCreateSupportTicket(role: string): boolean {
   return (ROLES_TICKETS_CREATE as readonly string[]).includes(role);
 }
 
-const ROLES_TICKETS_KANBAN = ['ADMIN', 'MANAGER'] as const;
+const ROLES_ADMIN_SUPPORT_DESK = ['ADMIN', 'MANAGER'] as const;
 
-/** Vista em quadro (Kanban) na listagem de chamados. */
-export function canUseSupportTicketsKanban(role: string): boolean {
-  return (ROLES_TICKETS_KANBAN as readonly string[]).includes(role);
+/** Help desk admin (lista + modal) em vez da listagem legada. */
+export function canUseAdminSupportDesk(role: string): boolean {
+  return (ROLES_ADMIN_SUPPORT_DESK as readonly string[]).includes(role);
 }
 
 /** Timezone exibido nas datas da lista (evita drift servidor vs cliente). */
@@ -152,4 +152,28 @@ export function ticketTypeLabel(kind: string): string {
 /** Formata instante ISO para exibição consistente no Pará. */
 export function formatTicketDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { timeZone: DISPLAY_TIMEZONE });
+}
+
+export function shortTicketId(id: string): string {
+  return id.slice(0, 8).toUpperCase();
+}
+
+export function ticketMatchesSearch(ticket: SupportTicket, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const haystack = [
+    ticket.subject,
+    ticket.description,
+    ticket.id,
+    shortTicketId(ticket.id),
+    ticket.requester?.name,
+    ticket.requester?.email,
+    ticket.assigned_to?.name,
+    ticket.location?.name,
+    ticket.sector?.name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(q);
 }

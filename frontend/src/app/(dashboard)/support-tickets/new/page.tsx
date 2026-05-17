@@ -2,26 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  Heading,
-  useToast,
-  VStack,
-  Textarea,
-  Select,
-  Spinner,
-  Flex,
-  Image,
-  Text,
-  useColorModeValue,
-} from '@chakra-ui/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { uploadImage, handleImageChange } from '@/utils/imageUtils';
 import { canCreateSupportTicket, SupportTicketKind } from '../types';
+import { cardClass, inputClass, labelClass, btnPrimary, btnSecondary } from '@/components/support-desk/formClasses';
+import { cn } from '@/components/support-desk/cn';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -38,9 +24,6 @@ interface Sector {
 
 export default function NewSupportTicketPage() {
   const router = useRouter();
-  const toast = useToast();
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
 
   const [loading, setLoading] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
@@ -127,40 +110,23 @@ export default function NewSupportTicketPage() {
       let imageUrl: string | undefined;
       if (selectedImage) {
         if (!selectedImage.type.startsWith('image/')) {
-          toast({
-            title: 'Arquivo inválido',
-            description: 'Selecione uma imagem (JPEG, PNG, etc.).',
-            status: 'error',
-            duration: 4000,
-            isClosable: true,
-          });
+          toast.error('Selecione uma imagem (JPEG, PNG, etc.).');
           setLoading(false);
           return;
         }
         if (selectedImage.size > MAX_IMAGE_BYTES) {
-          toast({
-            title: 'Imagem muito grande',
-            description: 'O tamanho máximo é 5 MB.',
-            status: 'error',
-            duration: 4000,
-            isClosable: true,
-          });
+          toast.error('O tamanho máximo da imagem é 5 MB.');
           setLoading(false);
           return;
         }
         try {
           imageUrl = await uploadImage(selectedImage);
         } catch (uploadError: unknown) {
-          toast({
-            title: 'Erro no upload',
-            description:
-              uploadError instanceof Error
-                ? uploadError.message
-                : 'Não foi possível enviar a imagem.',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          });
+          toast.error(
+            uploadError instanceof Error
+              ? uploadError.message
+              : 'Não foi possível enviar a imagem.',
+          );
           setLoading(false);
           return;
         }
@@ -196,16 +162,10 @@ export default function NewSupportTicketPage() {
       }
 
       const created = await res.json();
-      toast({ title: 'Chamado criado', status: 'success', duration: 3000 });
+      toast.success('Chamado criado');
       router.push(`/support-tickets/${created.id}`);
     } catch (err: unknown) {
-      toast({
-        title: 'Erro',
-        description: err instanceof Error ? err.message : 'Erro ao criar chamado',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      toast.error(err instanceof Error ? err.message : 'Erro ao criar chamado');
     } finally {
       setLoading(false);
     }
@@ -213,132 +173,161 @@ export default function NewSupportTicketPage() {
 
   if (bootLoading) {
     return (
-      <Flex justify="center" align="center" minH="200px" p={8}>
-        <Spinner size="xl" />
-      </Flex>
+      <div className="flex min-h-[40vh] items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
     );
   }
 
   return (
-    <Box p={{ base: 4, md: 8 }} maxW="720px" mx="auto">
-      <Button
-        variant="ghost"
-        leftIcon={<ArrowLeft size={18} />}
-        mb={4}
-        onClick={() => router.push('/support-tickets')}
-      >
-        Voltar
-      </Button>
-      <Box
-        as="form"
-        onSubmit={handleSubmit}
-        bg={cardBg}
-        p={6}
-        borderRadius="md"
-        borderWidth={1}
-        borderColor={borderColor}
-      >
-        <Heading size="md" mb={6}>
-          Novo chamado
-        </Heading>
-        <VStack spacing={4} align="stretch">
-          <FormControl isRequired>
-            <FormLabel>Assunto</FormLabel>
-            <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel>Descrição</FormLabel>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} />
-          </FormControl>
-          <FormControl>
-            <FormLabel>Prioridade</FormLabel>
-            <Select value={priority} onChange={(e) => setPriority(e.target.value)}>
+    <div className="min-h-full bg-slate-50 dark:bg-slate-900">
+      <div className="mx-auto max-w-2xl px-4 py-6 md:px-8">
+        <button
+          type="button"
+          onClick={() => router.push('/support-tickets')}
+          className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </button>
+
+        <form onSubmit={handleSubmit} className={cn(cardClass, 'space-y-4')}>
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Novo chamado</h1>
+
+          <div>
+            <label className={labelClass}>
+              Assunto <span className="text-red-500">*</span>
+            </label>
+            <input
+              className={inputClass}
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>
+              Descrição <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              className={cn(inputClass, 'resize-y')}
+              rows={6}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Prioridade</label>
+            <select className={inputClass} value={priority} onChange={(e) => setPriority(e.target.value)}>
               <option value="LOW">Baixa</option>
               <option value="MEDIUM">Média</option>
               <option value="HIGH">Alta</option>
               <option value="URGENT">Urgente</option>
-            </Select>
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel>Tipo de chamado</FormLabel>
-            <Select value={ticketType} onChange={(e) => setTicketType(e.target.value as SupportTicketKind)}>
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>
+              Tipo de chamado <span className="text-red-500">*</span>
+            </label>
+            <select
+              className={inputClass}
+              value={ticketType}
+              onChange={(e) => setTicketType(e.target.value as SupportTicketKind)}
+              required
+            >
               <option value="INCIDENT">Incidente</option>
               <option value="SERVICE_REQUEST">Requisição de serviço</option>
               <option value="QUESTION">Dúvida / informação</option>
               <option value="OTHER">Outro</option>
-            </Select>
-          </FormControl>
-          <FormControl>
-            <FormLabel>Polo / local</FormLabel>
-              <Select
-                placeholder="Selecione"
-                value={locationId}
-                onChange={(e) => {
-                  setLocationId(e.target.value);
-                  setSectorId('');
-                }}
-              >
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Polo / local</label>
+            <select
+              className={inputClass}
+              value={locationId}
+              onChange={(e) => {
+                setLocationId(e.target.value);
+                setSectorId('');
+              }}
+            >
+              <option value="">Selecione</option>
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
                 </option>
               ))}
-            </Select>
-          </FormControl>
-          <FormControl>
-            <FormLabel>Setor</FormLabel>
-            <Select
-              placeholder={locationId ? 'Selecione' : 'Escolha um local primeiro'}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Setor</label>
+            <select
+              className={inputClass}
               value={sectorId}
               onChange={(e) => setSectorId(e.target.value)}
-              isDisabled={!locationId}
+              disabled={!locationId}
             >
+              <option value="">{locationId ? 'Selecione' : 'Escolha um local primeiro'}</option>
               {sectors.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
-            </Select>
-          </FormControl>
-          <FormControl>
-            <FormLabel>Foto (opcional)</FormLabel>
-            <Input
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Foto (opcional)</label>
+            <input
               type="file"
               accept="image/*"
+              className={cn(
+                inputClass,
+                'file:mr-3 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-700',
+              )}
               onChange={(e) => handleImageChange(e, setSelectedImage, setPreviewUrl)}
             />
-            <Text fontSize="xs" color="gray.500" mt={1}>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Máximo 5 MB. Formatos de imagem comuns.
-            </Text>
+            </p>
             {previewUrl && (
-              <Box mt={3}>
-                <Image
+              <div className="mt-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={previewUrl}
                   alt="Pré-visualização da foto"
-                  maxH="200px"
-                  borderRadius="md"
-                  objectFit="contain"
+                  className="max-h-[200px] max-w-full rounded-lg border border-slate-200 object-contain dark:border-slate-600"
                 />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  colorScheme="red"
-                  mt={2}
+                <button
+                  type="button"
+                  className={cn(btnSecondary, 'mt-2 border-red-300 text-red-600 dark:border-red-800 dark:text-red-400')}
                   onClick={() => {
                     setSelectedImage(null);
                     setPreviewUrl('');
                   }}
                 >
                   Remover foto
-                </Button>
-              </Box>
+                </button>
+              </div>
             )}
-          </FormControl>
-          <Button type="submit" colorScheme="blue" isLoading={loading} mt={2}>
+          </div>
+
+          <button
+            type="submit"
+            className={cn(btnPrimary, 'w-full sm:w-auto')}
+            disabled={loading}
+          >
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Abrir chamado
-          </Button>
-        </VStack>
-      </Box>
-    </Box>
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

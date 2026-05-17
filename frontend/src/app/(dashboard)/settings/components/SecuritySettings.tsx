@@ -63,7 +63,7 @@ export default function SecuritySettings() {
 
             if (!response.ok) {
                 const data = await response.json()
-                throw new Error(data.message || 'Erro ao alterar senha')
+                throw new Error(data.message || data.error || 'Erro ao alterar senha')
             }
 
             toast({
@@ -81,6 +81,7 @@ export default function SecuritySettings() {
 
             // Remover token e redirecionar
             localStorage.removeItem('@ti-assistant:token')
+            localStorage.removeItem('@ti-assistant:refresh-token')
             localStorage.removeItem('@ti-assistant:user')
             router.push('/')
         } catch (error) {

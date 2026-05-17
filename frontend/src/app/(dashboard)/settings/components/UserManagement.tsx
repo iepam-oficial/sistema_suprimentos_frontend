@@ -197,7 +197,7 @@ export default function UserManagement() {
   };
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
+    if (!confirm('Tem certeza que deseja desativar este usuário?')) return;
 
     try {
       const token = localStorage.getItem('@ti-assistant:token');
@@ -210,11 +210,14 @@ export default function UserManagement() {
         }
       });
 
-      if (!response.ok) throw new Error('Erro ao excluir usuário');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Erro ao desativar usuário');
+      }
 
       toast({
         title: 'Sucesso',
-        description: 'Usuário excluído com sucesso',
+        description: 'Usuário desativado com sucesso',
         status: 'success',
         duration: 3000,
       });

@@ -1,5 +1,6 @@
 import baseUrl from '@/utils/enviroments'
 import axios from 'axios'
+import { getRefreshedAccessToken, shouldSkip401Handling } from '@/utils/auth401Handler'
 import { performLogout } from '@/utils/logout'
 
 export const api = axios.create({
@@ -19,19 +20,33 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        if (error.response?.status === 401) {
-            // Não fazer logout automático se estamos na página de login ou fazendo requisição de sessão
-            const isLoginPage = window.location.pathname === '/'
-            const isSessionRequest = error.config?.url?.includes('/api/auth/session')
-            
-            if (isLoginPage || isSessionRequest) {
-                console.log('[Axios Interceptor] 401 na página de login ou requisição de sessão, ignorando logout automático');
-                return Promise.reject(error)
-            }
-            
-            console.log('[Axios Interceptor] 401 detectado, fazendo logout automático');
-            await performLogout()
+        const originalRequest = error.config
+
+        if (error.response?.status !== 401 || !originalRequest || originalRequest._retry) {
+            return Promise.reject(error)
         }
-        return Promise.reject(error)
+
+        const requestUrl = originalRequest.url || ''
+
+        if (shouldSkip401Handling(requestUrl)) {
+            return Promise.reject(error)
+        }
+
+        originalRequest._retry = true
+
+        const refreshToken = localStorage.getItem('@ti-assistant:refresh-token')
+        if (!refreshToken) {
+            await performLogout()
+            return Promise.reject(error)
+        }
+
+        const newToken = await getRefreshedAccessToken()
+        if (!newToken) {
+            await performLogout()
+            return Promise.reject(error)
+        }
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        return api(originalRequest)
     }
-) 
+)

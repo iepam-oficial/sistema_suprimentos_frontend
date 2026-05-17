@@ -6,7 +6,8 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { GlobalProvider } from '@/contexts/GlobalContext'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { performLogout } from '@/utils/logout'
+import { handle401WithRefresh, shouldSkip401Handling } from '@/utils/auth401Handler'
+import { ChakraColorModeSync } from '@/components/ChakraColorModeSync'
 
 const theme = extendTheme({
   config: {
@@ -73,26 +74,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
     const originalFetch = window.fetch.bind(window)
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      try {
-        const response = await originalFetch(input, init)
-        if (response.status === 401) {
-          // Não fazer logout automático se estamos na página de login ou fazendo requisição de sessão
-          const isLoginPage = window.location.pathname === '/'
-          const url = typeof input === 'string' ? input : input.toString()
-          const isSessionRequest = url.includes('/api/auth/session')
-          
-          if (isLoginPage || isSessionRequest) {
-            console.log('[Fetch Interceptor] 401 na página de login ou requisição de sessão, ignorando logout automático');
-            return response
-          }
-          
-          console.log('[Fetch Interceptor] 401 detectado, fazendo logout automático');
-          await performLogout()
-        }
+      const url = typeof input === 'string' ? input : input.toString()
+      const response = await originalFetch(input, init)
+
+      if (response.status !== 401 || shouldSkip401Handling(url)) {
         return response
-      } catch (err) {
-        throw err
       }
+
+      const retried = await handle401WithRefresh(url, () => {
+        const headers = new Headers(init?.headers)
+        const newToken = localStorage.getItem('@ti-assistant:token')
+        if (newToken) {
+          headers.set('Authorization', `Bearer ${newToken}`)
+        }
+        return originalFetch(input, { ...init, headers })
+      })
+
+      return retried ?? response
     }
   }, [router])
 
@@ -101,6 +99,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <GlobalProvider>
           <ChakraProvider theme={theme}>
+            <ChakraColorModeSync />
             {children}
           </ChakraProvider>
         </GlobalProvider>

@@ -79,11 +79,6 @@ interface Event {
 type EventType = 'FESTA' | 'AULA' | 'FORMATURA' | 'REUNIAO' | 'FEIRA_TECNOLOGICA' | 'ALUGUEL_SALA' | 'OUTRO';
 type EventStatus = 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
 
-interface Server {
-    id: string;
-    IP: string;
-}
-
 interface MobileEventsProps {
     events: Event[];
     onDelete: (id: string) => void;
