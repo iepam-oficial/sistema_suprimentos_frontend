@@ -46,18 +46,25 @@ export async function POST(request: Request) {
 
     const res = NextResponse.json(data)
     try {
-      // Persistir token em cookie http-only para que o middleware possa encaminhar Authorization
-      if (data?.token) {
-        res.cookies.set('@ti-assistant:token', data.token, {
+      const accessToken = data?.accessToken || data?.token;
+      if (accessToken) {
+        res.cookies.set('@ti-assistant:token', accessToken, {
           httpOnly: true,
           sameSite: 'lax',
           path: '/',
-          // opcional: secure: process.env.NODE_ENV === 'production'
-          maxAge: 60 * 60 * 24, // 1 dia
+          maxAge: 60 * 60,
+        })
+      }
+      if (data?.refreshToken) {
+        res.cookies.set('@ti-assistant:refresh-token', data.refreshToken, {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
         })
       }
     } catch (cookieError) {
-      console.warn('[API][auth][login][POST] Falha ao setar cookie de token', cookieError)
+      console.warn('[API][auth][login][POST] Falha ao setar cookies de sessão', cookieError)
     }
 
     return res

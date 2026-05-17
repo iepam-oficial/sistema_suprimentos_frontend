@@ -1,42 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  Heading,
-  VStack,
-  Textarea,
-  Select,
-  Text,
-  Badge,
-  HStack,
-  useColorModeValue,
-  Alert,
-  AlertIcon,
-  AlertDescription,
-  Image,
-  Link,
-  Flex,
-  useToast,
-} from '@chakra-ui/react';
-import { Trash2, Play, CheckCheck, RotateCcw } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { Trash2, Play, CheckCheck, RotateCcw, Loader2 } from 'lucide-react';
 import {
   SupportTicket,
   SupportTicketKind,
   TicketStatus,
   formatTicketDate,
-  priorityLabel,
-  statusLabel,
-  ticketPriorityColorScheme,
-  ticketStatusColorScheme,
-  ticketTypeColorScheme,
-  ticketTypeLabel,
   shortTicketId,
 } from './types';
+import { StatusBadge } from '@/components/support-desk/StatusBadge';
+import { PriorityBadge } from '@/components/support-desk/PriorityBadge';
+import { TypeBadge } from '@/components/support-desk/TypeBadge';
+import { cardClass, inputClass, labelClass, btnPrimary, btnSecondary } from '@/components/support-desk/formClasses';
+import { cn } from '@/components/support-desk/cn';
 
 export interface LocationOption {
   id: string;
@@ -60,6 +38,7 @@ export function useSupportTicketResources() {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [sectors, setSectors] = useState<SectorOption[]>([]);
   const [technicians, setTechnicians] = useState<UserOption[]>([]);
+  const sectorsForLocationRef = useRef<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('@ti-assistant:token');
@@ -80,11 +59,15 @@ export function useSupportTicketResources() {
     loadRefs();
   }, []);
 
-  const loadSectorsForLocation = async (locationId: string) => {
+  const loadSectorsForLocation = useCallback(async (locationId: string) => {
     if (!locationId) {
+      sectorsForLocationRef.current = null;
       setSectors([]);
       return;
     }
+    if (sectorsForLocationRef.current === locationId) return;
+    sectorsForLocationRef.current = locationId;
+
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) return;
     try {
@@ -98,128 +81,75 @@ export function useSupportTicketResources() {
       const d = await secRes.json();
       setSectors(Array.isArray(d) ? d : []);
     } catch {
+      sectorsForLocationRef.current = null;
       setSectors([]);
     }
-  };
+  }, []);
 
   return { locations, sectors, technicians, loadSectorsForLocation, setSectors };
 }
 
 export function SupportTicketReadOnlySummary({ ticket }: { ticket: SupportTicket }) {
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const metaBg = useColorModeValue('gray.50', 'whiteAlpha.50');
-  const idBadgeBg = useColorModeValue('gray.200', 'gray.600');
-  const idBadgeColor = useColorModeValue('gray.700', 'gray.100');
-
   return (
-    <Box>
-      <HStack flexWrap="wrap" spacing={2} mb={3}>
-        <Badge fontFamily="mono" fontSize="xs" bg={idBadgeBg} color={idBadgeColor}>
+    <div>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <span className="rounded bg-slate-200 px-2 py-0.5 font-mono text-xs font-bold text-slate-600 dark:bg-slate-600 dark:text-slate-200">
           #{shortTicketId(ticket.id)}
-        </Badge>
-        <Badge colorScheme={ticketStatusColorScheme(ticket.status)}>{statusLabel(ticket.status)}</Badge>
-        <Badge colorScheme={ticketPriorityColorScheme(ticket.priority)}>{priorityLabel(ticket.priority)}</Badge>
-        <Badge colorScheme={ticketTypeColorScheme(ticket.ticket_type ?? 'OTHER')}>
-          {ticketTypeLabel(ticket.ticket_type ?? 'OTHER')}
-        </Badge>
-      </HStack>
-      <Heading size="md" mb={2}>
-        {ticket.subject}
-      </Heading>
-      <Text color="gray.600" fontSize="sm" mb={4}>
+        </span>
+        <StatusBadge status={ticket.status} />
+        <PriorityBadge priority={ticket.priority} />
+        <TypeBadge kind={ticket.ticket_type ?? 'OTHER'} />
+      </div>
+      <h3 className="mb-2 text-lg font-semibold text-slate-800 dark:text-slate-100">{ticket.subject}</h3>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
         Aberto em {formatTicketDate(ticket.created_at)}
         {ticket.resolved_at && ` · Resolvido em ${formatTicketDate(ticket.resolved_at)}`}
-      </Text>
-
-      <SimpleGridMeta ticket={ticket} metaBg={metaBg} borderColor={borderColor} />
-
-      <Text fontSize="xs" color="gray.500" fontWeight="semibold" textTransform="uppercase" mb={2} mt={4}>
-        Descrição
-      </Text>
-      <Box
-        bg={cardBg}
-        borderWidth="1px"
-        borderColor={borderColor}
-        borderRadius="lg"
-        p={4}
-        fontSize="sm"
-        whiteSpace="pre-wrap"
-        minH="80px"
-      >
+      </p>
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-900/40">
+                <div className="flex flex-wrap gap-4">
+            <MetaItem label="Solicitante" value={ticket.requester?.name ?? '—'} />
+            <MetaItem label="Técnico" value={ticket.assigned_to?.name ?? '—'} />
+            <MetaItem
+              label="Local / setor"
+              value={[ticket.location?.name, ticket.sector?.name].filter(Boolean).join(' · ') || '—'}
+            />
+          </div>
+      </div>
+      <p className="mb-2 mt-4 text-xs font-semibold uppercase text-slate-500">Descrição</p>
+      <div className="min-h-[80px] whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
         {ticket.description}
-      </Box>
-
+      </div>
       {ticket.image_url && (
-        <Box mt={4}>
-          <Text fontSize="sm" fontWeight="semibold" mb={2}>
-            Anexo
-          </Text>
-          <Link href={ticket.image_url} isExternal>
-            <Image
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Anexo</p>
+          <a href={ticket.image_url} target="_blank" rel="noopener noreferrer">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={ticket.image_url}
               alt="Foto do chamado"
-              maxH="240px"
-              maxW="100%"
-              borderRadius="md"
-              borderWidth={1}
-              borderColor={borderColor}
-              objectFit="contain"
+              className="max-h-60 max-w-full rounded-lg border border-slate-200 object-contain dark:border-slate-600"
             />
-          </Link>
-        </Box>
+          </a>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 
-function SimpleGridMeta({
-  ticket,
-  metaBg,
-  borderColor,
-}: {
-  ticket: SupportTicket;
-  metaBg: string;
-  borderColor: string;
-}) {
+function MetaItem({ label, value }: { label: string; value: string }) {
   return (
-    <Box bg={metaBg} borderWidth="1px" borderColor={borderColor} borderRadius="lg" p={4}>
-      <Flex flexWrap="wrap" gap={4}>
-        <Box flex="1" minW="140px">
-          <Text fontSize="xs" color="gray.500" fontWeight="semibold" textTransform="uppercase" mb={1}>
-            Solicitante
-          </Text>
-          <Text fontSize="sm" fontWeight="medium">
-            {ticket.requester?.name ?? '—'}
-          </Text>
-        </Box>
-        <Box flex="1" minW="140px">
-          <Text fontSize="xs" color="gray.500" fontWeight="semibold" textTransform="uppercase" mb={1}>
-            Técnico
-          </Text>
-          <Text fontSize="sm" fontWeight="medium">
-            {ticket.assigned_to?.name ?? '—'}
-          </Text>
-        </Box>
-        <Box flex="1" minW="140px">
-          <Text fontSize="xs" color="gray.500" fontWeight="semibold" textTransform="uppercase" mb={1}>
-            Local / setor
-          </Text>
-          <Text fontSize="sm" fontWeight="medium">
-            {[ticket.location?.name, ticket.sector?.name].filter(Boolean).join(' · ') || '—'}
-          </Text>
-        </Box>
-      </Flex>
-    </Box>
+    <div className="min-w-[140px] flex-1">
+      <p className="mb-1 text-xs font-semibold uppercase text-slate-500">{label}</p>
+      <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{value}</p>
+    </div>
   );
 }
 
 export function SupportTicketResolvedAlert() {
   return (
-    <Alert status="info" borderRadius="md" mt={4}>
-      <AlertIcon />
-      <AlertDescription>Chamado concluído — não pode ser alterado.</AlertDescription>
-    </Alert>
+    <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+      Chamado concluído — não pode ser alterado.
+    </div>
   );
 }
 
@@ -229,7 +159,6 @@ export interface SupportTicketAssignPanelProps {
   technicians: UserOption[];
   onSave: () => void;
   isLoading: boolean;
-  compact?: boolean;
 }
 
 export function SupportTicketAssignPanel({
@@ -238,40 +167,26 @@ export function SupportTicketAssignPanel({
   technicians,
   onSave,
   isLoading,
-  compact,
 }: SupportTicketAssignPanelProps) {
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-
   return (
-    <Box
-      bg={cardBg}
-      p={compact ? 4 : 6}
-      borderRadius="md"
-      borderWidth={1}
-      borderColor={borderColor}
-      mt={4}
-    >
-      <Heading size="sm" mb={3}>
-        Atribuir técnico
-      </Heading>
-      <VStack align="stretch" spacing={3}>
-        <FormControl>
-          <FormLabel fontSize="sm">Técnico</FormLabel>
-          <Select size="sm" value={assigneeId} onChange={(e) => onAssigneeChange(e.target.value)}>
-            <option value="">Sem técnico</option>
-            {technicians.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.email})
-              </option>
-            ))}
-          </Select>
-        </FormControl>
-        <Button size="sm" colorScheme="blue" onClick={onSave} isLoading={isLoading}>
-          Salvar atribuição
-        </Button>
-      </VStack>
-    </Box>
+    <div className={cn(cardClass, 'mt-4 space-y-3')}>
+      <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Atribuir técnico</h4>
+      <div>
+        <label className={labelClass}>Técnico</label>
+        <select className={inputClass} value={assigneeId} onChange={(e) => onAssigneeChange(e.target.value)}>
+          <option value="">Sem técnico</option>
+          {technicians.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.email})
+            </option>
+          ))}
+        </select>
+      </div>
+      <button type="button" className={btnPrimary} onClick={onSave} disabled={isLoading}>
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Salvar atribuição
+      </button>
+    </div>
   );
 }
 
@@ -293,102 +208,101 @@ export interface SupportTicketEditPanelProps {
   onSave: () => void;
   isLoading: boolean;
   isPrivileged?: boolean;
-  compact?: boolean;
 }
 
-export function SupportTicketEditPanel({
-  subject,
-  description,
-  priority,
-  ticketType,
-  locationId,
-  sectorId,
-  locations,
-  sectors,
-  onSubjectChange,
-  onDescriptionChange,
-  onPriorityChange,
-  onTicketTypeChange,
-  onLocationChange,
-  onSectorChange,
-  onSave,
-  isLoading,
-  isPrivileged = true,
-  compact,
-}: SupportTicketEditPanelProps) {
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+export function SupportTicketEditPanel(props: SupportTicketEditPanelProps) {
+  const {
+    subject,
+    description,
+    priority,
+    ticketType,
+    locationId,
+    sectorId,
+    locations,
+    sectors,
+    onSubjectChange,
+    onDescriptionChange,
+    onPriorityChange,
+    onTicketTypeChange,
+    onLocationChange,
+    onSectorChange,
+    onSave,
+    isLoading,
+    isPrivileged = true,
+  } = props;
 
   return (
-    <Box bg={cardBg} p={compact ? 4 : 6} borderRadius="md" borderWidth={1} borderColor={borderColor} mt={4}>
-      <Heading size="sm" mb={3}>
+    <div className={cn(cardClass, 'mt-4 space-y-3')}>
+      <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
         {isPrivileged ? 'Editar dados do chamado' : 'Atualizar meu chamado'}
-      </Heading>
-      <VStack align="stretch" spacing={3}>
-        <FormControl>
-          <FormLabel fontSize="sm">Assunto</FormLabel>
-          <Input size="sm" value={subject} onChange={(e) => onSubjectChange(e.target.value)} />
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Descrição</FormLabel>
-          <Textarea size="sm" value={description} onChange={(e) => onDescriptionChange(e.target.value)} rows={4} />
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Prioridade</FormLabel>
-          <Select size="sm" value={priority} onChange={(e) => onPriorityChange(e.target.value)}>
-            <option value="LOW">Baixa</option>
-            <option value="MEDIUM">Média</option>
-            <option value="HIGH">Alta</option>
-            <option value="URGENT">Urgente</option>
-          </Select>
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Tipo de chamado</FormLabel>
-          <Select size="sm" value={ticketType} onChange={(e) => onTicketTypeChange(e.target.value as SupportTicketKind)}>
+      </h4>
+      <div>
+        <label className={labelClass}>Assunto</label>
+        <input className={inputClass} value={subject} onChange={(e) => onSubjectChange(e.target.value)} />
+      </div>
+      <div>
+        <label className={labelClass}>Descrição</label>
+        <textarea
+          className={cn(inputClass, 'resize-y')}
+          rows={4}
+          value={description}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Prioridade</label>
+        <select className={inputClass} value={priority} onChange={(e) => onPriorityChange(e.target.value)}>
+          <option value="LOW">Baixa</option>
+          <option value="MEDIUM">Média</option>
+          <option value="HIGH">Alta</option>
+          <option value="URGENT">Urgente</option>
+        </select>
+      </div>
+        <div>
+          <label className={labelClass}>Tipo de chamado</label>
+          <select
+            className={inputClass}
+            value={ticketType}
+            onChange={(e) => onTicketTypeChange(e.target.value as SupportTicketKind)}
+          >
             <option value="INCIDENT">Incidente</option>
             <option value="SERVICE_REQUEST">Requisição de serviço</option>
             <option value="QUESTION">Dúvida / informação</option>
             <option value="OTHER">Outro</option>
-          </Select>
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Polo / local</FormLabel>
-          <Select
-            size="sm"
-            placeholder="Selecione"
-            value={locationId}
-            onChange={(e) => onLocationChange(e.target.value)}
-          >
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Polo / local</label>
+          <select className={inputClass} value={locationId} onChange={(e) => onLocationChange(e.target.value)}>
             <option value="">—</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
             ))}
-          </Select>
-        </FormControl>
-        <FormControl>
-          <FormLabel fontSize="sm">Setor</FormLabel>
-          <Select
-            size="sm"
-            placeholder={locationId ? 'Selecione' : 'Escolha um local'}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Setor</label>
+          <select
+            className={inputClass}
             value={sectorId}
             onChange={(e) => onSectorChange(e.target.value)}
-            isDisabled={!locationId}
+            disabled={!locationId}
           >
-            <option value="">—</option>
+            <option value="">{locationId ? 'Selecione' : 'Escolha um local'}</option>
             {sectors.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
             ))}
-          </Select>
-        </FormControl>
-        <Button size="sm" colorScheme="teal" onClick={onSave} isLoading={isLoading}>
-          Salvar alterações
-        </Button>
-      </VStack>
-    </Box>
+          </select>
+        </div>
+      <button type="button" className={cn(btnPrimary, 'bg-teal-600 hover:bg-teal-700')} onClick={onSave} disabled={isLoading}>
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Salvar alterações
+      </button>
+    </div>
   );
 }
 
@@ -403,50 +317,45 @@ export function SupportTicketAdminStatusActions({
   onStatusChange,
   isLoading,
 }: SupportTicketAdminStatusActionsProps) {
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-
   return (
-    <Box borderTopWidth="1px" borderColor={borderColor} pt={4} mt={4}>
-      <Text fontSize="sm" fontWeight="medium" mb={3}>
-        Atualizar status
-      </Text>
-      <Flex flexWrap="wrap" gap={2}>
+    <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <p className="mb-3 text-sm font-medium text-slate-800 dark:text-slate-100">Atualizar status</p>
+      <div className="flex flex-wrap gap-2">
         {currentStatus === 'OPEN' && (
-          <Button
-            size="sm"
-            colorScheme="purple"
-            leftIcon={<Play size={16} />}
+          <button
+            type="button"
+            disabled={isLoading}
             onClick={() => onStatusChange('IN_PROGRESS')}
-            isLoading={isLoading}
+            className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-700 disabled:opacity-50"
           >
+            <Play className="mr-1.5 h-4 w-4" />
             Iniciar atendimento
-          </Button>
+          </button>
         )}
         {currentStatus === 'IN_PROGRESS' && (
           <>
-            <Button
-              size="sm"
-              colorScheme="green"
-              leftIcon={<CheckCheck size={16} />}
+            <button
+              type="button"
+              disabled={isLoading}
               onClick={() => onStatusChange('RESOLVED')}
-              isLoading={isLoading}
+              className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
             >
+              <CheckCheck className="mr-1.5 h-4 w-4" />
               Marcar como resolvido
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              colorScheme="orange"
-              leftIcon={<RotateCcw size={16} />}
+            </button>
+            <button
+              type="button"
+              disabled={isLoading}
               onClick={() => onStatusChange('OPEN')}
-              isLoading={isLoading}
+              className="inline-flex items-center rounded-lg border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50 disabled:opacity-50 dark:border-orange-700 dark:bg-slate-800 dark:text-orange-300"
             >
+              <RotateCcw className="mr-1.5 h-4 w-4" />
               Voltar para aberto
-            </Button>
+            </button>
           </>
         )}
-      </Flex>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -455,7 +364,6 @@ export interface SupportTicketTechStatusPanelProps {
   onStatusChange: (status: string) => void;
   onSave: () => void;
   isLoading: boolean;
-  compact?: boolean;
 }
 
 export function SupportTicketTechStatusPanel({
@@ -463,30 +371,23 @@ export function SupportTicketTechStatusPanel({
   onStatusChange,
   onSave,
   isLoading,
-  compact,
 }: SupportTicketTechStatusPanelProps) {
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-
   return (
-    <Box bg={cardBg} p={compact ? 4 : 6} borderRadius="md" borderWidth={1} borderColor={borderColor} mt={4}>
-      <Heading size="sm" mb={3}>
-        Atualização do técnico
-      </Heading>
-      <VStack align="stretch" spacing={3}>
-        <FormControl>
-          <FormLabel fontSize="sm">Status</FormLabel>
-          <Select size="sm" value={techStatus} onChange={(e) => onStatusChange(e.target.value)}>
-            <option value="OPEN">Aberto</option>
-            <option value="IN_PROGRESS">Em andamento</option>
-            <option value="RESOLVED">Resolvido</option>
-          </Select>
-        </FormControl>
-        <Button size="sm" colorScheme="blue" onClick={onSave} isLoading={isLoading}>
-          Salvar status
-        </Button>
-      </VStack>
-    </Box>
+        <div className={cn(cardClass, 'mt-4 space-y-3')}>
+          <h4 className="text-sm font-semibold">Atualização do técnico</h4>
+          <div>
+            <label className={labelClass}>Status</label>
+            <select className={inputClass} value={techStatus} onChange={(e) => onStatusChange(e.target.value)}>
+              <option value="OPEN">Aberto</option>
+              <option value="IN_PROGRESS">Em andamento</option>
+              <option value="RESOLVED">Resolvido</option>
+            </select>
+          </div>
+          <button type="button" className={btnPrimary} onClick={onSave} disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Salvar status
+          </button>
+        </div>
   );
 }
 
@@ -498,23 +399,19 @@ export function SupportTicketDeleteButton({
   isLoading: boolean;
 }) {
   return (
-    <Button
-      mt={4}
-      size="sm"
-      leftIcon={<Trash2 size={16} />}
-      colorScheme="red"
-      variant="outline"
+    <button
+      type="button"
       onClick={onDelete}
-      isLoading={isLoading}
+      disabled={isLoading}
+      className={cn(btnSecondary, 'mt-4 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400')}
     >
+      <Trash2 className="mr-2 h-4 w-4" />
       Excluir chamado
-    </Button>
+    </button>
   );
 }
 
 export function useSupportTicketMutations(ticketId: string | undefined) {
-  const toast = useToast();
-
   const putTicket = async (body: Record<string, unknown>) => {
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token || !ticketId) throw new Error('Sessão inválida');
@@ -547,17 +444,11 @@ export function useSupportTicketMutations(ticketId: string | undefined) {
   };
 
   const showError = (e: unknown) => {
-    toast({
-      title: 'Erro',
-      description: e instanceof Error ? e.message : 'Erro ao salvar',
-      status: 'error',
-      duration: 5000,
-      isClosable: true,
-    });
+    toast.error(e instanceof Error ? e.message : 'Erro ao salvar');
   };
 
   const showSuccess = (title: string) => {
-    toast({ title, status: 'success', duration: 3000 });
+    toast.success(title);
   };
 
   return { putTicket, deleteTicket, showError, showSuccess };

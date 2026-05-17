@@ -1,18 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  Spinner,
-  Flex,
-  Text,
-} from '@chakra-ui/react';
+import { Loader2 } from 'lucide-react';
 import { SupportTicket, SupportTicketKind, TicketStatus, canViewSupportTickets } from './types';
+import { DeskModal } from '@/components/support-desk/DeskModal';
 import {
   SupportTicketReadOnlySummary,
   SupportTicketResolvedAlert,
@@ -47,7 +38,6 @@ export function SupportTicketDeskModal({
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [assigneeId, setAssigneeId] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -56,7 +46,6 @@ export function SupportTicketDeskModal({
   const [locationId, setLocationId] = useState('');
   const [sectorId, setSectorId] = useState('');
   const [techStatus, setTechStatus] = useState('');
-
   const [savingAssign, setSavingAssign] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
   const [savingTech, setSavingTech] = useState(false);
@@ -123,10 +112,6 @@ export function SupportTicketDeskModal({
   const isAssigneeTech =
     ticket && userId && ticket.assigned_to_id === userId && userRole === 'TECHNICIAN';
   const isResolved = !!ticket && ticket.status === 'RESOLVED';
-  const showAssign = ticket && isPrivileged && !isResolved;
-  const showEdit = ticket && (isRequester || isPrivileged) && !isResolved;
-  const showTech = ticket && isAssigneeTech && !isResolved;
-  const showAdminStatus = ticket && isPrivileged && !isResolved;
 
   const applyUpdate = (updated: SupportTicket) => {
     setTicket(updated);
@@ -138,8 +123,7 @@ export function SupportTicketDeskModal({
     if (!ticket) return;
     setSavingAssign(true);
     try {
-      const updated = await putTicket({ assigned_to_id: assigneeId || null });
-      applyUpdate(updated);
+      applyUpdate(await putTicket({ assigned_to_id: assigneeId || null }));
       showSuccess('Atribuição atualizada');
     } catch (e) {
       showError(e);
@@ -152,15 +136,16 @@ export function SupportTicketDeskModal({
     if (!ticket) return;
     setSavingDetails(true);
     try {
-      const updated = await putTicket({
-        subject: subject.trim(),
-        description: description.trim(),
-        priority,
-        ticket_type: ticketType,
-        location_id: locationId || null,
-        sector_id: sectorId || null,
-      });
-      applyUpdate(updated);
+      applyUpdate(
+        await putTicket({
+          subject: subject.trim(),
+          description: description.trim(),
+          priority,
+          ticket_type: ticketType,
+          location_id: locationId || null,
+          sector_id: sectorId || null,
+        }),
+      );
       showSuccess('Chamado atualizado');
     } catch (e) {
       showError(e);
@@ -173,8 +158,7 @@ export function SupportTicketDeskModal({
     if (!ticket) return;
     setSavingTech(true);
     try {
-      const updated = await putTicket({ status: techStatus });
-      applyUpdate(updated);
+      applyUpdate(await putTicket({ status: techStatus }));
       showSuccess('Status atualizado');
     } catch (e) {
       showError(e);
@@ -187,8 +171,7 @@ export function SupportTicketDeskModal({
     if (!ticket) return;
     setSavingStatus(true);
     try {
-      const updated = await putTicket({ status });
-      applyUpdate(updated);
+      applyUpdate(await putTicket({ status }));
       showSuccess('Status atualizado');
     } catch (e) {
       showError(e);
@@ -213,83 +196,71 @@ export function SupportTicketDeskModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside" isCentered>
-      <ModalOverlay backdropFilter="blur(4px)" />
-      <ModalContent maxH="90vh" mx={4}>
-        <ModalHeader borderBottomWidth="1px" py={4}>
-          {ticket ? ticket.subject : 'Detalhes do chamado'}
-        </ModalHeader>
-        <ModalCloseButton />
-        <ModalBody py={5} px={6}>
-          {loading ? (
-            <Flex justify="center" py={12}>
-              <Spinner size="lg" />
-            </Flex>
-          ) : error ? (
-            <Text color="red.500">{error}</Text>
-          ) : ticket ? (
-            <>
-              <SupportTicketReadOnlySummary ticket={ticket} />
-              {isResolved && <SupportTicketResolvedAlert />}
-              {showAdminStatus && ticket && (
-                <SupportTicketAdminStatusActions
-                  currentStatus={ticket.status}
-                  onStatusChange={handleAdminStatus}
-                  isLoading={savingStatus}
-                />
-              )}
-              {showAssign && (
-                <SupportTicketAssignPanel
-                  assigneeId={assigneeId}
-                  onAssigneeChange={setAssigneeId}
-                  technicians={technicians}
-                  onSave={handleSaveAssign}
-                  isLoading={savingAssign}
-                  compact
-                />
-              )}
-              {showEdit && (
-                <SupportTicketEditPanel
-                  subject={subject}
-                  description={description}
-                  priority={priority}
-                  ticketType={ticketType}
-                  locationId={locationId}
-                  sectorId={sectorId}
-                  locations={locations}
-                  sectors={sectors}
-                  onSubjectChange={setSubject}
-                  onDescriptionChange={setDescription}
-                  onPriorityChange={setPriority}
-                  onTicketTypeChange={setTicketType}
-                  onLocationChange={(id) => {
-                    setLocationId(id);
-                    setSectorId('');
-                    loadSectorsForLocation(id);
-                  }}
-                  onSectorChange={setSectorId}
-                  onSave={handleSaveDetails}
-                  isLoading={savingDetails}
-                  isPrivileged={isPrivileged}
-                  compact
-                />
-              )}
-              {showTech && (
-                <SupportTicketTechStatusPanel
-                  techStatus={techStatus}
-                  onStatusChange={setTechStatus}
-                  onSave={handleSaveTech}
-                  isLoading={savingTech}
-                  compact
-                />
-              )}
-              {isPrivileged && !isResolved && (
-                <SupportTicketDeleteButton onDelete={handleDelete} isLoading={deleting} />
-              )}
-            </>
-          ) : null}
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+    <DeskModal isOpen={isOpen} onClose={onClose} title={ticket?.subject ?? 'Detalhes do chamado'}>
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+        </div>
+      ) : error ? (
+        <p className="text-red-600">{error}</p>
+      ) : ticket ? (
+        <>
+          <SupportTicketReadOnlySummary ticket={ticket} />
+          {isResolved && <SupportTicketResolvedAlert />}
+          {isPrivileged && !isResolved && (
+            <SupportTicketAdminStatusActions
+              currentStatus={ticket.status}
+              onStatusChange={handleAdminStatus}
+              isLoading={savingStatus}
+            />
+          )}
+          {isPrivileged && !isResolved && (
+            <SupportTicketAssignPanel
+              assigneeId={assigneeId}
+              onAssigneeChange={setAssigneeId}
+              technicians={technicians}
+              onSave={handleSaveAssign}
+              isLoading={savingAssign}
+            />
+          )}
+          {(isRequester || isPrivileged) && !isResolved && (
+            <SupportTicketEditPanel
+              subject={subject}
+              description={description}
+              priority={priority}
+              ticketType={ticketType}
+              locationId={locationId}
+              sectorId={sectorId}
+              locations={locations}
+              sectors={sectors}
+              onSubjectChange={setSubject}
+              onDescriptionChange={setDescription}
+              onPriorityChange={setPriority}
+              onTicketTypeChange={setTicketType}
+              onLocationChange={(id) => {
+                setLocationId(id);
+                setSectorId('');
+                loadSectorsForLocation(id);
+              }}
+              onSectorChange={setSectorId}
+              onSave={handleSaveDetails}
+              isLoading={savingDetails}
+              isPrivileged={isPrivileged}
+            />
+          )}
+          {isAssigneeTech && !isResolved && (
+            <SupportTicketTechStatusPanel
+              techStatus={techStatus}
+              onStatusChange={setTechStatus}
+              onSave={handleSaveTech}
+              isLoading={savingTech}
+            />
+          )}
+          {isPrivileged && !isResolved && (
+            <SupportTicketDeleteButton onDelete={handleDelete} isLoading={deleting} />
+          )}
+        </>
+      ) : null}
+    </DeskModal>
   );
 }

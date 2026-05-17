@@ -107,7 +107,11 @@ export default function LoginPage() {
         throw new Error(data.message || 'Erro ao fazer login')
       }
 
-      localStorage.setItem('@ti-assistant:token', data.token)
+      const accessToken = data.accessToken || data.token
+      localStorage.setItem('@ti-assistant:token', accessToken)
+      if (data.refreshToken) {
+        localStorage.setItem('@ti-assistant:refresh-token', data.refreshToken)
+      }
       localStorage.setItem('@ti-assistant:user', JSON.stringify(data.user))
 
       toast({

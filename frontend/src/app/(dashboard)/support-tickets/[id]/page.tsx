@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Box, Button, Spinner, Flex, Text, useColorModeValue } from '@chakra-ui/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import {
   SupportTicket,
   canViewSupportTickets,
@@ -21,13 +20,26 @@ import {
   useSupportTicketResources,
   useSupportTicketMutations,
 } from '../SupportTicketDetailSections';
+import { cardClass } from '@/components/support-desk/formClasses';
+import { cn } from '@/components/support-desk/cn';
+
+function BackLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Voltar à lista
+    </button>
+  );
+}
 
 export default function SupportTicketDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
 
   const [ticket, setTicket] = useState<SupportTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -213,89 +225,89 @@ export default function SupportTicketDetailPage() {
 
   if (loading) {
     return (
-      <Flex justify="center" align="center" minH="240px" p={8}>
-        <Spinner size="xl" />
-      </Flex>
+      <div className="flex min-h-[40vh] items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
     );
   }
 
   if (error || !ticket) {
     return (
-      <Box p={8}>
-        <Button variant="ghost" leftIcon={<ArrowLeft size={18} />} mb={4} onClick={() => router.push('/support-tickets')}>
-          Voltar
-        </Button>
-        <Text color="red.500">{error || 'Chamado não encontrado.'}</Text>
-      </Box>
+      <div className="min-h-full bg-slate-50 px-4 py-6 dark:bg-slate-900 md:px-8">
+        <div className="mx-auto max-w-3xl">
+          <BackLink onClick={() => router.push('/support-tickets')} />
+          <p className="text-sm text-red-600">{error || 'Chamado não encontrado.'}</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box p={{ base: 4, md: 8 }} maxW="800px" mx="auto">
-      <Button variant="ghost" leftIcon={<ArrowLeft size={18} />} mb={4} onClick={() => router.push('/support-tickets')}>
-        Voltar à lista
-      </Button>
+    <div className="min-h-full bg-slate-50 dark:bg-slate-900">
+      <div className="mx-auto max-w-3xl px-4 py-6 md:px-8">
+        <BackLink onClick={() => router.push('/support-tickets')} />
 
-      <Box bg={cardBg} p={6} borderRadius="md" borderWidth={1} borderColor={borderColor} mb={6}>
-        <SupportTicketReadOnlySummary ticket={ticket} />
-      </Box>
+        <div className={cn(cardClass, 'mb-6')}>
+          <SupportTicketReadOnlySummary ticket={ticket} />
+        </div>
 
-      {isResolved && <SupportTicketResolvedAlert />}
+        {isResolved && <SupportTicketResolvedAlert />}
 
-      {showAdminStatus && (
-        <SupportTicketAdminStatusActions
-          currentStatus={ticket.status}
-          onStatusChange={handleAdminStatus}
-          isLoading={savingStatus}
-        />
-      )}
+        {showAdminStatus && (
+          <SupportTicketAdminStatusActions
+            currentStatus={ticket.status}
+            onStatusChange={handleAdminStatus}
+            isLoading={savingStatus}
+          />
+        )}
 
-      {showAssign && (
-        <SupportTicketAssignPanel
-          assigneeId={assigneeId}
-          onAssigneeChange={setAssigneeId}
-          technicians={technicians}
-          onSave={handleSaveAssign}
-          isLoading={savingAssign}
-        />
-      )}
+        {showAssign && (
+          <SupportTicketAssignPanel
+            assigneeId={assigneeId}
+            onAssigneeChange={setAssigneeId}
+            technicians={technicians}
+            onSave={handleSaveAssign}
+            isLoading={savingAssign}
+          />
+        )}
 
-      {showRequesterForm && (
-        <SupportTicketEditPanel
-          subject={subject}
-          description={description}
-          priority={priority}
-          ticketType={ticketType}
-          locationId={locationId}
-          sectorId={sectorId}
-          locations={locations}
-          sectors={sectors}
-          onSubjectChange={setSubject}
-          onDescriptionChange={setDescription}
-          onPriorityChange={setPriority}
-          onTicketTypeChange={setTicketType}
-          onLocationChange={(locId) => {
-            setLocationId(locId);
-            setSectorId('');
-            loadSectorsForLocation(locId);
-          }}
-          onSectorChange={setSectorId}
-          onSave={handleSaveDetails}
-          isLoading={savingDetails}
-          isPrivileged={isPrivileged}
-        />
-      )}
+        {showRequesterForm && (
+          <SupportTicketEditPanel
+            subject={subject}
+            description={description}
+            priority={priority}
+            ticketType={ticketType}
+            locationId={locationId}
+            sectorId={sectorId}
+            locations={locations}
+            sectors={sectors}
+            onSubjectChange={setSubject}
+            onDescriptionChange={setDescription}
+            onPriorityChange={setPriority}
+            onTicketTypeChange={setTicketType}
+            onLocationChange={(locId) => {
+              setLocationId(locId);
+              setSectorId('');
+              loadSectorsForLocation(locId);
+            }}
+            onSectorChange={setSectorId}
+            onSave={handleSaveDetails}
+            isLoading={savingDetails}
+            isPrivileged={isPrivileged}
+          />
+        )}
 
-      {showTechForm && (
-        <SupportTicketTechStatusPanel
-          techStatus={techStatus}
-          onStatusChange={setTechStatus}
-          onSave={handleSaveTech}
-          isLoading={savingTech}
-        />
-      )}
+        {showTechForm && (
+          <SupportTicketTechStatusPanel
+            techStatus={techStatus}
+            onStatusChange={setTechStatus}
+            onSave={handleSaveTech}
+            isLoading={savingTech}
+          />
+        )}
 
-      {isPrivileged && <SupportTicketDeleteButton onDelete={handleDelete} isLoading={deleting} />}
-    </Box>
+        {isPrivileged && <SupportTicketDeleteButton onDelete={handleDelete} isLoading={deleting} />}
+      </div>
+    </div>
   );
 }

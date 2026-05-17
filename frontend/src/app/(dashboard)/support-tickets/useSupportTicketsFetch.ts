@@ -3,20 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@chakra-ui/react';
-import { SupportTicket, canUseSupportTicketsKanban, canViewSupportTickets } from './types';
+import { SupportTicket, canViewSupportTickets } from './types';
 
 export interface UseSupportTicketsFetchOptions {
   statusFilter?: string;
   priorityFilter?: string;
-  viewMode?: 'list' | 'board';
-  /** Admin desk: sempre busca todos os status para stats/filtros locais */
+  /** Admin desk: busca todos os status para stats/filtros locais */
   fetchAllStatuses?: boolean;
 }
 
 export function useSupportTicketsFetch({
   statusFilter = '',
   priorityFilter = '',
-  viewMode = 'list',
   fetchAllStatuses = false,
 }: UseSupportTicketsFetchOptions = {}) {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -52,8 +50,7 @@ export function useSupportTicketsFetch({
       }
 
       const params = new URLSearchParams();
-      const boardFetch = fetchAllStatuses || (canUseSupportTicketsKanban(role) && viewMode === 'board');
-      if (!boardFetch && statusFilter) params.set('status', statusFilter);
+      if (!fetchAllStatuses && statusFilter) params.set('status', statusFilter);
       if (priorityFilter) params.set('priority', priorityFilter);
       const qs = params.toString();
 
@@ -90,7 +87,7 @@ export function useSupportTicketsFetch({
       setFiltersLoading(false);
       hasCompletedOnce.current = true;
     }
-  }, [statusFilter, priorityFilter, viewMode, fetchAllStatuses, router, toast]);
+  }, [statusFilter, priorityFilter, fetchAllStatuses, router, toast]);
 
   useEffect(() => {
     fetchTickets();

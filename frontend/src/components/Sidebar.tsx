@@ -1,25 +1,8 @@
 'use client';
 
-import {
-  Box,
-  Drawer,
-  DrawerContent,
-  useDisclosure,
-  VStack,
-  IconButton,
-  HStack,
-  useBreakpointValue,
-  Button,
-  useColorModeValue,
-  Collapse,
-  useColorMode,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  Flex,
-  Text,
-  Avatar,
-} from '@chakra-ui/react';
+import { useState } from 'react';
+import NextImage from 'next/image';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Menu as MenuIcon,
   X,
@@ -36,18 +19,17 @@ import {
   FileText,
   ChevronDown,
   ChevronRight,
-  SearchIcon,
+  Search,
   Headphones,
   LayoutGrid,
   PlusCircle,
   LucideIcon,
 } from 'lucide-react';
-import NextImage from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
 import { useUser, useFilters } from '@/contexts/GlobalContext';
 import { useLogout } from '@/hooks/useLogout';
 import { canCreateSupportTicket } from '@/app/(dashboard)/support-tickets/types';
+import { cn } from '@/components/support-desk/cn';
 
 const SIDEBAR_WIDTH = 256;
 
@@ -60,7 +42,14 @@ const ROLE_LABELS: Record<string, string> = {
   SUPPORT: 'Suporte',
 };
 
-function SidebarNavButton({
+function getInitials(name?: string): string {
+  if (!name?.trim()) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function SidebarNavLink({
   icon: Icon,
   label,
   isActive,
@@ -73,62 +62,32 @@ function SidebarNavButton({
   onClick: () => void;
   size?: 'sm' | 'md';
 }) {
-  const activeBg = useColorModeValue('blue.50', 'blue.900');
-  const activeColor = useColorModeValue('blue.700', 'blue.200');
-  const inactiveColor = useColorModeValue('gray.600', 'gray.300');
-  const hoverBg = useColorModeValue('gray.50', 'whiteAlpha.100');
-
   return (
-    <Button
-      variant="ghost"
-      w="full"
-      justifyContent="flex-start"
-      h="auto"
-      py={2.5}
-      px={3}
-      fontSize="sm"
-      fontWeight="medium"
-      borderRadius="lg"
-      leftIcon={
-        <Box as="span" w={6} display="inline-flex" justifyContent="center" flexShrink={0}>
-          <Icon size={18} />
-        </Box>
-      }
-      size={size}
-      bg={isActive ? activeBg : 'transparent'}
-      color={isActive ? activeColor : inactiveColor}
-      _hover={{ bg: isActive ? activeBg : hoverBg }}
+    <button
+      type="button"
       onClick={onClick}
+      className={cn(
+        'flex w-full items-center rounded-lg font-medium transition-colors',
+        size === 'sm' ? 'px-3 py-2 text-xs' : 'px-3 py-2.5 text-sm',
+        isActive
+          ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
+          : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50',
+      )}
     >
-      {label}
-    </Button>
+      <span className="flex w-6 shrink-0 justify-center">
+        <Icon size={size === 'sm' ? 16 : 18} />
+      </span>
+      <span className="ml-2 truncate text-left">{label}</span>
+    </button>
   );
 }
 
-const SidebarContent = ({ onClose }: { onClose: () => void }) => {
+function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: boolean }) {
   const router = useRouter();
   const pathname = usePathname() || '';
-  const isMobile = useBreakpointValue({ base: true, md: false });
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const headerBorder = useColorModeValue('gray.100', 'gray.700');
-  const mutedText = useColorModeValue('gray.500', 'gray.400');
-  const activeBg = useColorModeValue('blue.50', 'blue.900');
-  const activeColor = useColorModeValue('blue.700', 'blue.200');
-  const inactiveColor = useColorModeValue('gray.600', 'gray.300');
-  const hoverBg = useColorModeValue('gray.50', 'whiteAlpha.100');
   const { user } = useUser();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { colorMode } = useColorMode();
   const { logout: handleLogout } = useLogout();
-
-  const isMenuItemActive = (href: string) => {
-    if (href === '/maintenance-schedules') return pathname.startsWith('/maintenance-schedules');
-    if (href === '/support-tickets') {
-      return pathname === '/support-tickets' || pathname.startsWith('/support-tickets/');
-    }
-    return pathname === href;
-  };
 
   const handleNavigation = (href: string) => {
     router.push(href);
@@ -138,9 +97,13 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
   const isEmployee = user?.role === 'EMPLOYEE';
   const isAdmin = user?.role === 'ADMIN';
   const showTicketsSubmenu =
-    !!user &&
-    canCreateSupportTicket(user.role) &&
-    pathname.startsWith('/support-tickets');
+    !!user && canCreateSupportTicket(user.role) && pathname.startsWith('/support-tickets');
+
+  const isMenuItemActive = (href: string) => {
+    if (href === '/maintenance-schedules') return pathname.startsWith('/maintenance-schedules');
+    if (href === '/support-tickets') return pathname.startsWith('/support-tickets');
+    return pathname === href;
+  };
 
   const menuItems: { icon: LucideIcon; label: string; href: string }[] = [
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
@@ -195,32 +158,14 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
     ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
   ];
 
+  const settingsActive =
+    pathname.startsWith('/settings') || pathname === '/chart-of-accounts';
+
   return (
-    <Flex
-      direction="column"
-      h="full"
-      w="full"
-      bg={bgColor}
-      borderRight="1px"
-      borderColor={borderColor}
-      boxShadow="sm"
-    >
-      <HStack
-        h="64px"
-        px={4}
-        borderBottom="1px"
-        borderColor={headerBorder}
-        flexShrink={0}
-        justify="space-between"
-      >
-        <HStack spacing={3} flex={1} minW={0}>
-          <Box
-            position="relative"
-            h="40px"
-            w="40px"
-            flexShrink={0}
-            display={{ base: 'none', sm: 'block' }}
-          >
+    <aside className="flex h-full w-full flex-col border-r border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-700">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="relative hidden h-10 w-10 shrink-0 sm:block">
             <NextImage
               src="/logo%20IEPAM%20.png"
               alt="IEPAM"
@@ -229,183 +174,156 @@ const SidebarContent = ({ onClose }: { onClose: () => void }) => {
               style={{ objectFit: 'contain' }}
               priority
             />
-          </Box>
-          <Box color="blue.600" flexShrink={0}>
-            <Headphones size={22} />
-          </Box>
-          <Text fontWeight="bold" fontSize="md" letterSpacing="tight" noOfLines={1}>
+          </div>
+          <Headphones className="h-5 w-5 shrink-0 text-primary-600" />
+          <span className="truncate text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
             TI Assistant
-          </Text>
-        </HStack>
+          </span>
+        </div>
         {isMobile && (
-          <IconButton aria-label="Fechar menu" icon={<X size={20} />} variant="ghost" onClick={onClose} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+            aria-label="Fechar menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
         )}
-      </HStack>
+      </div>
 
-      <Box flex={1} overflowY="auto" p={4} css={{
-        '&::-webkit-scrollbar': { width: '8px' },
-        '&::-webkit-scrollbar-thumb': {
-          background: colorMode === 'dark' ? '#4a5568' : '#cbd5e1',
-          borderRadius: '4px',
-        },
-      }}>
-        <VStack spacing={1} align="stretch">
-          {menuItems.map((item) => (
-            <Box key={item.href}>
-              <SidebarNavButton
-                icon={item.icon}
-                label={item.label}
-                isActive={
-                  item.href === '/support-tickets'
-                    ? pathname.startsWith('/support-tickets')
-                    : isMenuItemActive(item.href)
-                }
-                onClick={() => handleNavigation(item.href)}
-              />
-              {item.href === '/support-tickets' && showTicketsSubmenu && (
-                <VStack align="stretch" spacing={0.5} pl={9} mt={1} mb={1}>
-                  <SidebarNavButton
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4 scrollbar-thin">
+        {menuItems.map((item) => (
+          <div key={item.href}>
+            <SidebarNavLink
+              icon={item.icon}
+              label={item.label}
+              isActive={
+                item.href === '/support-tickets'
+                  ? pathname.startsWith('/support-tickets')
+                  : isMenuItemActive(item.href)
+              }
+              onClick={() => handleNavigation(item.href)}
+            />
+            {item.href === '/support-tickets' && showTicketsSubmenu && (
+              <div className="mb-1 mt-1 space-y-0.5 pl-9">
+                  <SidebarNavLink
                     icon={LayoutGrid}
                     label="Painel"
                     size="sm"
                     isActive={pathname === '/support-tickets'}
                     onClick={() => handleNavigation('/support-tickets')}
                   />
-                  <SidebarNavButton
+                  <SidebarNavLink
                     icon={PlusCircle}
                     label="Novo chamado"
                     size="sm"
                     isActive={pathname === '/support-tickets/new'}
                     onClick={() => handleNavigation('/support-tickets/new')}
                   />
-                </VStack>
-              )}
-            </Box>
-          ))}
+                </div>
+            )}
+          </div>
+        ))}
 
-          <Button
-            variant="ghost"
-            w="full"
-            justifyContent="space-between"
-            h="auto"
-            py={2.5}
-            px={3}
-            fontSize="sm"
-            fontWeight="medium"
-            borderRadius="lg"
-            leftIcon={
-              <Box as="span" w={6} display="inline-flex" justifyContent="center">
-                <Settings size={18} />
-              </Box>
-            }
-            rightIcon={isSettingsOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-            bg={
-              pathname.startsWith('/settings') || pathname === '/chart-of-accounts' ? activeBg : 'transparent'
-            }
-            color={
-              pathname.startsWith('/settings') || pathname === '/chart-of-accounts' ? activeColor : inactiveColor
-            }
-            _hover={{ bg: hoverBg }}
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          >
-            Configurações
-          </Button>
-
-          <Collapse in={isSettingsOpen} style={{ width: '100%' }}>
-            <Box maxH="200px" overflowY="auto" pl={4} mt={1}>
-              <VStack spacing={0.5} align="stretch">
-                {settingsItems.map((item) => (
-                  <SidebarNavButton
-                    key={item.href}
-                    icon={ChevronRight}
-                    label={item.label}
-                    size="sm"
-                    isActive={pathname === item.href}
-                    onClick={() => handleNavigation(item.href)}
-                  />
-                ))}
-              </VStack>
-            </Box>
-          </Collapse>
-        </VStack>
-      </Box>
-
-      <Box borderTop="1px" borderColor={headerBorder} p={4} flexShrink={0}>
-        {user && (
-          <HStack spacing={3} mb={3}>
-            <Avatar size="sm" name={user.name} bg="blue.100" color="blue.700" />
-            <Box minW={0}>
-              <Text fontSize="sm" fontWeight="medium" noOfLines={1}>
-                {user.name}
-              </Text>
-              <Text fontSize="xs" color={mutedText} noOfLines={1}>
-                {ROLE_LABELS[user.role] ?? user.role}
-              </Text>
-            </Box>
-          </HStack>
-        )}
-        <Button
-          variant="ghost"
-          w="full"
-          justifyContent="flex-start"
-          leftIcon={<LogOut size={18} />}
-          colorScheme="red"
-          onClick={handleLogout}
-          size="sm"
-          borderRadius="lg"
-          fontSize="sm"
-          fontWeight="medium"
+        <button
+          type="button"
+          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+          className={cn(
+            'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+            settingsActive
+              ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
+              : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50',
+          )}
         >
-          Sair
-        </Button>
-      </Box>
-    </Flex>
-  );
-};
+          <span className="flex items-center">
+            <span className="flex w-6 justify-center">
+              <Settings className="h-[18px] w-[18px]" />
+            </span>
+            <span className="ml-2">Configurações</span>
+          </span>
+          {isSettingsOpen ? (
+            <ChevronDown className="h-4 w-4 shrink-0" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0" />
+          )}
+        </button>
 
-const MobileNav = ({ onOpen }: { onOpen: () => void }) => {
+        {isSettingsOpen && (
+          <div className="mt-1 max-h-[200px] space-y-0.5 overflow-y-auto pl-4 scrollbar-thin">
+            {settingsItems.map((item) => (
+              <SidebarNavLink
+                key={item.href}
+                icon={ChevronRight}
+                label={item.label}
+                size="sm"
+                isActive={pathname === item.href}
+                onClick={() => handleNavigation(item.href)}
+              />
+            ))}
+          </div>
+        )}
+      </nav>
+
+      <div className="shrink-0 border-t border-slate-100 p-4 dark:border-slate-700">
+        {user && (
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-900/50 dark:text-primary-200">
+              {getInitials(user.name)}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{user.name}</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                {ROLE_LABELS[user.role] ?? user.role}
+              </p>
+            </div>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+        >
+          <LogOut className="mr-2 h-[18px] w-[18px]" />
+          Sair
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function MobileNav({ onOpen }: { onOpen: () => void }) {
   const pathname = usePathname() || '';
   const { searchQuery, setSearchQuery } = useFilters();
-  const { colorMode } = useColorMode();
   const showSearch = pathname === '/supply-requests';
 
   return (
-    <Box
-      position="fixed"
-      top={0}
-      left={0}
-      right={0}
-      zIndex={20}
-      bg={useColorModeValue('white', 'gray.800')}
-      borderBottom="1px"
-      borderColor={useColorModeValue('gray.200', 'gray.700')}
-      p={2}
-    >
-      <HStack justify="space-between" w="full" spacing={2}>
-        <IconButton
-          aria-label="Abrir menu"
-          icon={<MenuIcon size={20} />}
-          variant="ghost"
-          onClick={onOpen}
-          flexShrink={0}
-        />
-        {showSearch && (
-          <InputGroup size="sm" flex="1">
-            <InputLeftElement pointerEvents="none">
-              <SearchIcon size={16} />
-            </InputLeftElement>
-            <Input
-              placeholder="Buscar suprimentos..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'gray.50'}
-            />
-          </InputGroup>
-        )}
-      </HStack>
-    </Box>
+    <header className="fixed left-0 right-0 top-0 z-20 border-b border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800 md:hidden">
+      <div className="flex w-full items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300"
+            aria-label="Abrir menu"
+          >
+            <MenuIcon className="h-5 w-5" />
+          </button>
+          {showSearch && (
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Buscar suprimentos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm dark:border-slate-600 dark:bg-slate-700"
+              />
+            </div>
+          )}
+        </div>
+    </header>
   );
-};
+}
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -425,19 +343,19 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
           onOverlayClick={onClose}
           size="xs"
         >
-          <DrawerContent maxW={`${SIDEBAR_WIDTH}px`}>
-            <SidebarContent onClose={onClose} />
+          <DrawerContent maxW={`${SIDEBAR_WIDTH}px`} p={0}>
+            <SidebarContent onClose={onClose} isMobile />
           </DrawerContent>
         </Drawer>
       ) : (
-        <Box position="fixed" left={0} top={0} h="100vh" w={`${SIDEBAR_WIDTH}px`}>
-          <SidebarContent onClose={onClose} />
+        <Box position="fixed" left={0} top={0} h="100vh" w={`${SIDEBAR_WIDTH}px`} zIndex={30}>
+          <SidebarContent onClose={onClose} isMobile={false} />
         </Box>
       )}
 
-      <Box ml={isMobile ? 0 : `${SIDEBAR_WIDTH}px`} pt={isMobile ? 12 : 0} p={0}>
+      <Box as="main" ml={isMobile ? 0 : `${SIDEBAR_WIDTH}px`} pt={isMobile ? 12 : 0}>
         {children}
       </Box>
     </Box>
   );
-};
+}

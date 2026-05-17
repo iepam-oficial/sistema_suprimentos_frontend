@@ -53,7 +53,7 @@ interface DashboardStats {
 
 interface Alert {
   id: string
-  title: string
+  about: string
   description: string
   danger_level: string
   created_at: string
@@ -555,7 +555,7 @@ export default function DashboardPage() {
                       }}
                     >
                       <HStack justify="space-between" mb={1}>
-                        <Text fontWeight="bold" fontSize="sm" color={textColor}>{alert.title}</Text>
+                        <Text fontWeight="bold" fontSize="sm" color={textColor}>{alert.about}</Text>
                         <Badge
                           colorScheme={
                             alert.danger_level === 'ALTO' ? 'red' :

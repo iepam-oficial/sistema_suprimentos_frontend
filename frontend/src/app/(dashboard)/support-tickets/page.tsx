@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Flex, Spinner } from '@chakra-ui/react';
-import { canUseSupportTicketsKanban } from './types';
+import { Loader2 } from 'lucide-react';
+import { canUseAdminSupportDesk } from './types';
 import { AdminSupportDeskView } from './AdminSupportDeskView';
 import { SupportTicketsLegacyListView } from './SupportTicketsLegacyListView';
 
@@ -21,13 +21,13 @@ export default function SupportTicketsPage() {
 
   if (booting) {
     return (
-      <Flex justify="center" align="center" minH="40vh">
-        <Spinner size="lg" />
-      </Flex>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
     );
   }
 
-  if (userRole && canUseSupportTicketsKanban(userRole)) {
+  if (userRole && canUseAdminSupportDesk(userRole)) {
     return <AdminSupportDeskView />;
   }
 
