@@ -47,9 +47,6 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
     "@emotion/babel-plugin": "^11.13.5",
     "@types/formidable": "^3.4.5",
     "@types/jest": "^29.5.12",
