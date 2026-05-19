@@ -164,8 +164,8 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
   return (
     <aside className="flex h-full w-full flex-col border-r border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-700">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="relative hidden h-10 w-10 shrink-0 sm:block">
+        <div className="flex min-w-0 flex-1 items-center">
+          <div className="relative h-10 w-10 shrink-0">
             <NextImage
               src="/logo%20IEPAM%20.png"
               alt="IEPAM"
@@ -175,10 +175,6 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
               priority
             />
           </div>
-          <Headphones className="h-5 w-5 shrink-0 text-primary-600" />
-          <span className="truncate text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
-            TI Assistant
-          </span>
         </div>
         {isMobile && (
           <button
