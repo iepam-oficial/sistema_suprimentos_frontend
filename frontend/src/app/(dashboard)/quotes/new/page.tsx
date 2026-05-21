@@ -1,14 +1,12 @@
 'use client';
 
-import { Box, useBreakpointValue, Container, VStack, FormControl, FormLabel, Input, Button, useToast, Text, IconButton, HStack, NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, useColorMode, Select, FormHelperText, Spinner } from '@chakra-ui/react';
+import { Box, useBreakpointValue, Container, VStack, FormControl, FormLabel, Input, Button, useToast, Text, IconButton, HStack, NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, useColorMode, Select, FormHelperText } from '@chakra-ui/react';
 import { MobileNewQuote } from './components/MobileNewQuote';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { formatBRL, mulMoney, sumMoney } from '@/utils/money';
-import { useMercadoLivreItemImport } from '@/hooks/useMercadoLivreItemImport';
-import type { QuoteItemFromML } from '@/utils/mercadoLivre';
 
 interface Supplier {
   id: string;
@@ -46,55 +44,10 @@ export default function NewQuotePage() {
     }]
   });
   const [loading, setLoading] = useState(false);
-  const { loadingIndex, tryImportFromLink } = useMercadoLivreItemImport();
 
   useEffect(() => {
     fetchSuppliers();
   }, []);
-
-  const applyMercadoLivreDraft = useCallback((index: number, draft: QuoteItemFromML) => {
-    setFormData((prev) => {
-      const newItems = [...prev.items];
-      newItems[index] = {
-        ...newItems[index],
-        product_name: draft.product_name,
-        manufacturer: draft.manufacturer,
-        unit_price: draft.unit_price,
-        link: draft.link,
-        notes: draft.notes ?? newItems[index].notes,
-      };
-      return { ...prev, items: newItems };
-    });
-  }, []);
-
-  const handleMercadoLivreLink = useCallback(
-    async (index: number, rawLink: string) => {
-      const draft = await tryImportFromLink(index, rawLink);
-      if (draft) {
-        applyMercadoLivreDraft(index, draft);
-      }
-    },
-    [tryImportFromLink, applyMercadoLivreDraft]
-  );
-
-  const handleLinkPaste = useCallback(
-    (index: number, e: React.ClipboardEvent<HTMLInputElement>) => {
-      const pasted = e.clipboardData.getData('text');
-      if (pasted.trim()) {
-        void handleMercadoLivreLink(index, pasted);
-      }
-    },
-    [handleMercadoLivreLink]
-  );
-
-  const handleLinkBlur = useCallback(
-    (index: number, link: string) => {
-      if (link.trim()) {
-        void handleMercadoLivreLink(index, link);
-      }
-    },
-    [handleMercadoLivreLink]
-  );
 
   const fetchSuppliers = async () => {
     try {
@@ -384,21 +337,12 @@ export default function NewQuotePage() {
 
                   <FormControl>
                     <FormLabel>Link do Produto (opcional)</FormLabel>
-                    <HStack>
-                      <Input
-                        type="url"
-                        placeholder="https://..."
-                        value={item.link || ''}
-                        onChange={(e) => handleItemChange(index, 'link', e.target.value)}
-                        onPaste={(e) => handleLinkPaste(index, e)}
-                        onBlur={() => handleLinkBlur(index, item.link || '')}
-                        isDisabled={loadingIndex === index}
-                      />
-                      {loadingIndex === index && <Spinner size="sm" />}
-                    </HStack>
-                    <FormHelperText>
-                      Cole um link do Mercado Livre para preencher os dados automaticamente
-                    </FormHelperText>
+                    <Input
+                      type="url"
+                      placeholder="https://..."
+                      value={item.link || ''}
+                      onChange={(e) => handleItemChange(index, 'link', e.target.value)}
+                    />
                   </FormControl>
 
                   <IconButton
