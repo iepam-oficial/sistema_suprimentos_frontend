@@ -10,6 +10,8 @@ export const getStatusColor = (status: InventoryItem['status']): string => {
             return 'orange';
         case 'DISCARDED':
             return 'red';
+        case 'LOST':
+            return 'purple';
         default:
             return 'gray';
     }
@@ -25,6 +27,8 @@ export const getStatusLabel = (status: InventoryItem['status']): string => {
             return 'Em Manutenção';
         case 'DISCARDED':
             return 'Descartado';
+        case 'LOST':
+            return 'Perdido';
         default:
             return 'Desconhecido';
     }

@@ -21,7 +21,7 @@ interface AllocationRequest {
   destination_name?: string;
   destination_id?: string;
   notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
   created_at: string;
   return_date: string;
   requester_delivery_confirmation: boolean;
@@ -32,12 +32,14 @@ interface AllocationCardProps {
   allocation: AllocationRequest;
   onConfirmDelivery: (allocationId: string) => Promise<void>;
   onReturnItem: (allocation: AllocationRequest) => void;
+  onMarkAsLost?: (allocation: AllocationRequest) => void;
 }
 
 export function AllocationCard({ 
   allocation, 
   onConfirmDelivery, 
-  onReturnItem 
+  onReturnItem,
+  onMarkAsLost,
 }: AllocationCardProps) {
   const getStatusColor = (status: AllocationRequest['status']) => {
     switch (status) {
@@ -45,6 +47,7 @@ export function AllocationCard({
       case 'REJECTED': return 'red';
       case 'DELIVERED': return 'purple';
       case 'RETURNED': return 'blue';
+      case 'LOST': return 'purple';
       default: return 'yellow';
     }
   };
@@ -56,6 +59,7 @@ export function AllocationCard({
       case 'REJECTED': return 'Rejeitado';
       case 'DELIVERED': return 'Entregue';
       case 'RETURNED': return 'Devolvido';
+      case 'LOST': return 'Perdido';
       default: return status;
     }
   };
@@ -110,15 +114,27 @@ export function AllocationCard({
             </Button>
           )}
           
-          <Button
-            size="sm"
-            colorScheme="blue"
-            onClick={() => onReturnItem(allocation)}
-            isDisabled={allocation.status !== 'DELIVERED'}
-            hidden={allocation.status !== 'DELIVERED'}
-          >
-            Devolver Item
-          </Button>
+          {allocation.status === 'DELIVERED' && (
+            <>
+              <Button
+                size="sm"
+                colorScheme="blue"
+                onClick={() => onReturnItem(allocation)}
+              >
+                Devolver Item
+              </Button>
+              {onMarkAsLost && (
+                <Button
+                  size="sm"
+                  colorScheme="purple"
+                  variant="outline"
+                  onClick={() => onMarkAsLost(allocation)}
+                >
+                  Marcar como perdido
+                </Button>
+              )}
+            </>
+          )}
         </VStack>
       </CardBody>
     </Card>

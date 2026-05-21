@@ -97,7 +97,7 @@ interface AllocationRequest {
     location_name?: string;
     requester_sector?: string;
     notes: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED';
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
     created_at: string;
     return_date: string;
     requester_delivery_confirmation: boolean;
@@ -797,6 +797,44 @@ export default function AdminSupplyRequestsPage() {
         }
     };
 
+    const handleAllocationMarkAsLost = async (allocation: any) => {
+        try {
+            const token = localStorage.getItem('@ti-assistant:token');
+            if (!token) {
+                router.push('/login');
+                return;
+            }
+            const response = await fetch(`/api/inventory-allocations/${allocation.id}/mark-lost`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao marcar item como perdido');
+            }
+            toast({
+                title: 'Sucesso',
+                description: 'Item marcado como perdido',
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+            });
+            fetchAllocationRequests();
+        } catch (error) {
+            toast({
+                title: 'Erro',
+                description: error instanceof Error ? error.message : 'Erro ao marcar item como perdido',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        }
+    };
+
     const handleAllocationManagerReturnConfirmation = async (allocation: any) => {
         try {
             const token = localStorage.getItem('@ti-assistant:token');
@@ -1269,6 +1307,7 @@ export default function AdminSupplyRequestsPage() {
                                 onAllocationReject={handleAllocationStatusUpdate}
                                 onAllocationConfirmDelivery={handleManagerDeliveryConfirmation}
                                 onAllocationManagerReturnConfirmation={handleAllocationManagerReturnConfirmation}
+                                onAllocationMarkAsLost={handleAllocationMarkAsLost}
                                 onExportPDF={exportToPDF}
                                 onClearFilters={clearFilters}
                                 onRefresh={fetchAllocationRequests}
@@ -1370,6 +1409,7 @@ export default function AdminSupplyRequestsPage() {
                         onAllocationReject={handleAllocationStatusUpdate}
                         onAllocationConfirmDelivery={handleManagerDeliveryConfirmation}
                         onAllocationManagerReturnConfirmation={handleAllocationManagerReturnConfirmation}
+                        onAllocationMarkAsLost={handleAllocationMarkAsLost}
                         onExportPDF={exportToPDF}
                         onClearFilters={clearFilters}
                         onRefresh={fetchAllocationRequests}
