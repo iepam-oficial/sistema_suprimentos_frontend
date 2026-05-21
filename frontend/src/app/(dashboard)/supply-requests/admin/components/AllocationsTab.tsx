@@ -55,7 +55,7 @@ interface AllocationRequest {
     location_name?: string;
     requester_sector?: string;
     notes: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED';
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
     created_at: string;
     return_date: string;
     requester_delivery_confirmation: boolean;
@@ -84,6 +84,7 @@ interface AllocationsTabProps {
     onAllocationReject: (id: string, status: 'APPROVED' | 'REJECTED') => void;
     onAllocationConfirmDelivery: (request: any, confirmation: boolean) => void;
     onAllocationManagerReturnConfirmation: (request: AllocationRequest) => void;
+    onAllocationMarkAsLost: (request: AllocationRequest) => void;
     onExportPDF: () => void;
     onClearFilters: () => void;
     onRefresh: () => void;
@@ -111,6 +112,7 @@ export function AllocationsTab({
     onAllocationReject,
     onAllocationConfirmDelivery,
     onAllocationManagerReturnConfirmation,
+    onAllocationMarkAsLost,
     onExportPDF,
     onClearFilters,
     onRefresh,
@@ -185,6 +187,7 @@ export function AllocationsTab({
                                         <option value="REJECTED">Rejeitado</option>
                                         <option value="DELIVERED">Entregue</option>
                                         <option value="RETURNED">Devolvido</option>
+                                        <option value="LOST">Perdido</option>
                                     </Select>
                                 </FormControl>
                                 <FormControl>
@@ -261,8 +264,8 @@ export function AllocationsTab({
                                 <Text fontSize="sm" color="gray.500">{request.requester.name} - {request.requester.email}</Text>
                                 <Text fontSize="sm">Modelo: {request.inventory.model}</Text>
                                 <Text fontSize="sm">Série: {request.inventory.serial_number}</Text>
-                                <Badge colorScheme={request.status === 'APPROVED' ? 'green' : request.status === 'REJECTED' ? 'red' : request.status === 'DELIVERED' ? 'purple' : request.status === 'RETURNED' ? 'blue' : 'yellow'} mt={1} mb={1}>
-                                    {request.status === 'PENDING' ? 'Pendente' : request.status === 'APPROVED' ? 'Aprovado' : request.status === 'REJECTED' ? 'Rejeitado' : request.status === 'DELIVERED' ? 'Entregue' : 'Devolvido'}
+                                <Badge colorScheme={request.status === 'APPROVED' ? 'green' : request.status === 'REJECTED' ? 'red' : request.status === 'DELIVERED' ? 'purple' : request.status === 'RETURNED' ? 'blue' : request.status === 'LOST' ? 'purple' : 'yellow'} mt={1} mb={1}>
+                                    {request.status === 'PENDING' ? 'Pendente' : request.status === 'APPROVED' ? 'Aprovado' : request.status === 'REJECTED' ? 'Rejeitado' : request.status === 'DELIVERED' ? 'Entregue' : request.status === 'LOST' ? 'Perdido' : 'Devolvido'}
                                 </Badge>
                                 <Text fontSize="xs" color="gray.400">Data: {new Date(request.created_at).toLocaleDateString('pt-BR')}</Text>
                                 <VStack spacing={2} mt={2} align="stretch">
@@ -292,6 +295,17 @@ export function AllocationsTab({
                                             transition="all 0.2s ease"
                                         >
                                             Confirmar Devolução
+                                        </Button>
+                                    )}
+                                    {request.status === 'DELIVERED' && (
+                                        <Button
+                                            size="sm"
+                                            colorScheme="purple"
+                                            variant="outline"
+                                            w="full"
+                                            onClick={() => onAllocationMarkAsLost(request)}
+                                        >
+                                            Marcar como perdido
                                         </Button>
                                     )}
                                 </VStack>
@@ -361,9 +375,10 @@ export function AllocationsTab({
                     <option value="PENDING">Pendente</option>
                     <option value="APPROVED">Aprovado</option>
                     <option value="REJECTED">Rejeitado</option>
-                    <option value="DELIVERED">Entregue</option>
-                    <option value="RETURNED">Devolvido</option>
-                </Select>
+                                        <option value="DELIVERED">Entregue</option>
+                                        <option value="RETURNED">Devolvido</option>
+                                        <option value="LOST">Perdido</option>
+                                    </Select>
                 </FormControl>
                 <FormControl maxW="130px">
                     <FormLabel fontSize="sm" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Filial</FormLabel>
@@ -556,7 +571,9 @@ export function AllocationsTab({
                                                             ? 'purple'
                                                             : request.status === 'RETURNED'
                                                                 ? 'blue'
-                                                                : 'yellow'
+                                                                : request.status === 'LOST'
+                                                                    ? 'purple'
+                                                                    : 'yellow'
                                             }
                                         >
                                             {request.status === 'PENDING'
@@ -567,7 +584,9 @@ export function AllocationsTab({
                                                         ? 'Rejeitado'
                                                         : request.status === 'DELIVERED'
                                                             ? 'Entregue'
-                                                            : 'Devolvido'}
+                                                            : request.status === 'LOST'
+                                                                ? 'Perdido'
+                                                                : 'Devolvido'}
                                         </Badge>
                                     </Td>
                                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
@@ -658,6 +677,25 @@ export function AllocationsTab({
                                                     transition="all 0.2s ease"
                                                 >
                                                     Confirmar Devolução
+                                                </Button>
+                                            )}
+                                            {request.status === 'DELIVERED' && (
+                                                <Button
+                                                    size="sm"
+                                                    colorScheme="purple"
+                                                    variant="outline"
+                                                    onClick={() => onAllocationMarkAsLost(request)}
+                                                    minW="140px"
+                                                    h="32px"
+                                                    fontSize="xs"
+                                                    fontWeight="medium"
+                                                    _hover={{
+                                                        transform: 'translateY(-1px)',
+                                                        boxShadow: 'md',
+                                                    }}
+                                                    transition="all 0.2s ease"
+                                                >
+                                                    Marcar como perdido
                                                 </Button>
                                             )}
                                         </HStack>

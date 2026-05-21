@@ -20,7 +20,7 @@ export interface InventoryItem {
     description?: string | null;
     locale_id?: string | null;
     subcategory_id: string;
-    status: 'STANDBY' | 'IN_USE' | 'MAINTENANCE' | 'DISCARDED';
+    status: 'STANDBY' | 'IN_USE' | 'MAINTENANCE' | 'DISCARDED' | 'LOST';
     sector_id?: string | null;
     location: {
         id: string;

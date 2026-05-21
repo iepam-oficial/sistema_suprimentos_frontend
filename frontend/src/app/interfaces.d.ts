@@ -20,7 +20,7 @@ export interface InventoryResponse {
   description: string;
   locale_id: string;
   subcategory_id: string;
-  status: "STANDBY" | "IN_USE" | "MAINTENANCE" | "DISCARDED";
+  status: "STANDBY" | "IN_USE" | "MAINTENANCE" | "DISCARDED" | "LOST";
   sector_id: string | null;
   location: {
     id: string;

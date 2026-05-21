@@ -23,7 +23,7 @@ interface AllocationRequest {
   destination_name?: string;
   destination_id?: string;
   notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
   created_at: string;
   return_date: string;
   requester_delivery_confirmation: boolean;
@@ -37,6 +37,8 @@ export function MobileMyAllocationsPage() {
   const router = useRouter();
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [returningAllocation, setReturningAllocation] = useState<AllocationRequest | null>(null);
+  const [lostModalOpen, setLostModalOpen] = useState(false);
+  const [lostAllocation, setLostAllocation] = useState<AllocationRequest | null>(null);
 
   useEffect(() => {
     fetchAllocations();
@@ -124,6 +126,30 @@ export function MobileMyAllocationsPage() {
     }
   };
 
+  const handleMarkAsLost = async (notes: string) => {
+    if (!lostAllocation) return;
+    try {
+      const token = localStorage.getItem('@ti-assistant:token');
+      if (!token) throw new Error('Token não encontrado');
+      const response = await fetch(`/api/inventory-allocations/${lostAllocation.id}/mark-lost`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ lost_notes: notes })
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao marcar item como perdido');
+      }
+      toast({ title: 'Sucesso', description: 'Item marcado como perdido', status: 'success', duration: 3000, isClosable: true });
+      fetchAllocations();
+    } catch (error) {
+      throw error;
+    }
+  };
+
   if (loading) {
     return (
       <Flex justify="center" align="center" minH="200px">
@@ -161,6 +187,10 @@ export function MobileMyAllocationsPage() {
             setReturningAllocation(allocation);
             setReturnModalOpen(true);
           }}
+          onMarkAsLost={(allocation) => {
+            setLostAllocation(allocation);
+            setLostModalOpen(true);
+          }}
         />
       ))}
       <ReturnItemModal
@@ -172,6 +202,19 @@ export function MobileMyAllocationsPage() {
         onConfirm={handleReturnItem}
         title="Devolver Item"
         itemName={returningAllocation ? `${returningAllocation.inventory.name} - ${returningAllocation.inventory.model}` : undefined}
+      />
+      <ReturnItemModal
+        isOpen={lostModalOpen}
+        onClose={() => {
+          setLostModalOpen(false);
+          setLostAllocation(null);
+        }}
+        onConfirm={handleMarkAsLost}
+        title="Marcar como perdido"
+        confirmLabel="Confirmar"
+        placeholder="Descreva as circunstâncias da perda..."
+        colorScheme="purple"
+        itemName={lostAllocation ? `${lostAllocation.inventory.name} - ${lostAllocation.inventory.model}` : undefined}
       />
     </VStack>
   );

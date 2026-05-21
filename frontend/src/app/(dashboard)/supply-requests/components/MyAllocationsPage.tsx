@@ -57,7 +57,7 @@ interface AllocationRequest {
   destination_name?: string;
   destination_id?: string;
   notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
   created_at: string;
   return_date: string;
   requester_delivery_confirmation: boolean;
@@ -78,6 +78,10 @@ export function MyAllocationsPage() {
   const [returnNotes, setReturnNotes] = useState('');
   const [returningId, setReturningId] = useState<string | null>(null);
   const [isReturning, setIsReturning] = useState(false);
+  const [lostModalOpen, setLostModalOpen] = useState(false);
+  const [lostNotes, setLostNotes] = useState('');
+  const [markingLostId, setMarkingLostId] = useState<string | null>(null);
+  const [isMarkingLost, setIsMarkingLost] = useState(false);
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const { colorMode } = useColorMode();
 
@@ -204,6 +208,36 @@ export function MyAllocationsPage() {
     }
   };
 
+  const handleMarkAsLost = async () => {
+    if (!markingLostId) return;
+    setIsMarkingLost(true);
+    try {
+      const token = localStorage.getItem('@ti-assistant:token');
+      if (!token) throw new Error('Token não encontrado');
+      const response = await fetch(`/api/inventory-allocations/${markingLostId}/mark-lost`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ lost_notes: lostNotes })
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao marcar item como perdido');
+      }
+      toast({ title: 'Sucesso', description: 'Item marcado como perdido', status: 'success', duration: 3000, isClosable: true });
+      setLostModalOpen(false);
+      setLostNotes('');
+      setMarkingLostId(null);
+      fetchAllocations();
+    } catch (error) {
+      toast({ title: 'Erro', description: error instanceof Error ? error.message : 'Erro ao marcar item como perdido', status: 'error', duration: 3000, isClosable: true });
+    } finally {
+      setIsMarkingLost(false);
+    }
+  };
+
   if (loading) {
     return (
       <Flex justify="center" align="center" minH="200px">
@@ -249,6 +283,7 @@ export function MyAllocationsPage() {
             <option value="REJECTED">Rejeitado</option>
             <option value="DELIVERED">Entregue</option>
             <option value="RETURNED">Devolvido</option>
+            <option value="LOST">Perdido</option>
           </Select>
         </Flex>
         )}
@@ -299,7 +334,9 @@ export function MyAllocationsPage() {
                                 ? 'purple'
                                 : allocation.status === 'RETURNED'
                                   ? 'blue'
-                                  : 'yellow'
+                                  : allocation.status === 'LOST'
+                                    ? 'purple'
+                                    : 'yellow'
                         } 
                         size="sm"
                       >
@@ -311,7 +348,9 @@ export function MyAllocationsPage() {
                               ? 'Rejeitado'
                               : allocation.status === 'DELIVERED'
                                 ? 'Entregue'
-                                : 'Devolvido'}
+                                : allocation.status === 'LOST'
+                                  ? 'Perdido'
+                                  : 'Devolvido'}
                       </Badge>
                     </HStack>
 
@@ -373,17 +412,28 @@ export function MyAllocationsPage() {
                       )}
                       
                       {allocation.status === 'DELIVERED' && (
-                        <Button 
-                          size="sm" 
-                          colorScheme="blue" 
-                          onClick={() => { setReturningId(allocation.id); setReturnModalOpen(true); }} 
-                          bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined} 
-                          _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }} 
-                          transition="all 0.3s ease"
-                          w="full"
-                        >
-                          Devolver Item
-                        </Button>
+                        <VStack spacing={2} w="full">
+                          <Button 
+                            size="sm" 
+                            colorScheme="blue" 
+                            onClick={() => { setReturningId(allocation.id); setReturnModalOpen(true); }} 
+                            bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined} 
+                            _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }} 
+                            transition="all 0.3s ease"
+                            w="full"
+                          >
+                            Devolver Item
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            colorScheme="purple" 
+                            variant="outline"
+                            onClick={() => { setMarkingLostId(allocation.id); setLostModalOpen(true); }} 
+                            w="full"
+                          >
+                            Marcar como perdido
+                          </Button>
+                        </VStack>
                       )}
                     </VStack>
                   </VStack>
@@ -442,7 +492,9 @@ export function MyAllocationsPage() {
                                 ? 'purple'
                                 : allocation.status === 'RETURNED'
                                   ? 'blue'
-                                  : 'yellow'
+                                  : allocation.status === 'LOST'
+                                    ? 'purple'
+                                    : 'yellow'
                         }
                         size={{ base: 'sm', md: 'md' }}
                       >
@@ -454,7 +506,9 @@ export function MyAllocationsPage() {
                               ? 'Rejeitado'
                               : allocation.status === 'DELIVERED'
                                 ? 'Entregue'
-                                : 'Devolvido'}
+                                : allocation.status === 'LOST'
+                                  ? 'Perdido'
+                                  : 'Devolvido'}
                       </Badge>
                     </Td>
                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', md: 'table-cell' }}>
@@ -492,16 +546,26 @@ export function MyAllocationsPage() {
                         </Button>
                       )}
                       {allocation.status === 'DELIVERED' && (
-                        <Button
+                        <VStack spacing={2} align="start">
+                          <Button
                             size={{ base: 'xs', md: 'sm' }}
-                          colorScheme="blue"
-                          onClick={() => { setReturningId(allocation.id); setReturnModalOpen(true); }}
+                            colorScheme="blue"
+                            onClick={() => { setReturningId(allocation.id); setReturnModalOpen(true); }}
                             bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined} 
                             _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }} 
                             transition="all 0.3s ease"
-                        >
+                          >
                             {isMobile ? 'Devolver' : 'Devolver Item'}
-                        </Button>
+                          </Button>
+                          <Button
+                            size={{ base: 'xs', md: 'sm' }}
+                            colorScheme="purple"
+                            variant="outline"
+                            onClick={() => { setMarkingLostId(allocation.id); setLostModalOpen(true); }}
+                          >
+                            Marcar como perdido
+                          </Button>
+                        </VStack>
                       )}
                       </VStack>
                     </Td>
@@ -526,6 +590,23 @@ export function MyAllocationsPage() {
           <ModalFooter>
             <Button colorScheme="blue" mr={3} onClick={handleReturnItem} isLoading={isReturning}>Confirmar Devolução</Button>
             <Button variant="ghost" onClick={() => setReturnModalOpen(false)}>Cancelar</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      <Modal isOpen={lostModalOpen} onClose={() => setLostModalOpen(false)}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Marcar como perdido</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <FormControl>
+              <FormLabel>Observações (opcional)</FormLabel>
+              <Textarea value={lostNotes} onChange={e => setLostNotes(e.target.value)} placeholder="Descreva as circunstâncias da perda..." />
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="purple" mr={3} onClick={handleMarkAsLost} isLoading={isMarkingLost}>Confirmar</Button>
+            <Button variant="ghost" onClick={() => setLostModalOpen(false)}>Cancelar</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

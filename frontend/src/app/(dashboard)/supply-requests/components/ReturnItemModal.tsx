@@ -21,6 +21,9 @@ interface ReturnItemModalProps {
   title?: string;
   itemName?: string;
   isLoading?: boolean;
+  confirmLabel?: string;
+  placeholder?: string;
+  colorScheme?: string;
 }
 
 export function ReturnItemModal({
@@ -29,7 +32,10 @@ export function ReturnItemModal({
   onConfirm,
   title = "Devolver Item",
   itemName,
-  isLoading = false
+  isLoading = false,
+  confirmLabel = "Confirmar Devolução",
+  placeholder = "Descreva o motivo ou detalhes da devolução...",
+  colorScheme = "blue",
 }: ReturnItemModalProps) {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,18 +83,18 @@ export function ReturnItemModal({
             <Textarea 
               value={notes} 
               onChange={e => setNotes(e.target.value)} 
-              placeholder="Descreva o motivo ou detalhes da devolução..." 
+              placeholder={placeholder}
             />
           </FormControl>
         </ModalBody>
         <ModalFooter>
           <Button 
-            colorScheme="blue" 
+            colorScheme={colorScheme}
             mr={3} 
             onClick={handleConfirm} 
             isLoading={isSubmitting || isLoading}
           >
-            Confirmar Devolução
+            {confirmLabel}
           </Button>
           <Button variant="ghost" onClick={handleClose}>
             Cancelar
