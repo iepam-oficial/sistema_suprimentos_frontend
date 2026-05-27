@@ -12,7 +12,6 @@ import {
   Text,
   VStack,
   useToast,
-  Link,
   Image,
   useBreakpointValue,
   Grid,
@@ -20,7 +19,12 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import { EmailIcon, LockIcon } from '@chakra-ui/icons'
-import NextLink from 'next/link'
+import {
+  getFromSearchParam,
+  getPostLoginPath,
+  redirectAfterLogin,
+  resolvePostLoginPath,
+} from '@/utils/postLoginRedirect'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -32,25 +36,23 @@ export default function LoginPage() {
 
   // redireciona se já autenticado
   useEffect(() => {
-    // 1) tenta pelo localStorage primeiro
+    const from = getFromSearchParam()
     const userJson = localStorage.getItem('@ti-assistant:user')
     const token = localStorage.getItem('@ti-assistant:token')
-    
+
     if (userJson && token) {
       try {
         const user = JSON.parse(userJson)
-        if (user?.role === 'EMPLOYEE' || user?.role === 'TECHNICIAN') {
-          router.replace('/supply-requests')
-          return
-        } else if (user?.role === 'ADMIN' || user?.role === 'MANAGER') {
-          router.replace('/dashboard')
+        const path = resolvePostLoginPath(user?.role, { from })
+        if (path) {
+          router.replace(path)
           return
         }
-      } catch {}
+      } catch {
+        /* ignore parse errors */
+      }
     }
 
-    // 2) fallback: tenta via sessão da API apenas se não há dados no localStorage
-    // Isso evita requisições desnecessárias quando não há token
     if (!token) {
       return
     }
@@ -58,21 +60,23 @@ export default function LoginPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/auth/session', { 
+        const res = await fetch('/api/auth/session', {
           cache: 'no-store',
+          credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         })
         if (!res.ok) return
         const user = await res.json()
         if (cancelled) return
-        if (user?.role === 'EMPLOYEE' || user?.role === 'TECHNICIAN') {
-          router.replace('/supply-requests')
-        } else if (user?.role === 'ADMIN' || user?.role === 'MANAGER') {
-          router.replace('/dashboard')
+        const path = resolvePostLoginPath(user?.role, { from })
+        if (path) {
+          router.replace(path)
         }
-      } catch {}
+      } catch {
+        /* ignore */
+      }
     })()
 
     return () => {
@@ -95,6 +99,7 @@ export default function LoginPage() {
       setLoading(true)
       const response = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -108,6 +113,14 @@ export default function LoginPage() {
       }
 
       const accessToken = data.accessToken || data.token
+      if (!accessToken) {
+        throw new Error('Token de acesso não recebido')
+      }
+
+      if (!data.user?.role) {
+        throw new Error('Dados do usuário incompletos')
+      }
+
       localStorage.setItem('@ti-assistant:token', accessToken)
       if (data.refreshToken) {
         localStorage.setItem('@ti-assistant:refresh-token', data.refreshToken)
@@ -122,12 +135,12 @@ export default function LoginPage() {
         isClosable: true,
       })
 
-      // Redirect based on user role
-      if (data.user.role === 'EMPLOYEE' || data.user.role === 'TECHNICIAN') {
-        router.replace('/supply-requests')
-      } else if (data.user.role === 'ADMIN' || data.user.role === 'MANAGER') {
-        router.replace('/dashboard')
+      const defaultPath = getPostLoginPath(data.user.role)
+      if (!defaultPath) {
+        throw new Error('Papel de usuário não reconhecido para redirecionamento')
       }
+
+      redirectAfterLogin(data.user.role, { from: getFromSearchParam() })
     } catch (error) {
       toast({
         title: 'Erro ao fazer login',
@@ -249,4 +262,4 @@ export default function LoginPage() {
       )}
     </Grid>
   )
-} 
+}

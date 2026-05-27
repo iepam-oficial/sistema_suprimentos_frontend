@@ -13,12 +13,13 @@ import {
   InputGroup,
   InputRightElement,
   VStack,
-  HStack,
-  IconButton,
   Select,
   Badge,
+  Text,
+  Alert,
+  AlertIcon,
 } from '@chakra-ui/react';
-import { SearchIcon, EditIcon, DeleteIcon } from '@chakra-ui/icons';
+import { SearchIcon } from '@chakra-ui/icons';
 import { DataTable } from '@/components/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { ChartOfAccount } from '@/utils/apiUtils';
@@ -29,37 +30,6 @@ export default function ChartOfAccountsPage() {
   const [search, setSearch] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('');
   const router = useRouter();
-
-  const handleEdit = (chartOfAccount: ChartOfAccount) => {
-    router.push(`/chart-of-accounts/edit/${chartOfAccount.id}`);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este plano de conta?')) {
-      try {
-        const token = localStorage.getItem('@ti-assistant:token');
-        const response = await fetch(`/api/chart-of-accounts/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (response.status === 429) {
-          router.push('/rate-limit');
-          return;
-        }
-
-        if (response.ok) {
-          fetchChartOfAccounts();
-        } else {
-          const errorData = await response.json().catch(() => ({ error: 'Erro ao excluir plano de conta' }));
-          alert(errorData.error || errorData.message || 'Erro ao excluir plano de conta');
-        }
-      } catch (error) {
-        console.error('Erro ao excluir:', error);
-        alert('Erro ao excluir plano de conta');
-      }
-    }
-  };
 
   const getTipoColor = (tipo: string) => {
     const colors: Record<string, string> = {
@@ -88,27 +58,6 @@ export default function ChartOfAccountsPage() {
         <Badge colorScheme={getTipoColor(row.original.tipo)}>
           {row.original.tipo}
         </Badge>
-      ),
-    },
-    {
-      id: 'actions',
-      header: 'Ações',
-      cell: ({ row }) => (
-        <HStack spacing={2}>
-          <IconButton
-            aria-label="Editar plano de conta"
-            icon={<EditIcon />}
-            size="sm"
-            onClick={() => handleEdit(row.original)}
-          />
-          <IconButton
-            aria-label="Excluir plano de conta"
-            icon={<DeleteIcon />}
-            size="sm"
-            colorScheme="red"
-            onClick={() => handleDelete(row.original.id)}
-          />
-        </HStack>
       ),
     },
   ];
@@ -164,12 +113,15 @@ export default function ChartOfAccountsPage() {
   return (
     <Box p={4}>
       <VStack spacing={4} align="stretch">
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Heading size="lg">Planos de Conta</Heading>
-          <Button colorScheme="blue" onClick={() => router.push('/chart-of-accounts/add')}>
-            Adicionar Plano de Conta
-          </Button>
-        </Box>
+        <Heading size="lg">Planos de Conta</Heading>
+
+        <Alert status="info">
+          <AlertIcon />
+          <Text>
+            Plano de contas gerenciado no sistema financeiro. Esta tela é somente leitura;
+            cadastro e alterações devem ser feitos no sistema de gestão financeira.
+          </Text>
+        </Alert>
 
         <Card>
           <CardHeader>
@@ -221,4 +173,3 @@ export default function ChartOfAccountsPage() {
     </Box>
   );
 }
-
