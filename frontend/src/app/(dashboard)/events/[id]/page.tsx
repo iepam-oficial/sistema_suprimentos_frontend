@@ -150,6 +150,14 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             marginTop={isMobile ? '4vh' : 0}
         >
             <VStack spacing={6} align="stretch" w="full">
+                <Button
+                    leftIcon={<ArrowLeft size={18} />}
+                    variant="ghost"
+                    alignSelf="flex-start"
+                    onClick={() => router.push('/events')}
+                >
+                    Voltar
+                </Button>
                 <Card
                     bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
                     backdropFilter="blur(12px)"

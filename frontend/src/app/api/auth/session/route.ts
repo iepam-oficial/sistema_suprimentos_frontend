@@ -6,16 +6,13 @@ export async function GET(request: NextRequest) {
     console.log('[API][auth][session][GET] Início handler', { url: request.url })
     try {
         const authHeader = request.headers.get('authorization') || undefined;
-        const token = request.headers.get('authorization')?.split(' ')[1]
-        console.log('\x1b[32m%s\x1b[0m', '[API][auth][session][GET] Token:', token)
-        // log colorido
-        console.log('\x1b[32m%s\x1b[0m', '[API][auth][session][GET] Auth header:', authHeader)
         const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
         const xHeaderToken = request.headers.get('x-ti-assistant-token')
             || request.headers.get('x-tiassistant-token')
             || request.headers.get('x-token')
             || undefined;
         const cookieToken = request.cookies.get('@ti-assistant:token')?.value || request.cookies.get('token')?.value;
+        const token = headerToken || xHeaderToken || cookieToken
 
         console.log('[API][auth][session][GET] Tokens encontrados', {
             hasAuthHeader: !!authHeader,
