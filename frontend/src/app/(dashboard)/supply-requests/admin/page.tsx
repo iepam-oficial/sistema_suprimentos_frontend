@@ -33,48 +33,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportToPDF as exportToPDFUtil } from '@/utils/exportToPDF';
 import { ShoppingCart, TimerIcon, FileText, RotateCcw, Package, ClipboardList, BarChart3, TrendingUp } from 'lucide-react';
-
-
-interface SupplyRequest {
-    id: string;
-    supply?: {
-        id: string;
-        name: string;
-        description: string;
-        quantity: number;
-        unit: {
-            id: string;
-            name: string;
-            symbol: string;
-        };
-    };
-    item_name?: string;
-    description?: string;
-    unit?: {
-        id: string;
-        name: string;
-        symbol: string;
-    };
-    user: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    quantity: number;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'CANCELLED';
-    notes: string;
-    created_at: string;
-    requester_confirmation: boolean;
-    requester_delivery_confirmation: boolean;
-    manager_delivery_confirmation: boolean;
-    is_custom?: boolean;
-    delivery_deadline?: string;
-    updated_at?: string;
-    location?: { name: string };
-    sector?: { name: string };
-    locale?: { name: string };
-}
+import type { SupplyRequest } from '../types';
 
 interface AllocationRequest {
     id: string;

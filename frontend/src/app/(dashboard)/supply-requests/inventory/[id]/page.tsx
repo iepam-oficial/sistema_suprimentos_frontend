@@ -33,7 +33,7 @@ import {
   Stack
 } from '@chakra-ui/react';
 import { ArrowLeft, MapPin, Calendar, Tag, Hash, Building } from 'lucide-react';
-import { fetchInventoryItemById } from '@/utils/apiUtils';
+import { fetchInventoryItemById } from '@/features/inventory/api/inventoryApi';
 import { InventoryAllocationModal } from '@/components/InventoryAllocationModal';
 import { allocateInventoryItem } from '../../utils/requestUtils';
 import { formatBRL } from '@/utils/money';

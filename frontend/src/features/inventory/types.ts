@@ -1,4 +1,10 @@
-export interface InventoryResponse {
+import type { InventoryAllocationDTO, InventoryStatus } from '@ti-assistant/contracts';
+
+export type { InventoryStatus };
+export type AllocationStatus = InventoryAllocationDTO['status'];
+
+/** Item de inventário — alinhado ao contrato da API, sem campos internos */
+export interface InventoryItem {
   id: string;
   item: string;
   name: string;
@@ -10,18 +16,18 @@ export interface InventoryResponse {
   residual_value: number;
   depreciated_value: number;
   service_life: number;
-  image_url: string;
-  supplier_id: string;
+  image_url?: string | null;
+  supplier_id?: string;
   acquisition_date: string;
   location_id: string;
   user_id: string;
   created_at: string;
   category_id: string;
-  description: string;
-  locale_id: string;
+  description?: string | null;
+  locale_id?: string | null;
   subcategory_id: string;
-  status: "STANDBY" | "IN_USE" | "MAINTENANCE" | "DISCARDED" | "LOST";
-  sector_id: string | null;
+  status: InventoryStatus;
+  sector_id?: string | null;
   location: {
     id: string;
     name: string;
@@ -30,15 +36,15 @@ export interface InventoryResponse {
     user_id: string;
     created_at: string;
   };
-  locale: {
+  locale?: {
     id: string;
     name: string;
-    description: string;
+    description?: string | null;
     created_at: string;
     updated_at: string;
     location_id: string;
   };
-  supplier: {
+  supplier?: {
     id: string;
     name: string;
     phone: string;
@@ -48,7 +54,7 @@ export interface InventoryResponse {
     contact_person: string;
     created_at: string;
   };
-  user: {
+  user?: {
     id: string;
     name: string;
     email: string;
@@ -74,7 +80,6 @@ export interface InventoryResponse {
   };
 }
 
-export interface RateLimitResponse {
-  status: number;
-  message: string;
-}
+export type InventoryAllocation = InventoryAllocationDTO;
+
+export type GroupByOption = 'none' | 'location' | 'category' | 'status' | 'subcategory';

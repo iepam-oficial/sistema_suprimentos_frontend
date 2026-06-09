@@ -72,7 +72,7 @@ import {
   filterRequests,
   allocateInventoryItem,
 } from './utils/requestUtils';
-import { fetchAvailableInventory, fetchAllocations } from '@/utils/apiUtils';
+import { fetchAvailableInventory, fetchAllocations } from '@/features/inventory/api/inventoryApi';
 import { MyAllocationsPage } from '@/app/(dashboard)/supply-requests/components/MyAllocationsPage';
 
 import { InventoryAllocationModal } from '@/components/InventoryAllocationModal';

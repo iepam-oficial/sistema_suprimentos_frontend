@@ -18,12 +18,7 @@ import {
   useToast,
 } from '@chakra-ui/react';
 
-interface InventoryItem {
-  id: string;
-  name: string;
-  description?: string;
-  // Adicione outros campos necessários
-}
+import type { InventoryItem } from '@/features/inventory/types';
 
 interface Locale {
   id: string;

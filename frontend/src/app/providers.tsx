@@ -4,6 +4,8 @@ import { ChakraProvider, extendTheme } from '@chakra-ui/react'
 import { SessionProvider } from 'next-auth/react'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { GlobalProvider } from '@/contexts/GlobalContext'
+import { CartProvider } from '@/features/supply-requests/context/CartContext'
+import { InventoryCacheProvider } from '@/features/inventory/context/InventoryCacheContext'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { handle401WithRefresh, shouldSkip401Handling } from '@/utils/auth401Handler'
@@ -97,12 +99,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <AuthProvider>
-        <GlobalProvider>
-          <ChakraProvider theme={theme}>
-            <ChakraColorModeSync />
-            {children}
-          </ChakraProvider>
-        </GlobalProvider>
+        <CartProvider>
+          <InventoryCacheProvider>
+            <GlobalProvider>
+              <ChakraProvider theme={theme}>
+                <ChakraColorModeSync />
+                {children}
+              </ChakraProvider>
+            </GlobalProvider>
+          </InventoryCacheProvider>
+        </CartProvider>
       </AuthProvider>
     </SessionProvider>
   )
