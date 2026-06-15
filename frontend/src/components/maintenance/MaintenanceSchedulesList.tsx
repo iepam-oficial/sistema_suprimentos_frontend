@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Card,
@@ -23,82 +23,27 @@ import { Calendar, Clock, Settings, Plus, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useRouter } from 'next/navigation';
-
-export interface MaintenanceSchedule {
-  id: string;
-  inventory: {
-    id: string;
-    name: string;
-    serial_number: string;
-  };
-  technician: {
-    id: string;
-    name: string;
-  };
-  type: string;
-  interval_days: number;
-  notes?: string;
-  active: boolean;
-  created_at: string;
-  tasks: Array<{
-    id: string;
-    status: string;
-    due_date: string;
-  }>;
-  nextMaintenanceDate: string;
-  nextPendingTask?: {
-    id: string;
-    status: string;
-    due_date: string;
-  };
-}
+import {
+  type MaintenanceSchedule,
+  useMaintenanceSchedules,
+} from '@/features/operations';
 
 export function MaintenanceSchedulesList() {
-  const [schedules, setSchedules] = useState<MaintenanceSchedule[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { schedules, loading } = useMaintenanceSchedules();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const router = useRouter();
-
-  useEffect(() => {
-    const fetchSchedules = async () => {
-      try {
-        const token = localStorage.getItem('@ti-assistant:token');
-        if (!token) {
-          router.push('/');
-          return;
-        }
-        const response = await fetch('/api/maintenance-schedules', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.status === 429) {
-          router.push('/rate-limit');
-          return;
-        }
-        if (response.ok) {
-          const data = await response.json();
-          setSchedules(data);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar agendamentos:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSchedules();
-  }, [router]);
 
   const filteredSchedules = schedules.filter((schedule) => {
+    const inventoryName = schedule.inventory?.name ?? '';
+    const serialNumber = schedule.inventory?.serial_number ?? '';
+    const technicianName = schedule.technician?.name ?? '';
     const matchesSearch =
-      schedule.inventory.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schedule.inventory.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schedule.technician.name.toLowerCase().includes(searchTerm.toLowerCase());
+      inventoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      technicianName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType = !typeFilter || schedule.type === typeFilter;
     const matchesStatus =
@@ -262,7 +207,9 @@ export function MaintenanceSchedulesList() {
         ) : (
           filteredSchedules.map((schedule) => {
             const nextTaskDate = getNextTaskDate(schedule);
-            const pendingTasksCount = schedule.tasks.filter((task) => task.status === 'PENDING').length;
+            const pendingTasksCount = (schedule.tasks ?? []).filter(
+              (task) => task.status === 'PENDING'
+            ).length;
             const { status, color, days } = getNextMaintenanceStatus(schedule);
 
             return (
@@ -277,7 +224,7 @@ export function MaintenanceSchedulesList() {
                         align={{ base: 'start', sm: 'center' }}
                       >
                         <Heading size={{ base: 'sm', md: 'md' }} color="gray.900" noOfLines={1}>
-                          {schedule.inventory.name}
+                          {schedule.inventory?.name ?? '—'}
                         </Heading>
                         <HStack spacing={2} flexWrap="wrap">
                           <Badge colorScheme={schedule.active ? 'green' : 'gray'} size={{ base: 'sm', md: 'md' }}>
@@ -298,11 +245,11 @@ export function MaintenanceSchedulesList() {
                       >
                         <HStack>
                           <Text fontWeight="medium">Equipamento:</Text>
-                          <Text noOfLines={1}>{schedule.inventory.serial_number}</Text>
+                          <Text noOfLines={1}>{schedule.inventory?.serial_number ?? '—'}</Text>
                         </HStack>
                         <HStack>
                           <Text fontWeight="medium">Técnico:</Text>
-                          <Text noOfLines={1}>{schedule.technician.name}</Text>
+                          <Text noOfLines={1}>{schedule.technician?.name ?? '—'}</Text>
                         </HStack>
                         <HStack>
                           <Text fontWeight="medium">Intervalo:</Text>
@@ -360,9 +307,9 @@ export function MaintenanceSchedulesList() {
                           <Clock size={isMobile ? 12 : 14} />
                           <Text>Pendentes: {pendingTasksCount}</Text>
                         </HStack>
-                        {schedule.tasks.length > 0 && (
+                        {(schedule.tasks?.length ?? 0) > 0 && (
                           <HStack>
-                            <Text>Total: {schedule.tasks.length}</Text>
+                            <Text>Total: {schedule.tasks?.length ?? 0}</Text>
                           </HStack>
                         )}
                       </HStack>

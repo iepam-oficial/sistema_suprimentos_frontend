@@ -30,6 +30,7 @@ import {
 } from '@chakra-ui/react';
 import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 import { useState, useEffect } from 'react';
+import { fetchUnitOfMeasures, type UnitOfMeasureDTO } from '@/features/reference-data';
 
 interface CustomSupplyRequestModalProps {
     isOpen: boolean;
@@ -53,11 +54,6 @@ export interface CustomSupplyRequestData {
 
 export interface CustomSupplyRequestBatchPayload {
     items: CustomSupplyRequestData[];
-}
-
-interface Unit {
-    id: string;
-    name: string;
 }
 
 interface LineState {
@@ -105,12 +101,12 @@ export function CustomSupplyRequestModal({
     /** Índice da linha em edição (formulário completo); as restantes aparecem colapsadas. */
     const [expandedLineIndex, setExpandedLineIndex] = useState(0);
     const [deliveryDeadline, setDeliveryDeadline] = useState('');
-    const [units, setUnits] = useState<Unit[]>([]);
+    const [units, setUnits] = useState<UnitOfMeasureDTO[]>([]);
     const [loading, setLoading] = useState(false);
     const toast = useToast();
 
     useEffect(() => {
-        fetchUnits();
+        loadUnits();
     }, []);
 
     useEffect(() => {
@@ -127,16 +123,12 @@ export function CustomSupplyRequestModal({
         setExpandedLineIndex((i) => Math.min(i, lines.length - 1));
     }, [lines.length]);
 
-    const fetchUnits = async () => {
+    const loadUnits = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token');
-            const response = await fetch('/api/unit-of-measures', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setUnits(data);
-            }
+            if (!token) return;
+            const data = await fetchUnitOfMeasures(token);
+            setUnits(data);
         } catch (error) {
             console.error('Erro ao buscar unidades:', error);
         }

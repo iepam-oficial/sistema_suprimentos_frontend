@@ -30,6 +30,12 @@ import {
 } from '@chakra-ui/react';
 import { ArrowLeft, Save, Settings, Calendar, Clock, Wrench } from 'lucide-react';
 import Link from 'next/link';
+import { useAuthSession } from '@/features/identity';
+import {
+  createMaintenanceSchedule,
+  RateLimitError,
+  type CreateMaintenanceScheduleInput,
+} from '@/features/operations';
 
 interface Inventory {
   id: string;
@@ -41,6 +47,7 @@ interface Inventory {
 export default function NewMaintenanceSchedulePage() {
   const router = useRouter();
   const toast = useToast();
+  const { token } = useAuthSession();
   const [loading, setLoading] = useState(false);
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,48 +165,38 @@ export default function NewMaintenanceSchedulePage() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) {
         router.push('/');
         return;
       }
 
-      const response = await fetch('/api/maintenance-schedules', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          interval_days: parseInt(formData.interval_days),
-        }),
-      });
+      const input: CreateMaintenanceScheduleInput = {
+        inventory_id: formData.inventory_id,
+        type: formData.type,
+        interval_days: parseInt(formData.interval_days, 10),
+        notes: formData.notes || undefined,
+        active: formData.active,
+      };
 
-      if (response.ok) {
-        toast({
-          title: 'Sucesso!',
-          description: 'Agendamento de manutenção criado com sucesso!',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        router.push('/maintenance-schedules');
-      } else {
-        const error = await response.json();
-        toast({
-          title: 'Erro!',
-          description: error.error || 'Erro ao criar agendamento',
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
-      }
+      await createMaintenanceSchedule(token, input);
+      toast({
+        title: 'Sucesso!',
+        description: 'Agendamento de manutenção criado com sucesso!',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      router.push('/maintenance-schedules');
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
       console.error('Erro ao criar agendamento:', error);
       toast({
         title: 'Erro!',
-        description: 'Erro ao criar agendamento',
+        description:
+          error instanceof Error ? error.message : 'Erro ao criar agendamento',
         status: 'error',
         duration: 3000,
         isClosable: true,

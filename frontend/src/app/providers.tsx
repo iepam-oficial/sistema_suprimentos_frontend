@@ -1,9 +1,8 @@
 'use client'
 
 import { ChakraProvider, extendTheme } from '@chakra-ui/react'
-import { SessionProvider } from 'next-auth/react'
-import { AuthProvider } from '@/contexts/AuthContext'
 import { GlobalProvider } from '@/contexts/GlobalContext'
+import { AuthSessionProvider } from '@/features/identity'
 import { CartProvider } from '@/features/supply-requests/context/CartContext'
 import { InventoryCacheProvider } from '@/features/inventory/context/InventoryCacheContext'
 import { useEffect } from 'react'
@@ -70,9 +69,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    // Avoid double patching during React strict mode or re-mounts
     if ((window as any).__fetchPatched) return
-    (window as any).__fetchPatched = true
+    ;(window as any).__fetchPatched = true
 
     const originalFetch = window.fetch.bind(window)
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -97,19 +95,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [router])
 
   return (
-    <SessionProvider>
-      <AuthProvider>
-        <CartProvider>
-          <InventoryCacheProvider>
-            <GlobalProvider>
-              <ChakraProvider theme={theme}>
-                <ChakraColorModeSync />
-                {children}
-              </ChakraProvider>
-            </GlobalProvider>
-          </InventoryCacheProvider>
-        </CartProvider>
-      </AuthProvider>
-    </SessionProvider>
+    <AuthSessionProvider>
+      <CartProvider>
+        <InventoryCacheProvider>
+          <GlobalProvider>
+            <ChakraProvider theme={theme}>
+              <ChakraColorModeSync />
+              {children}
+            </ChakraProvider>
+          </GlobalProvider>
+        </InventoryCacheProvider>
+      </CartProvider>
+    </AuthSessionProvider>
   )
-} 
+}

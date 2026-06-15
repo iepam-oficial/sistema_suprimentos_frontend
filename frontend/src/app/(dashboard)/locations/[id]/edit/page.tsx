@@ -14,19 +14,17 @@ import {
   Heading,
   HStack,
 } from '@chakra-ui/react';
-
-interface Location {
-  id: string;
-  name: string;
-  address: string;
-  branch: string;
-}
+import {
+  fetchLocationById,
+  updateLocation,
+  type LocationDTO,
+} from '@/features/reference-data';
 
 export default function EditLocationPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [location, setLocation] = useState<Location | null>(null);
+  const [location, setLocation] = useState<LocationDTO | null>(null);
 
   useEffect(() => {
     const fetchLocation = async () => {
@@ -36,17 +34,7 @@ export default function EditLocationPage({ params }: { params: { id: string } })
           throw new Error('Token não encontrado');
         }
 
-        const response = await fetch(`/api/locations/${params.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Erro ao carregar localização');
-        }
-
-        const data = await response.json();
+        const data = await fetchLocationById(token, params.id);
         setLocation(data);
       } catch (error) {
         toast({
@@ -68,9 +56,9 @@ export default function EditLocationPage({ params }: { params: { id: string } })
 
     const formData = new FormData(e.currentTarget);
     const data = {
-      name: formData.get('name'),
-      address: formData.get('address'),
-      branch: formData.get('branch'),
+      name: String(formData.get('name') ?? ''),
+      address: String(formData.get('address') ?? ''),
+      branch: String(formData.get('branch') ?? ''),
     };
 
     try {
@@ -79,18 +67,7 @@ export default function EditLocationPage({ params }: { params: { id: string } })
         throw new Error('Token não encontrado');
       }
 
-      const response = await fetch(`/api/locations/${params.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao atualizar localização');
-      }
+      await updateLocation(token, params.id, data);
 
       toast({
         title: 'Localização atualizada com sucesso!',

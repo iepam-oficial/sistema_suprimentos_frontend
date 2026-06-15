@@ -1,58 +1,17 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
-
-export interface CatalogSupply {
-  id: string;
-  name: string;
-  description: string;
-  quantity: number;
-  category_id: string;
-  subcategory_id: string | null;
-  created_at: string;
-  updated_at: string;
-  minimum_quantity: number;
-  supplier_id: string;
-  image_url: string | null;
-  unit_id: string;
-  unit_price: number;
-  freight: number;
-  category: {
-    id: string;
-    value: string;
-    label: string;
-    created_at: string;
-    updated_at: string;
-  };
-  supplier: {
-    id: string;
-    name: string;
-    phone: string;
-    email: string;
-    address: string;
-    cnpj: string;
-    contact_person: string;
-    created_at: string;
-  };
-  unit: {
-    id: string;
-    name: string;
-    symbol: string;
-    description: string;
-    created_at: string;
-    updated_at: string;
-  };
-}
+import type { SupplyDTO } from '@/features/catalog/types';
 
 export interface CartItem {
   id: string;
   quantity: number;
-  supply: CatalogSupply;
+  supply: SupplyDTO;
 }
 
 interface CartState {
   cart: CartItem[];
-  supplies: CatalogSupply[];
+  supplies: SupplyDTO[];
   suppliesLastFetched: number | null;
 }
 
@@ -61,7 +20,7 @@ type CartAction =
   | { type: 'REMOVE_FROM_CART'; payload: string }
   | { type: 'UPDATE_CART_ITEM'; payload: { id: string; quantity: number } }
   | { type: 'CLEAR_CART' }
-  | { type: 'SET_SUPPLIES'; payload: CatalogSupply[] }
+  | { type: 'SET_SUPPLIES'; payload: SupplyDTO[] }
   | { type: 'INITIALIZE_FROM_STORAGE' };
 
 const initialState: CartState = {
@@ -121,13 +80,13 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
 const CartContext = createContext<{
   cart: CartItem[];
-  supplies: CatalogSupply[];
+  supplies: SupplyDTO[];
   suppliesLastFetched: number | null;
   addToCart: (item: CartItem) => void;
   removeFromCart: (itemId: string) => void;
   updateCartItem: (itemId: string, quantity: number) => void;
   clearCart: () => void;
-  setSupplies: (supplies: CatalogSupply[]) => void;
+  setSupplies: (supplies: SupplyDTO[]) => void;
 } | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -160,7 +119,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     updateCartItem: (itemId: string, quantity: number) =>
       dispatch({ type: 'UPDATE_CART_ITEM', payload: { id: itemId, quantity } }),
     clearCart: () => dispatch({ type: 'CLEAR_CART' }),
-    setSupplies: (supplies: CatalogSupply[]) => dispatch({ type: 'SET_SUPPLIES', payload: supplies }),
+    setSupplies: (supplies: SupplyDTO[]) => dispatch({ type: 'SET_SUPPLIES', payload: supplies }),
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

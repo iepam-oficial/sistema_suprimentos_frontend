@@ -70,9 +70,12 @@ import {
   submitRequest,
   filterSupplies,
   filterRequests,
-  allocateInventoryItem,
 } from './utils/requestUtils';
-import { fetchAvailableInventory, fetchAllocations } from '@/features/inventory/api/inventoryApi';
+import {
+  fetchAvailableInventory,
+  fetchAllocations,
+  allocateInventoryItem,
+} from '@/features/inventory/api/inventoryApi';
 import { MyAllocationsPage } from '@/app/(dashboard)/supply-requests/components/MyAllocationsPage';
 
 import { InventoryAllocationModal } from '@/components/InventoryAllocationModal';
@@ -81,29 +84,11 @@ import { CatalogTab } from './components/Tabs/CatalogTab';
 import { InventoryTab } from './components/Tabs/InventoryTab';
 import { MyRequestsTab } from './components/Tabs/MyRequestsTab';
 import { CartTab } from './components/Tabs/CartTab';
-import { useGlobal, useCart, useFilters, useTabs, useSupplies, useInventoryItems } from '@/contexts/GlobalContext';
-import type { InventoryItem } from '@/contexts/GlobalContext';
-
-interface AllocationRequest {
-  id: string;
-  inventory: {
-    id: string;
-    name: string;
-    description: string;
-    model: string;
-    serial_number: string;
-  };
-  requester: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  destination: string;
-  notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETURNED';
-  created_at: string;
-  return_date: string;
-}
+import { useFilters, useTabs } from '@/contexts/GlobalContext';
+import { useCartContext } from '@/features/supply-requests/context/CartContext';
+import { useInventoryCache } from '@/features/inventory/context/InventoryCacheContext';
+import type { InventoryItem, InventoryAllocation } from '@/features/inventory/types';
+import { fetchLocalesByUserLocation } from '@/features/reference-data';
 
 // Layout reutilizável para abas persistentes (copiado/adaptado do admin)
 function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = 'persistentTabIndexColab', onOpenCustomRequestModal }: { tabLabels: string[], children: React.ReactNode[], onTabChange?: (() => void)[], storageKey?: string, onOpenCustomRequestModal?: () => void }) {
@@ -112,7 +97,7 @@ function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = '
   const [hasFetched, setHasFetched] = useState(() => tabLabels.map(() => false));
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   // Cart count and bump animation
-  const { cart } = useCart();
+  const { cart } = useCartContext();
   const cartCount = React.useMemo(() => {
     try {
       return (cart || []).reduce((sum: number, item: any) => sum + (item?.quantity || 0), 0);
@@ -275,10 +260,18 @@ function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = '
 
 export default function SupplyRequestsPage() {
   const [isMobile] = useMediaQuery('(max-width: 768px)');
-  const { supplies, suppliesLastFetched, setSupplies } = useSupplies();
-  const { inventoryItems, inventoryLastFetched, setInventoryItems } = useInventoryItems();
+  const {
+    supplies,
+    suppliesLastFetched,
+    setSupplies,
+    cart,
+    addToCart,
+    removeFromCart,
+    updateCartItem,
+    clearCart,
+  } = useCartContext();
+  const { inventoryItems, inventoryLastFetched, setInventoryItems } = useInventoryCache();
   const [categories, setCategories] = useState<{ id: string; label: string; }[]>([]);
-  const { cart, addToCart, removeFromCart, updateCartItem, clearCart } = useCart();
   const { searchQuery, statusFilter, setSearchQuery, setStatusFilter } = useFilters();
   const [filteredSupplies, setFilteredSupplies] = useState<Supply[]>([]);
   const [requests, setRequests] = useState<SupplyRequest[]>([]);
@@ -301,8 +294,8 @@ export default function SupplyRequestsPage() {
   const [allocationDeadline, setAllocationDeadline] = useState('');
   const [allocationDestination, setAllocationDestination] = useState('');
   const [allocationNotes, setAllocationNotes] = useState('');
-  const [allocationRequests, setAllocationRequests] = useState<AllocationRequest[]>([]);
-  const [filteredAllocationRequests, setFilteredAllocationRequests] = useState<AllocationRequest[]>([]);
+  const [allocationRequests, setAllocationRequests] = useState<InventoryAllocation[]>([]);
+  const [filteredAllocationRequests, setFilteredAllocationRequests] = useState<InventoryAllocation[]>([]);
   const [allocationStatusFilter, setAllocationStatusFilter] = useState('');
   const [isAllocating, setIsAllocating] = useState(false);
   const [userLocales, setUserLocales] = useState<any[]>([]);
@@ -337,13 +330,8 @@ export default function SupplyRequestsPage() {
       try {
         const token = localStorage.getItem('@ti-assistant:token');
         if (!token) return;
-        const response = await fetch('/api/locales/user-location', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setUserLocales(data);
-        }
+        const data = await fetchLocalesByUserLocation(token);
+        setUserLocales(data);
       } catch (e) {
         // Silenciar erro
       }

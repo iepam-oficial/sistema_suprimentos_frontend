@@ -4,18 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import { useCartContext } from '@/features/supply-requests/context/CartContext';
 import { useInventoryCache } from '@/features/inventory/context/InventoryCacheContext';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE' | 'ORGANIZER' | 'SUPPORT' | 'TECHNICIAN';
-  branch_id?: string;
-}
-
 interface GlobalState {
-  user: User | null;
-  isAuthenticated: boolean;
-  token: string | null;
   loading: boolean;
   theme: 'light' | 'dark';
   notifications: Notification[];
@@ -33,9 +22,6 @@ interface Notification {
 }
 
 type GlobalAction =
-  | { type: 'SET_USER'; payload: User }
-  | { type: 'SET_TOKEN'; payload: string }
-  | { type: 'LOGOUT' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_THEME'; payload: 'light' | 'dark' }
   | { type: 'ADD_NOTIFICATION'; payload: Omit<Notification, 'id' | 'timestamp'> }
@@ -46,10 +32,7 @@ type GlobalAction =
   | { type: 'INITIALIZE_FROM_STORAGE' };
 
 const initialState: GlobalState = {
-  user: null,
-  isAuthenticated: false,
-  token: null,
-  loading: true,
+  loading: false,
   theme: 'light',
   notifications: [],
   activeTab: 0,
@@ -59,12 +42,6 @@ const initialState: GlobalState = {
 
 function globalReducer(state: GlobalState, action: GlobalAction): GlobalState {
   switch (action.type) {
-    case 'SET_USER':
-      return { ...state, user: action.payload, isAuthenticated: true };
-    case 'SET_TOKEN':
-      return { ...state, token: action.payload };
-    case 'LOGOUT':
-      return { ...initialState, loading: false, theme: state.theme };
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
     case 'SET_THEME':
@@ -90,22 +67,16 @@ function globalReducer(state: GlobalState, action: GlobalAction): GlobalState {
       return { ...state, statusFilter: action.payload };
     case 'INITIALIZE_FROM_STORAGE':
       try {
-        const storedUser = localStorage.getItem('@ti-assistant:user');
-        const storedToken = localStorage.getItem('@ti-assistant:token');
         const storedTheme = localStorage.getItem('@ti-assistant:theme') as 'light' | 'dark';
         const storedActiveTab = localStorage.getItem('@ti-assistant:activeTab');
 
         return {
           ...state,
-          user: storedUser ? JSON.parse(storedUser) : null,
-          isAuthenticated: !!storedToken,
-          token: storedToken,
           theme: storedTheme || 'light',
           activeTab: storedActiveTab ? parseInt(storedActiveTab, 10) : 0,
-          loading: false,
         };
       } catch {
-        return { ...state, loading: false };
+        return state;
       }
     default:
       return state;
@@ -121,7 +92,6 @@ const GlobalContext = createContext<{
   setSearchQuery: (query: string) => void;
   setStatusFilter: (filter: string) => void;
   setTheme: (theme: 'light' | 'dark') => void;
-  handleLogout: () => void;
 } | undefined>(undefined);
 
 export function GlobalProvider({ children }: { children: ReactNode }) {
@@ -132,42 +102,12 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (state.user) {
-      localStorage.setItem('@ti-assistant:user', JSON.stringify(state.user));
-    }
-    if (state.token) {
-      localStorage.setItem('@ti-assistant:token', state.token);
-    }
-  }, [state.user, state.token]);
-
-  useEffect(() => {
     localStorage.setItem('@ti-assistant:theme', state.theme);
   }, [state.theme]);
 
   useEffect(() => {
     localStorage.setItem('@ti-assistant:activeTab', state.activeTab.toString());
   }, [state.activeTab]);
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-    }
-
-    localStorage.removeItem('@ti-assistant:user');
-    localStorage.removeItem('@ti-assistant:token');
-    localStorage.removeItem('@ti-assistant:cart');
-    localStorage.removeItem('@ti-assistant:supplies');
-    localStorage.removeItem('@ti-assistant:suppliesLastFetched');
-    localStorage.removeItem('@ti-assistant:inventoryItems');
-    localStorage.removeItem('@ti-assistant:inventoryLastFetched');
-
-    dispatch({ type: 'LOGOUT' });
-  };
 
   const value = {
     state,
@@ -180,7 +120,6 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
     setSearchQuery: (query: string) => dispatch({ type: 'SET_SEARCH_QUERY', payload: query }),
     setStatusFilter: (filter: string) => dispatch({ type: 'SET_STATUS_FILTER', payload: filter }),
     setTheme: (theme: 'light' | 'dark') => dispatch({ type: 'SET_THEME', payload: theme }),
-    handleLogout,
   };
 
   return <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>;
@@ -194,10 +133,7 @@ export function useGlobal() {
   return context;
 }
 
-export function useUser() {
-  const { state } = useGlobal();
-  return { user: state.user, isAuthenticated: state.isAuthenticated };
-}
+export { useUser } from '@/features/identity';
 
 export function useCart() {
   return useCartContext();

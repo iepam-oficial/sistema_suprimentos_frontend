@@ -18,6 +18,11 @@ import {
 } from '@chakra-ui/react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  changePassword,
+  RateLimitError,
+  useAuthSession,
+} from '@/features/identity'
 
 export default function SecuritySettings() {
     const [isLoading, setIsLoading] = useState(false)
@@ -26,6 +31,7 @@ export default function SecuritySettings() {
     const [confirmPassword, setConfirmPassword] = useState('')
     const toast = useToast()
     const router = useRouter()
+    const { token } = useAuthSession()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -43,28 +49,11 @@ export default function SecuritySettings() {
                 return
             }
 
-            const token = localStorage.getItem('@ti-assistant:token')
-            const response = await fetch('/api/users/change-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    currentPassword,
-                    newPassword
-                })
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
+            if (!token) {
+                throw new Error('Token não encontrado')
             }
 
-            if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.message || data.error || 'Erro ao alterar senha')
-            }
+            await changePassword(token, { currentPassword, newPassword })
 
             toast({
                 title: 'Sucesso',
@@ -85,6 +74,10 @@ export default function SecuritySettings() {
             localStorage.removeItem('@ti-assistant:user')
             router.push('/')
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: error instanceof Error ? error.message : 'Não foi possível alterar a senha',

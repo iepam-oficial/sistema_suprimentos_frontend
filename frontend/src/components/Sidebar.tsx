@@ -28,7 +28,7 @@ import {
 import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
 import { useUser, useFilters } from '@/contexts/GlobalContext';
 import { useLogout } from '@/hooks/useLogout';
-import { canCreateSupportTicket } from '@/app/(dashboard)/support-tickets/types';
+import { canCreateSupportTicket } from '@/features/support-tickets/types';
 import { cn } from '@/components/support-desk/cn';
 
 const SIDEBAR_WIDTH = 256;

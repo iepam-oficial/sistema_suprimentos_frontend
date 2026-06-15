@@ -34,6 +34,8 @@ import {
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatBRL } from '@/utils/money'
+import type { AlertDTO } from '@/features/alerts/types'
+import { getDangerLevelColor, getDangerLevelLabel } from '@/features/alerts/lib/dangerLevel'
 
 interface DashboardStats {
   totalInventory: number
@@ -51,14 +53,6 @@ interface DashboardStats {
   pendingSupplyRequests: number
 }
 
-interface Alert {
-  id: string
-  about: string
-  description: string
-  danger_level: string
-  created_at: string
-}
-
 interface ServiceOrder {
   id: string
   order_number: string
@@ -71,7 +65,7 @@ interface ServiceOrder {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [recentAlerts, setRecentAlerts] = useState<Alert[]>([])
+  const [recentAlerts, setRecentAlerts] = useState<AlertDTO[]>([])
   const [recentServiceOrders, setRecentServiceOrders] = useState<ServiceOrder[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -557,14 +551,11 @@ export default function DashboardPage() {
                       <HStack justify="space-between" mb={1}>
                         <Text fontWeight="bold" fontSize="sm" color={textColor}>{alert.about}</Text>
                         <Badge
-                          colorScheme={
-                            alert.danger_level === 'ALTO' ? 'red' :
-                              alert.danger_level === 'MEDIO' ? 'orange' : 'green'
-                          }
+                          colorScheme={getDangerLevelColor(alert.danger_level)}
                           fontSize="xs"
                           variant="solid"
                         >
-                          {alert.danger_level}
+                          {getDangerLevelLabel(alert.danger_level)}
                         </Badge>
                       </HStack>
                       <Text fontSize="sm" color={textSecondary} mb={1}>{alert.description}</Text>

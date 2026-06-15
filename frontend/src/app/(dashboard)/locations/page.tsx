@@ -18,49 +18,37 @@ import {
   Icon,
 } from '@chakra-ui/react';
 import { Pencil, Trash2, Plus } from 'lucide-react';
-
-interface Location {
-  id: string;
-  name: string;
-  address: string;
-  branch: string;
-}
+import {
+  fetchLocations,
+  deleteLocation,
+  RateLimitError,
+  type LocationDTO,
+} from '@/features/reference-data';
 
 export default function LocationsPage() {
   const router = useRouter();
   const toast = useToast();
-  const [locations, setLocations] = useState<Location[]>([]);
+  const [locations, setLocations] = useState<LocationDTO[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchLocations();
+    loadLocations();
   }, []);
 
-  const fetchLocations = async () => {
+  const loadLocations = async () => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
       if (!token) {
         throw new Error('Token não encontrado');
       }
 
-      const response = await fetch('/api/locations', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.status === 429) {
+      const data = await fetchLocations(token);
+      setLocations(data);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
         router.push('/rate-limit');
         return;
       }
-
-      if (!response.ok) {
-        throw new Error('Erro ao carregar localizações');
-      }
-
-      const data = await response.json();
-      setLocations(data);
-    } catch (error) {
       toast({
         title: 'Erro ao carregar localizações',
         status: 'error',
@@ -82,16 +70,7 @@ export default function LocationsPage() {
         throw new Error('Token não encontrado');
       }
 
-      const response = await fetch(`/api/locations/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao excluir localização');
-      }
+      await deleteLocation(token, id);
 
       toast({
         title: 'Localização excluída com sucesso',
@@ -99,7 +78,7 @@ export default function LocationsPage() {
         duration: 3000,
         isClosable: true,
       });
-      fetchLocations();
+      loadLocations();
     } catch (error) {
       toast({
         title: 'Erro ao excluir localização',

@@ -33,39 +33,11 @@ import {
 import { SearchIcon } from '@chakra-ui/icons';
 import { CheckCircle, XCircle, FileText, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-
-interface AllocationRequest {
-    id: string;
-    inventory: {
-        id: string;
-        name: string;
-        description: string;
-        model: string;
-        serial_number: string;
-    };
-    requester: {
-        id: string;
-        name: string;
-        email: string;
-    };
-    destination: string;
-    destination_name?: string;
-    destination_id?: string;
-    locale_name?: string;
-    location_name?: string;
-    requester_sector?: string;
-    notes: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
-    created_at: string;
-    return_date: string;
-    requester_delivery_confirmation: boolean;
-    manager_delivery_confirmation: boolean;
-    manager_return_confirmation: boolean;
-}
+import type { InventoryAllocation } from '@/features/inventory/types';
 
 interface AllocationsTabProps {
-    allocationRequests: AllocationRequest[];
-    filteredAllocationRequests: AllocationRequest[];
+    allocationRequests: InventoryAllocation[];
+    filteredAllocationRequests: InventoryAllocation[];
     search: string;
     onSearchChange: (value: string) => void;
     statusFilter: string;
@@ -83,8 +55,8 @@ interface AllocationsTabProps {
     onAllocationApprove: (id: string, status: 'APPROVED' | 'REJECTED') => void;
     onAllocationReject: (id: string, status: 'APPROVED' | 'REJECTED') => void;
     onAllocationConfirmDelivery: (request: any, confirmation: boolean) => void;
-    onAllocationManagerReturnConfirmation: (request: AllocationRequest) => void;
-    onAllocationMarkAsLost: (request: AllocationRequest) => void;
+    onAllocationManagerReturnConfirmation: (request: InventoryAllocation) => void;
+    onAllocationMarkAsLost: (request: InventoryAllocation) => void;
     onExportPDF: () => void;
     onClearFilters: () => void;
     onRefresh: () => void;

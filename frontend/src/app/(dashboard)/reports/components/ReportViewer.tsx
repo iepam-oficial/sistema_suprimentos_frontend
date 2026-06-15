@@ -13,8 +13,8 @@ import {
   Tag,
   TagLabel,
 } from '@chakra-ui/react';
-import { prepareChartDataForDisplay, resolveChartType } from '@/lib/reports/chartConfig';
-import { ExecutiveSummaryPayload, FilterOptions, ReportPayload } from '@/lib/reports/types';
+import { prepareChartDataForDisplay, resolveChartType } from '@/features/reports/chartConfig';
+import { ExecutiveSummaryPayload, FilterOptions, ReportPayload } from '@/features/reports/types';
 import { ExecutiveSummaryView } from './ExecutiveSummaryView';
 import { getActiveFilterChips, ReportFiltersState } from './ReportFilters';
 import { ReportChart } from './ReportChart';

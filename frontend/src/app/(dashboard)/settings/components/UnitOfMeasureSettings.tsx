@@ -28,19 +28,20 @@ import {
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
 import { EditIcon, DeleteIcon } from '@chakra-ui/icons'
-import { useRouter } from 'next/navigation';
-
-interface UnitOfMeasure {
-    id: string
-    name: string
-    symbol: string
-    description?: string
-}
+import { useRouter } from 'next/navigation'
+import {
+    fetchUnitOfMeasures,
+    createUnitOfMeasure,
+    updateUnitOfMeasure,
+    deleteUnitOfMeasure,
+    RateLimitError,
+    type UnitOfMeasureDTO,
+} from '@/features/reference-data'
 
 export default function UnitOfMeasureSettings() {
-    const [units, setUnits] = useState<UnitOfMeasure[]>([])
+    const [units, setUnits] = useState<UnitOfMeasureDTO[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [editingUnit, setEditingUnit] = useState<UnitOfMeasure | null>(null)
+    const [editingUnit, setEditingUnit] = useState<UnitOfMeasureDTO | null>(null)
     const toast = useToast()
     const { isOpen, onOpen, onClose } = useDisclosure()
     const router = useRouter();
@@ -61,20 +62,13 @@ export default function UnitOfMeasureSettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/unit-of-measures', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            const data = await response.json()
+            const data = await fetchUnitOfMeasures(token)
             setUnits(data)
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível carregar as unidades de medida.',
@@ -95,23 +89,10 @@ export default function UnitOfMeasureSettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const url = editingUnit
-                ? `/api/unit-of-measures/${editingUnit.id}`
-                : '/api/unit-of-measures'
-
-            const method = editingUnit ? 'PUT' : 'POST'
-
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify(formData),
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao salvar unidade de medida')
+            if (editingUnit) {
+                await updateUnitOfMeasure(token, editingUnit.id, formData)
+            } else {
+                await createUnitOfMeasure(token, formData)
             }
 
             toast({
@@ -148,16 +129,7 @@ export default function UnitOfMeasureSettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/unit-of-measures/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir unidade de medida')
-            }
+            await deleteUnitOfMeasure(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -179,12 +151,12 @@ export default function UnitOfMeasureSettings() {
         }
     }
 
-    const handleEdit = (unit: UnitOfMeasure) => {
+    const handleEdit = (unit: UnitOfMeasureDTO) => {
         setEditingUnit(unit)
         setFormData({
             name: unit.name,
             symbol: unit.symbol,
-            description: unit.description || ''
+            description: unit.description ?? ''
         })
         onOpen()
     }

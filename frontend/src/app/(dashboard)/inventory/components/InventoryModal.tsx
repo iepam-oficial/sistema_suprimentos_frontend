@@ -24,9 +24,21 @@ import {
     Checkbox,
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
-import { uploadImage, handleImageChange } from '@/utils/imageUtils'
+import { uploadImage } from '@/features/images/api/imageApi'
+import { handleImageChange } from '@/utils/imageUtils'
 import formatCurrency from '../utils/formatCurrency'
-import { fetchChartOfAccounts, ChartOfAccount } from '@/utils/apiUtils'
+import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
+import type { ChartOfAccount } from '@/features/financeiro/types';
+import {
+    fetchLocations,
+    fetchCategories,
+    fetchLocales,
+    fetchSubcategoriesByCategory,
+    type CategoryDTO,
+    type LocationDTO,
+    type LocaleDTO,
+    type SubcategoryDTO,
+} from '@/features/reference-data';
 
 interface InventoryModalProps {
     isOpen: boolean
@@ -136,29 +148,26 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
     const fetchFormData = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
+            if (!token) throw new Error('Token não encontrado')
+
             const headers = {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
 
-            const [locationsRes, categoriesRes, suppliersRes, localesRes] = await Promise.all([
-                fetch('/api/locations', { headers }),
-                fetch('/api/categories', { headers }),
+            const [locationsData, categoriesData, suppliersRes, localesData] = await Promise.all([
+                fetchLocations(token),
+                fetchCategories(token),
                 fetch('/api/suppliers', { headers }),
-                fetch('/api/locales', { headers }),
+                fetchLocales(token),
             ])
 
-            const [locationsData, categoriesData, suppliersData, localesData] = await Promise.all([
-                locationsRes.json(),
-                categoriesRes.json(),
-                suppliersRes.json(),
-                localesRes.json(),
-            ])
+            const suppliersData = await suppliersRes.json()
 
-            setLocations(Array.isArray(locationsData) ? locationsData : [])
-            setCategories(Array.isArray(categoriesData) ? categoriesData : [])
+            setLocations(locationsData)
+            setCategories(categoriesData)
             setSuppliers(Array.isArray(suppliersData) ? suppliersData : [])
-            setLocales(Array.isArray(localesData) ? localesData : [])
+            setLocales(localesData)
 
             // Buscar planos de contas (apenas ATIVO para inventário)
             try {
@@ -189,14 +198,9 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         if (categoryId) {
             try {
                 const token = localStorage.getItem('@ti-assistant:token')
-                const response = await fetch(`/api/subcategories/category/${categoryId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                })
-                const data = await response.json()
-                setSubcategories(Array.isArray(data) ? data : [])
+                if (!token) return
+                const data = await fetchSubcategoriesByCategory(token, categoryId)
+                setSubcategories(data)
             } catch (error) {
                 setSubcategories([])
             }
@@ -209,14 +213,9 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         if (categoryId) {
             try {
                 const token = localStorage.getItem('@ti-assistant:token')
-                const response = await fetch(`/api/subcategories/category/${categoryId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                })
-                const data = await response.json()
-                setSubcategories(Array.isArray(data) ? data : [])
+                if (!token) return
+                const data = await fetchSubcategoriesByCategory(token, categoryId)
+                setSubcategories(data)
             } catch (error) {
                 setSubcategories([])
             }

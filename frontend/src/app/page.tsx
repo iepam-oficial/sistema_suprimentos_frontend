@@ -19,6 +19,8 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react'
 import { EmailIcon, LockIcon } from '@chakra-ui/icons'
+import { login, fetchSession } from '@/features/identity/api/authApi'
+import { useAuthSession } from '@/features/identity'
 import {
   getFromSearchParam,
   getPostLoginPath,
@@ -32,24 +34,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const toast = useToast()
+  const { setSession, token, user } = useAuthSession()
   const isMobile = useBreakpointValue({ base: true, md: false })
 
   // redireciona se já autenticado
   useEffect(() => {
     const from = getFromSearchParam()
-    const userJson = localStorage.getItem('@ti-assistant:user')
-    const token = localStorage.getItem('@ti-assistant:token')
-
-    if (userJson && token) {
-      try {
-        const user = JSON.parse(userJson)
-        const path = resolvePostLoginPath(user?.role, { from })
-        if (path) {
-          router.replace(path)
-          return
-        }
-      } catch {
-        /* ignore parse errors */
+    if (user && token) {
+      const path = resolvePostLoginPath(user.role, { from })
+      if (path) {
+        router.replace(path)
+        return
       }
     }
 
@@ -60,17 +55,9 @@ export default function LoginPage() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/auth/session', {
-          cache: 'no-store',
-          credentials: 'include',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        if (!res.ok) return
-        const user = await res.json()
+        const sessionUser = await fetchSession(token)
         if (cancelled) return
-        const path = resolvePostLoginPath(user?.role, { from })
+        const path = resolvePostLoginPath(sessionUser.role, { from })
         if (path) {
           router.replace(path)
         }
@@ -82,7 +69,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true
     }
-  }, [router])
+  }, [router, token, user])
 
   const bgColor = useColorModeValue('gray.50', 'gray.900')
   const textColor = useColorModeValue('gray.800', 'white')
@@ -97,35 +84,13 @@ export default function LoginPage() {
 
     try {
       setLoading(true)
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Erro ao fazer login')
-      }
-
-      const accessToken = data.accessToken || data.token
-      if (!accessToken) {
-        throw new Error('Token de acesso não recebido')
-      }
+      const data = await login({ email, password })
 
       if (!data.user?.role) {
         throw new Error('Dados do usuário incompletos')
       }
 
-      localStorage.setItem('@ti-assistant:token', accessToken)
-      if (data.refreshToken) {
-        localStorage.setItem('@ti-assistant:refresh-token', data.refreshToken)
-      }
-      localStorage.setItem('@ti-assistant:user', JSON.stringify(data.user))
+      setSession(data)
 
       toast({
         title: 'Sucesso',

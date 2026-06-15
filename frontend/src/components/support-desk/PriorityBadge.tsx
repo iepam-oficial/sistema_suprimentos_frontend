@@ -1,4 +1,4 @@
-import { priorityLabel } from '@/app/(dashboard)/support-tickets/types';
+import { priorityLabel } from '@/features/support-tickets/types';
 import { cn } from './cn';
 
 const PRIORITY_CLASSES: Record<string, string> = {

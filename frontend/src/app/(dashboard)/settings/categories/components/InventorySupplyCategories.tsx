@@ -24,7 +24,6 @@ import {
     ModalBody,
     ModalCloseButton,
     ModalFooter,
-    Textarea,
     Box,
     Text,
     Badge,
@@ -33,14 +32,26 @@ import {
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
 import { EditIcon, DeleteIcon, AddIcon } from '@chakra-ui/icons'
-import { Category } from '../../interfaces/ICategory'
-import { Subcategory } from '../../interfaces/ISubtategory'
+import {
+    fetchCategories,
+    fetchSubcategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    createSubcategory,
+    updateSubcategory,
+    deleteSubcategory,
+    type CategoryDTO,
+    type SubcategoryDTO,
+} from '@/features/reference-data'
+
+type CategoryWithSubcategories = CategoryDTO & { subcategories?: SubcategoryDTO[] }
 
 export default function InventorySupplyCategories() {
-    const [categories, setCategories] = useState<Category[]>([])
+    const [categories, setCategories] = useState<CategoryWithSubcategories[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-    const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null)
+    const [editingCategory, setEditingCategory] = useState<CategoryWithSubcategories | null>(null)
+    const [editingSubcategory, setEditingSubcategory] = useState<SubcategoryDTO | null>(null)
     const toast = useToast()
     const { isOpen: isCategoryModalOpen, onOpen: onCategoryModalOpen, onClose: onCategoryModalClose } = useDisclosure()
     const { isOpen: isSubcategoryModalOpen, onOpen: onSubcategoryModalOpen, onClose: onSubcategoryModalClose } = useDisclosure()
@@ -59,23 +70,27 @@ export default function InventorySupplyCategories() {
     const borderColor = useColorModeValue('gray.200', 'gray.600')
 
     useEffect(() => {
-        fetchCategories()
+        loadCategories()
     }, [])
 
-    const fetchCategories = async () => {
+    const loadCategories = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             if (!token) {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/categories', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-            const data = await response.json()
-            setCategories(data)
+            const [categoriesData, subcategoriesData] = await Promise.all([
+                fetchCategories(token),
+                fetchSubcategories(token),
+            ])
+
+            setCategories(
+                categoriesData.map((cat) => ({
+                    ...cat,
+                    subcategories: subcategoriesData.filter((sub) => sub.category_id === cat.id),
+                }))
+            )
         } catch (error) {
             toast({
                 title: 'Erro',
@@ -98,21 +113,10 @@ export default function InventorySupplyCategories() {
             }
 
             if (editingCategory) {
-                const response = await fetch(`/api/categories/${editingCategory.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        value: categoryFormData.value,
-                        label: categoryFormData.value
-                    }),
+                await updateCategory(token, editingCategory.id, {
+                    value: categoryFormData.value,
+                    label: categoryFormData.value,
                 })
-
-                if (!response.ok) {
-                    throw new Error('Erro ao atualizar categoria')
-                }
 
                 toast({
                     title: 'Sucesso',
@@ -122,41 +126,17 @@ export default function InventorySupplyCategories() {
                     isClosable: true,
                 })
             } else {
-                const categoryResponse = await fetch('/api/categories', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        value: categoryFormData.value,
-                        label: categoryFormData.value
-                    }),
+                const category = await createCategory(token, {
+                    value: categoryFormData.value,
+                    label: categoryFormData.value,
                 })
 
-                if (!categoryResponse.ok) {
-                    throw new Error('Erro ao criar categoria')
-                }
-
-                const category = await categoryResponse.json()
-
                 if (categoryFormData.subcategoryValue) {
-                    const subcategoryResponse = await fetch('/api/subcategories', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({
-                            value: categoryFormData.subcategoryValue,
-                            label: categoryFormData.subcategoryValue,
-                            category_id: category.id
-                        }),
+                    await createSubcategory(token, {
+                        value: categoryFormData.subcategoryValue,
+                        label: categoryFormData.subcategoryValue,
+                        category_id: category.id,
                     })
-
-                    if (!subcategoryResponse.ok) {
-                        throw new Error('Erro ao criar subcategoria')
-                    }
                 }
 
                 toast({
@@ -168,7 +148,7 @@ export default function InventorySupplyCategories() {
                 })
             }
 
-            fetchCategories()
+            loadCategories()
             handleCategoryClose()
         } catch (error) {
             toast({
@@ -193,27 +173,16 @@ export default function InventorySupplyCategories() {
                 throw new Error('Token não encontrado')
             }
 
-            const url = editingSubcategory
-                ? `/api/subcategories/${editingSubcategory.id}`
-                : '/api/subcategories'
+            const payload = {
+                value: subcategoryFormData.value,
+                label: subcategoryFormData.value,
+                category_id: subcategoryFormData.categoryId,
+            }
 
-            const method = editingSubcategory ? 'PUT' : 'POST'
-
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    value: subcategoryFormData.value,
-                    label: subcategoryFormData.value,
-                    category_id: subcategoryFormData.categoryId
-                }),
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao salvar subcategoria')
+            if (editingSubcategory) {
+                await updateSubcategory(token, editingSubcategory.id, payload)
+            } else {
+                await createSubcategory(token, payload)
             }
 
             toast({
@@ -226,7 +195,7 @@ export default function InventorySupplyCategories() {
                 isClosable: true,
             })
 
-            fetchCategories()
+            loadCategories()
             handleSubcategoryClose()
         } catch (error) {
             toast({
@@ -252,16 +221,7 @@ export default function InventorySupplyCategories() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/categories/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir categoria')
-            }
+            await deleteCategory(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -271,7 +231,7 @@ export default function InventorySupplyCategories() {
                 isClosable: true,
             })
 
-            fetchCategories()
+            loadCategories()
         } catch (error) {
             toast({
                 title: 'Erro',
@@ -294,16 +254,7 @@ export default function InventorySupplyCategories() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/subcategories/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir subcategoria')
-            }
+            await deleteSubcategory(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -313,7 +264,7 @@ export default function InventorySupplyCategories() {
                 isClosable: true,
             })
 
-            fetchCategories()
+            loadCategories()
         } catch (error) {
             toast({
                 title: 'Erro',
@@ -325,7 +276,7 @@ export default function InventorySupplyCategories() {
         }
     }
 
-    const handleCategoryEdit = (category: Category) => {
+    const handleCategoryEdit = (category: CategoryWithSubcategories) => {
         setEditingCategory(category)
         setCategoryFormData({
             value: category.value,
@@ -334,11 +285,11 @@ export default function InventorySupplyCategories() {
         onCategoryModalOpen()
     }
 
-    const handleEditSubcategory = (subcategory: Subcategory) => {
+    const handleEditSubcategory = (subcategory: SubcategoryDTO) => {
         setEditingSubcategory(subcategory)
         setSubcategoryFormData({
             value: subcategory.value,
-            categoryId: subcategory.categoryId
+            categoryId: subcategory.category_id
         })
         onSubcategoryModalOpen()
     }
@@ -410,7 +361,7 @@ export default function InventorySupplyCategories() {
                                     </Td>
                                     <Td>
                                         <VStack align="start" spacing={1}>
-                                            {category.subcategories?.map((subcategory) => (
+                                            {category.subcategories?.map((subcategory: SubcategoryDTO) => (
                                                 <HStack key={subcategory.id} spacing={2}>
                                                     <Badge colorScheme="blue" variant="subtle">
                                                         {subcategory.label}
@@ -460,7 +411,6 @@ export default function InventorySupplyCategories() {
                 </Box>
             </Box>
 
-            {/* Modal de Categoria */}
             <Modal isOpen={isCategoryModalOpen} onClose={handleCategoryClose}>
                 <ModalOverlay />
                 <ModalContent>
@@ -503,7 +453,6 @@ export default function InventorySupplyCategories() {
                 </ModalContent>
             </Modal>
 
-            {/* Modal de Subcategoria */}
             <Modal isOpen={isSubcategoryModalOpen} onClose={handleSubcategoryClose}>
                 <ModalOverlay />
                 <ModalContent>
@@ -551,4 +500,4 @@ export default function InventorySupplyCategories() {
             </Modal>
         </VStack>
     )
-} 
+}

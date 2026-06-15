@@ -8,31 +8,13 @@ import {
   Button
 } from '@chakra-ui/react';
 import { CheckCircle } from 'lucide-react';
-
-interface AllocationRequest {
-  id: string;
-  inventory: {
-    id: string;
-    name: string;
-    model: string;
-    serial_number: string;
-  };
-  destination: string;
-  destination_name?: string;
-  destination_id?: string;
-  notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
-  created_at: string;
-  return_date: string;
-  requester_delivery_confirmation: boolean;
-  manager_delivery_confirmation: boolean;
-}
+import type { InventoryAllocation } from '@/features/inventory/types';
 
 interface AllocationCardProps {
-  allocation: AllocationRequest;
+  allocation: InventoryAllocation;
   onConfirmDelivery: (allocationId: string) => Promise<void>;
-  onReturnItem: (allocation: AllocationRequest) => void;
-  onMarkAsLost?: (allocation: AllocationRequest) => void;
+  onReturnItem: (allocation: InventoryAllocation) => void;
+  onMarkAsLost?: (allocation: InventoryAllocation) => void;
 }
 
 export function AllocationCard({ 
@@ -41,7 +23,7 @@ export function AllocationCard({
   onReturnItem,
   onMarkAsLost,
 }: AllocationCardProps) {
-  const getStatusColor = (status: AllocationRequest['status']) => {
+  const getStatusColor = (status: InventoryAllocation['status']) => {
     switch (status) {
       case 'APPROVED': return 'green';
       case 'REJECTED': return 'red';
@@ -52,7 +34,7 @@ export function AllocationCard({
     }
   };
 
-  const getStatusText = (status: AllocationRequest['status']) => {
+  const getStatusText = (status: InventoryAllocation['status']) => {
     switch (status) {
       case 'PENDING': return 'Pendente';
       case 'APPROVED': return 'Aprovado';

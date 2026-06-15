@@ -32,6 +32,12 @@ import {
 import { useState, useEffect } from 'react'
 import { EditIcon, DeleteIcon, AddIcon } from '@chakra-ui/icons'
 import { ExtraExpenseCategory } from '../../interfaces/IExtraExpenseCategory'
+import {
+    createExtraExpenseCategory,
+    deleteExtraExpenseCategory,
+    fetchExtraExpenseCategories,
+    updateExtraExpenseCategory,
+} from '@/features/financeiro/api/extraExpenseCategoryApi'
 
 export default function ExtraExpenseCategories() {
     const [categories, setCategories] = useState<ExtraExpenseCategory[]>([])
@@ -60,12 +66,7 @@ export default function ExtraExpenseCategories() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/extra-expense-categories', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-            const data = await response.json()
+            const data = await fetchExtraExpenseCategories(token)
             setCategories(data)
         } catch (error) {
             toast({
@@ -89,22 +90,11 @@ export default function ExtraExpenseCategories() {
             }
 
             if (editingCategory) {
-                const response = await fetch(`/api/extra-expense-categories/${editingCategory.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        value: categoryFormData.value,
-                        label: categoryFormData.label,
-                        description: categoryFormData.description
-                    }),
+                await updateExtraExpenseCategory(token, editingCategory.id, {
+                    value: categoryFormData.value,
+                    label: categoryFormData.label,
+                    description: categoryFormData.description,
                 })
-
-                if (!response.ok) {
-                    throw new Error('Erro ao atualizar categoria')
-                }
 
                 toast({
                     title: 'Sucesso',
@@ -114,22 +104,11 @@ export default function ExtraExpenseCategories() {
                     isClosable: true,
                 })
             } else {
-                const response = await fetch('/api/extra-expense-categories', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        value: categoryFormData.value,
-                        label: categoryFormData.label,
-                        description: categoryFormData.description
-                    }),
+                await createExtraExpenseCategory(token, {
+                    value: categoryFormData.value,
+                    label: categoryFormData.label,
+                    description: categoryFormData.description,
                 })
-
-                if (!response.ok) {
-                    throw new Error('Erro ao criar categoria')
-                }
 
                 toast({
                     title: 'Sucesso',
@@ -166,16 +145,7 @@ export default function ExtraExpenseCategories() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/extra-expense-categories/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir categoria')
-            }
+            await deleteExtraExpenseCategory(token, id)
 
             toast({
                 title: 'Sucesso',

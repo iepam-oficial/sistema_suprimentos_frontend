@@ -35,40 +35,32 @@ import {
   Textarea,
   useDisclosure,
   useMediaQuery,
+  Select,
 } from '@chakra-ui/react';
 import { PageHeader } from '@/components/PageHeader';
 import { generateQuotePDF } from '../components/QuotePDF';
 import { formatBRL } from '@/utils/money';
+import {
+  deleteQuote,
+  fetchQuoteById,
+  getSupplierName,
+  quoteStatusColor,
+  quoteStatusLabel,
+  updateQuote,
+  type QuoteDTO,
+  type QuoteItemDTO,
+} from '@/features/quotes';
+import { fetchSuppliers } from '@/features/catalog/api/catalogApi';
+import type { SupplierDTO } from '@/features/catalog/types';
 
-interface QuoteItem {
-  id?: string;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-  link?: string;
-  manufacturer: string;
-  total_price: number;
-  final_price: number;
-  notes?: string | null;
-}
-
-interface Quote {
-  id: string;
-  supplier: string;
-  supplier_contact: string | null;
-  status: string;
-  notes: string | null;
-  total_value: number;
-  created_at: string;
-  items: QuoteItem[];
-  user?: { id: string; name: string };
-}
+type EditableQuoteItem = Omit<QuoteItemDTO, 'id'> & { id?: string };
 
 export default function QuoteDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
-  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quote, setQuote] = useState<QuoteDTO | null>(null);
+  const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -76,7 +68,7 @@ export default function QuoteDetailsPage() {
   const [editSupplierContact, setEditSupplierContact] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [editItems, setEditItems] = useState<QuoteItem[]>([]);
+  const [editItems, setEditItems] = useState<EditableQuoteItem[]>([]);
   const [isSmallScreen] = useMediaQuery('(max-width: 640px)')
 
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -84,26 +76,31 @@ export default function QuoteDetailsPage() {
 
   useEffect(() => {
     fetchQuote();
+    loadSuppliers();
   }, [params.id]);
+
+  const loadSuppliers = async () => {
+    try {
+      const token = localStorage.getItem('@ti-assistant:token');
+      if (!token) return;
+      const data = await fetchSuppliers(token);
+      setSuppliers(data);
+    } catch {
+      // optional for display-only views
+    }
+  };
 
   const fetchQuote = async () => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
 
-      const response = await fetch(`/api/quotes/${params.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Erro ao carregar cotação');
-      const data = await response.json();
+      const data = await fetchQuoteById(token, String(params.id));
       setQuote(data);
-      setEditSupplier(data.supplier || '');
+      setEditSupplier(data.supplier_id || '');
       setEditSupplierContact(data.supplier_contact || '');
       setEditNotes(data.notes || '');
-      setEditItems((data.items || []).map((it: QuoteItem) => ({
+      setEditItems((data.items || []).map((it: QuoteItemDTO) => ({
         id: it.id,
         product_name: it.product_name,
         manufacturer: it.manufacturer,
@@ -140,10 +137,10 @@ export default function QuoteDetailsPage() {
 
   const handleOpenEdit = () => {
     if (!quote) return;
-    setEditSupplier(quote.supplier || '');
+    setEditSupplier(quote.supplier_id || '');
     setEditSupplierContact(quote.supplier_contact || '');
     setEditNotes(quote.notes || '');
-    setEditItems((quote.items || []).map((it: QuoteItem) => ({
+    setEditItems((quote.items || []).map((it: QuoteItemDTO) => ({
       id: it.id,
       product_name: it.product_name,
       manufacturer: it.manufacturer,
@@ -164,38 +161,24 @@ export default function QuoteDetailsPage() {
       const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
 
-      const response = await fetch(`/api/quotes/${quote.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          supplier: editSupplier,
-          supplier_contact: editSupplierContact || null,
-          notes: editNotes || null,
-          items: editItems.map(it => ({
-            id: it.id,
-            product_name: it.product_name,
-            manufacturer: it.manufacturer,
-            quantity: Number(it.quantity),
-            unit_price: Number(it.unit_price),
-            final_price: Number(it.quantity) * Number(it.unit_price),
-            notes: it.notes ?? null,
-            link: it.link || undefined,
-          })),
-        })
+      const updated = await updateQuote(token, quote.id, {
+        supplier_id: editSupplier,
+        supplier_contact: editSupplierContact || null,
+        notes: editNotes || null,
+        items: editItems.map((it) => ({
+          id: it.id,
+          product_name: it.product_name,
+          manufacturer: it.manufacturer,
+          quantity: Number(it.quantity),
+          unit_price: Number(it.unit_price),
+          final_price: Number(it.quantity) * Number(it.unit_price),
+          notes: it.notes ?? null,
+          link: it.link || undefined,
+        })),
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro ao salvar alterações');
-      }
-
-      const updated = await response.json();
       setQuote(updated);
       // refresh editable items from backend response
-      setEditItems((updated.items || []).map((it: QuoteItem) => ({
+      setEditItems((updated.items || []).map((it: QuoteItemDTO) => ({
         id: it.id,
         product_name: it.product_name,
         manufacturer: it.manufacturer,
@@ -243,10 +226,10 @@ export default function QuoteDetailsPage() {
     ]));
   };
 
-  const handleUpdateItem = (index: number, field: keyof QuoteItem, value: any) => {
+  const handleUpdateItem = (index: number, field: keyof EditableQuoteItem, value: unknown) => {
     setEditItems(prev => {
       const list = [...prev];
-      const updated: QuoteItem = { ...list[index], [field]: value } as QuoteItem;
+      const updated: EditableQuoteItem = { ...list[index], [field]: value } as EditableQuoteItem;
       const quantity = Number(updated.quantity || 0);
       const unit_price = Number(updated.unit_price || 0);
       updated.total_price = quantity * unit_price;
@@ -266,16 +249,7 @@ export default function QuoteDetailsPage() {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
-      const response = await fetch(`/api/quotes/${quote.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok && response.status !== 204) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro ao excluir cotação');
-      }
+      await deleteQuote(token, quote.id);
       toast({
         title: 'Excluída',
         description: 'Cotação excluída com sucesso',
@@ -300,34 +274,6 @@ export default function QuoteDetailsPage() {
 
     const doc = generateQuotePDF({ quote });
     doc.save(`cotacao-${quote.id}.pdf`);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'yellow';
-      case 'APPROVED':
-        return 'green';
-      case 'REJECTED':
-        return 'red';
-      case 'CANCELLED':
-        return 'gray';
-      default:
-        return 'blue';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'Pendente';
-      case 'APPROVED':
-        return 'Aprovada';
-      case 'REJECTED':
-        return 'Rejeitada';
-      default:
-        return status;
-    }
   };
 
   if (loading) {
@@ -398,14 +344,14 @@ export default function QuoteDetailsPage() {
             <Box>
               <Heading size="md" mb={4}>Informações Gerais</Heading>
               <VStack align="stretch" spacing={2}>
-                <Text><strong>Fornecedor:</strong> {quote.supplier}</Text>
+                <Text><strong>Fornecedor:</strong> {getSupplierName(quote)}</Text>
                 {quote.supplier_contact && (
                   <Text><strong>Contato:</strong> {quote.supplier_contact}</Text>
                 )}
                 <Text>
                   <strong>Status:</strong>{' '}
-                  <Badge colorScheme={getStatusColor(quote.status)}>
-                    {getStatusText(quote.status)}
+                  <Badge colorScheme={quoteStatusColor(quote.status)}>
+                    {quoteStatusLabel(quote.status)}
                   </Badge>
                 </Text>
                 <Text><strong>Data de Criação:</strong> {new Date(quote.created_at).toLocaleDateString()}</Text>
@@ -476,7 +422,12 @@ export default function QuoteDetailsPage() {
             <VStack spacing={4} align="stretch">
               <FormControl>
                 <FormLabel>Fornecedor</FormLabel>
-                <Input value={editSupplier} onChange={(e) => setEditSupplier(e.target.value)} />
+                <Select value={editSupplier} onChange={(e) => setEditSupplier(e.target.value)}>
+                  <option value="">Selecione um fornecedor</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
               </FormControl>
               <FormControl>
                 <FormLabel>Contato do Fornecedor</FormLabel>

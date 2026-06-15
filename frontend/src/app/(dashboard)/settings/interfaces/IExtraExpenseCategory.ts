@@ -1,8 +1,1 @@
-export interface ExtraExpenseCategory {
-    id: string;
-    value: string;
-    label: string;
-    description?: string;
-    created_at: string;
-    updated_at: string;
-} 
+export type { ExtraExpenseCategoryDTO as ExtraExpenseCategory } from '@/features/financeiro/types';

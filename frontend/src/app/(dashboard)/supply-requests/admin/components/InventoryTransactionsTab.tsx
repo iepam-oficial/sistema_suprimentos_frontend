@@ -22,59 +22,7 @@ import {
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { FileText, RotateCcw } from 'lucide-react';
-
-interface InventoryTransaction {
-    id: string;
-    inventory: {
-        id: string;
-        name: string;
-        model: string;
-        serial_number: string;
-        status: string;
-    };
-    from_user: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    to_user?: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    transaction_type: 'ALLOCATION' | 'RETURN' | 'MAINTENANCE' | 'DISCARD' | 'TRANSFER';
-    movement_type: 'IN' | 'OUT';
-    quantity: number;
-    supply?: {
-        unit?: {
-            symbol?: string;
-        };
-    };
-    notes?: string;
-    sector?: {
-        id: string;
-        name: string;
-        location: {
-            id: string;
-            name: string;
-        };
-    };
-    destination: string;
-    destination_locale?: {
-        id: string;
-        name: string;
-        location: {
-            id: string;
-            name: string;
-        };
-    };
-    expected_return_date?: string;
-    actual_return_date?: string;
-    status: 'ACTIVE' | 'RETURNED' | 'OVERDUE';
-    created_at: string;
-}
+import type { InventoryTransaction } from '@/features/inventory/types';
 
 interface InventoryTransactionsTabProps {
     inventoryTransactions: InventoryTransaction[];

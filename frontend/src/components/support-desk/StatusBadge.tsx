@@ -1,4 +1,4 @@
-import { statusLabel } from '@/app/(dashboard)/support-tickets/types';
+import { statusLabel } from '@/features/support-tickets/types';
 import { cn } from './cn';
 
 const STATUS_CLASSES: Record<string, string> = {

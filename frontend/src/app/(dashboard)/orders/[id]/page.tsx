@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
+import {
+  closeServiceOrder,
+  deleteServiceOrder,
+  fetchServiceOrderById,
+  RateLimitError,
+  type ServiceOrderDTO,
+} from '@/features/operations'
 import {
   Box,
   Button,
@@ -52,35 +58,12 @@ import {
   Download,
   Building,
   Phone,
-  Mail
 } from 'lucide-react'
 import jsPDF from 'jspdf'
 import { formatBRL } from '@/utils/money'
 
-interface Order {
-  id: string
-  order_number: string
-  client_name: string
-  equipment_description: string
-  model: string
-  serial_number: string
-  problem_reported: string
-  entry_date: string
-  exit_date: string | null
-  service_type: string
-  accessories: string | null
-  notes: string | null
-  total_price: number
-  supplier_id: string | null
-  supplier?: {
-    name: string
-    phone: string
-    email: string
-  }
-}
-
 export default function OrderDetailsPage({ params }: { params: { id: string } }) {
-  const [order, setOrder] = useState<Order | null>(null)
+  const [order, setOrder] = useState<ServiceOrderDTO | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -115,33 +98,18 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
           throw new Error('Token não encontrado')
         }
 
-        console.log('Fazendo requisição para:', `/api/orders/${params.id}`); // Debug log
-        const response = await axios.get(`/api/orders/${params.id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-
-        if (response.status === 429) {
-          router.push('/rate-limit');
-          return;
-        }
-
-        console.log('Resposta recebida:', response.data); // Debug log
-
-        if (response.status !== 200) {
-          const errorData = response.data
-          throw new Error(errorData.message || 'Erro ao buscar ordem de serviço')
-        }
-
-        const data = response.data
+        const data = await fetchServiceOrderById(token, params.id)
         setOrder(data)
-      } catch (err: any) {
-        console.error('Erro completo:', err); // Debug log
-        setError(err.message || 'Erro ao buscar ordem de serviço')
+      } catch (err: unknown) {
+        if (err instanceof RateLimitError) {
+          router.push('/rate-limit')
+          return
+        }
+        const message = err instanceof Error ? err.message : 'Erro ao buscar ordem de serviço'
+        setError(message)
         toast({
           title: 'Erro',
-          description: err.message || 'Erro ao buscar ordem de serviço',
+          description: message,
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -164,17 +132,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
         throw new Error('Token não encontrado')
       }
 
-      const res = await fetch(`/api/orders/${params.id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.message || 'Erro ao excluir ordem de serviço')
-      }
+      await deleteServiceOrder(token, params.id)
 
       toast({
         title: 'Sucesso',
@@ -214,21 +172,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
         throw new Error('Token não encontrado')
       }
 
-      const res = await fetch(`/api/orders/${params.id}/close`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          exit_date: exitDate
-        })
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.message || 'Erro ao finalizar ordem de serviço')
-      }
+      await closeServiceOrder(token, params.id, { exit_date: exitDate })
 
       toast({
         title: 'Sucesso',
@@ -301,10 +245,10 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
       doc.text('Dados do Fornecedor:', margin, y)
       y += lineHeight
       doc.text(`Nome: ${order.supplier.name}`, margin, y)
-      y += lineHeight
-      doc.text(`Telefone: ${order.supplier.phone}`, margin, y)
-      y += lineHeight
-      doc.text(`Email: ${order.supplier.email}`, margin, y)
+      if (order.supplier.contact_person) {
+        y += lineHeight
+        doc.text(`Contato: ${order.supplier.contact_person}`, margin, y)
+      }
     }
 
     doc.save(`os-${order.order_number}.pdf`)
@@ -612,18 +556,14 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
                       </Box>
                       <Text color={textColor} fontWeight="semibold">{order.supplier.name}</Text>
                     </HStack>
-                    <HStack spacing={2}>
-                      <Box p={1} borderRadius="full" bg={successColor} color="white">
-                        <Phone size={16} />
-                      </Box>
-                      <Text color={textColor}>{order.supplier.phone}</Text>
-                    </HStack>
-                    <HStack spacing={2}>
-                      <Box p={1} borderRadius="full" bg={warningColor} color="white">
-                        <Mail size={16} />
-                      </Box>
-                      <Text color={textColor}>{order.supplier.email}</Text>
-                    </HStack>
+                    {order.supplier.contact_person && (
+                      <HStack spacing={2}>
+                        <Box p={1} borderRadius="full" bg={successColor} color="white">
+                          <Phone size={16} />
+                        </Box>
+                        <Text color={textColor}>{order.supplier.contact_person}</Text>
+                      </HStack>
+                    )}
                   </VStack>
                 </Box>
               )}

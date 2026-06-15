@@ -45,6 +45,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { DeliveryDetailsModal } from '../components/DeliveryDetailsModal';
 import { formatBRL } from '@/utils/money';
+import { fetchLocalesByUserLocation } from '@/features/reference-data';
 
 interface Supply {
     id: string;
@@ -177,13 +178,8 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
             try {
                 const token = localStorage.getItem('@ti-assistant:token');
                 if (!token) return;
-                const response = await fetch('/api/locales/user-location', {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setUserLocales(data);
-                }
+                const data = await fetchLocalesByUserLocation(token);
+                setUserLocales(data);
             } catch (e) {
                 // Silenciar erro
             }

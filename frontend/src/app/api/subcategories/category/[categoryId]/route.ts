@@ -1,41 +1,7 @@
-import baseUrl from '@/utils/enviroments';
-import { NextResponse } from 'next/server';
+import { createProxyHandler } from '@/lib/bff/createProxyHandler';
+import { NextRequest } from 'next/server';
 
-export async function GET(
-    request: Request,
-    { params }: { params: { categoryId: string } }
-) {
-    try {
-        console.log('[API][subcategories][category][GET] Iniciando request');
-        const token = request.headers.get('authorization')?.split(' ')[1];
-        const response = await fetch(`${baseUrl}/subcategories/category/${params.categoryId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+const handler = createProxyHandler('/subcategories/category/:categoryId');
 
-        if (response.status === 429) {
-            const message = await response.text();
-            console.log('[API][subcategories][category][GET] Rate limit exceeded', message);
-            return NextResponse.json(
-                { error: 'Rate limit exceeded', details: message },
-                { status: 429 }
-            );
-        }
-
-        if (!response.ok) {
-            console.error('[API][subcategories][category][GET] Erro ao buscar subcategorias');
-            throw new Error('Erro ao buscar subcategorias');
-        }
-
-        const data = await response.json();
-        return NextResponse.json(data);
-    } catch (error) {
-        console.error('[API][subcategories][category][GET] Erro ao buscar subcategorias:', error);
-        return NextResponse.json(
-            { error: 'Erro ao buscar subcategorias' },
-            { status: 500 }
-        );
-    }
-} 
+export const GET = (request: NextRequest, context: { params: { categoryId: string } }) =>
+  handler.GET(request, context);

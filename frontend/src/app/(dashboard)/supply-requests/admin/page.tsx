@@ -34,128 +34,24 @@ import autoTable from 'jspdf-autotable';
 import { exportToPDF as exportToPDFUtil } from '@/utils/exportToPDF';
 import { ShoppingCart, TimerIcon, FileText, RotateCcw, Package, ClipboardList, BarChart3, TrendingUp } from 'lucide-react';
 import type { SupplyRequest } from '../types';
-
-interface AllocationRequest {
-    id: string;
-    inventory: {
-        id: string;
-        name: string;
-        description: string;
-        model: string;
-        serial_number: string;
-    };
-    requester: {
-        id: string;
-        name: string;
-        email: string;
-    };
-    destination: string;
-    destination_name?: string;
-    destination_id?: string;
-    locale_name?: string;
-    location_name?: string;
-    requester_sector?: string;
-    notes: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
-    created_at: string;
-    return_date: string;
-    requester_delivery_confirmation: boolean;
-    manager_delivery_confirmation: boolean;
-    manager_return_confirmation: boolean;
-}
-
-interface InventoryTransaction {
-    id: string;
-    inventory: {
-        id: string;
-        name: string;
-        model: string;
-        serial_number: string;
-        status: string;
-    };
-    from_user: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    to_user?: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    transaction_type: 'ALLOCATION' | 'RETURN' | 'MAINTENANCE' | 'DISCARD' | 'TRANSFER';
-    movement_type: 'IN' | 'OUT';
-    quantity: number;
-    supply?: {
-        unit?: {
-            symbol?: string;
-        };
-    };
-    notes?: string;
-    sector?: {
-        id: string;
-        name: string;
-        location: {
-            id: string;
-            name: string;
-        };
-    };
-    destination: string;
-    destination_locale?: {
-        id: string;
-        name: string;
-        location: {
-            id: string;
-            name: string;
-        };
-    };
-    expected_return_date?: string;
-    actual_return_date?: string;
-    status: 'ACTIVE' | 'RETURNED' | 'OVERDUE';
-    created_at: string;
-}
-
-interface SupplyTransaction {
-    id: string;
-    supply: {
-        id: string;
-        name: string;
-        description?: string;
-        quantity: number;
-        unit: {
-            id: string;
-            name: string;
-            symbol: string;
-        };
-    };
-    from_user: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    to_user: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    quantity: number;
-    transaction_type: string;
-    movement_type: 'IN' | 'OUT';
-    notes?: string;
-    sector?: {
-        id: string;
-        name: string;
-        location: {
-            id: string;
-            name: string;
-        };
-    };
-    created_at: string;
-}
+import type { InventoryAllocation, InventoryTransaction } from '@/features/inventory/types';
+import type { SupplyTransaction } from '@/features/catalog/types';
+import {
+    fetchAllSupplyRequests,
+    updateRequestStatus,
+    updateManagerDeliveryConfirmation,
+    RateLimitError,
+} from '@/features/supply-requests/api/adminRequestApi';
+import { handleRequesterConfirmation as updateRequesterConfirmation } from '@/features/supply-requests/api/requestApi';
+import {
+    fetchAllocations,
+    fetchInventoryTransactions,
+    updateAllocationStatus,
+    confirmAllocationDelivery,
+    markAllocationLost,
+    confirmManagerReturn,
+} from '@/features/inventory/api/inventoryApi';
+import { fetchSupplyTransactions } from '@/features/catalog/api/catalogApi';
 
 // Layout reutilizável para abas persistentes
 function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = 'persistentTabIndex' }: { tabLabels: string[], children: React.ReactNode[], onTabChange?: (() => void)[], storageKey?: string }) {
@@ -293,11 +189,11 @@ function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = '
 
 export default function AdminSupplyRequestsPage() {
     const [requests, setRequests] = useState<SupplyRequest[]>([]);
-    const [allocationRequests, setAllocationRequests] = useState<AllocationRequest[]>([]);
+    const [allocationRequests, setAllocationRequests] = useState<InventoryAllocation[]>([]);
     const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransaction[]>([]);
     const [supplyTransactions, setSupplyTransactions] = useState<SupplyTransaction[]>([]);
     const [filteredRequests, setFilteredRequests] = useState<SupplyRequest[]>([]);
-    const [filteredAllocationRequests, setFilteredAllocationRequests] = useState<AllocationRequest[]>([]);
+    const [filteredAllocationRequests, setFilteredAllocationRequests] = useState<InventoryAllocation[]>([]);
     const [filteredInventoryTransactions, setFilteredInventoryTransactions] = useState<InventoryTransaction[]>([]);
     const [filteredSupplyTransactions, setFilteredSupplyTransactions] = useState<SupplyTransaction[]>([]);
     const [search, setSearch] = useState('');
@@ -328,13 +224,13 @@ export default function AdminSupplyRequestsPage() {
 
         fetchRequests();
         fetchAllocationRequests();
-        fetchInventoryTransactions();
-        fetchSupplyTransactions();
+        loadInventoryTransactions();
+        loadSupplyTransactions();
     }, [router]);
 
     useEffect(() => {
         setLoading(true);
-        Promise.all([fetchRequests(), fetchAllocationRequests(), fetchInventoryTransactions(), fetchSupplyTransactions()]).finally(() => setLoading(false));
+        Promise.all([fetchRequests(), fetchAllocationRequests(), loadInventoryTransactions(), loadSupplyTransactions()]).finally(() => setLoading(false));
     }, []);
 
     useEffect(() => {
@@ -445,49 +341,14 @@ export default function AdminSupplyRequestsPage() {
                 throw new Error('Token não encontrado');
             }
 
-            // Buscar requisições regulares
-            const regularResponse = await fetch('/api/supply-requests', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (regularResponse.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            if (!regularResponse.ok) {
-                throw new Error('Erro ao carregar requisições regulares');
-            }
-
-            const regularData = await regularResponse.json();
-
-            // Buscar requisições customizadas
-            const customResponse = await fetch('/api/custom-supply-requests', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!customResponse.ok) {
-                throw new Error('Erro ao carregar requisições customizadas');
-            }
-
-            const customData = await customResponse.json();
-
-            // Combinar e marcar as requisições customizadas
-            const allRequests = [
-                ...regularData,
-                ...customData.map((request: any) => ({
-                    ...request,
-                    is_custom: true
-                }))
-            ];
-
+            const allRequests = await fetchAllSupplyRequests(token);
             setRequests(allRequests);
             setFilteredRequests(allRequests);
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit');
+                return;
+            }
             toast({
                 title: 'Erro',
                 description: error instanceof Error ? error.message : 'Erro ao carregar requisições',
@@ -500,59 +361,38 @@ export default function AdminSupplyRequestsPage() {
 
     const fetchAllocationRequests = async () => {
         try {
-            const response = await fetch('/api/inventory-allocations', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('@ti-assistant:token')}`
-                }
-            });
+            const token = localStorage.getItem('@ti-assistant:token');
+            if (!token) return;
 
-            if (response.ok) {
-                const data = await response.json();
-                setAllocationRequests(data);
-                setFilteredAllocationRequests(data);
-            } else {
-                console.error('Erro ao buscar alocações:', response.statusText);
-            }
+            const data = await fetchAllocations(token);
+            setAllocationRequests(data);
+            setFilteredAllocationRequests(data);
         } catch (error) {
             console.error('Erro ao buscar alocações:', error);
         }
     };
 
-    const fetchInventoryTransactions = async () => {
+    const loadInventoryTransactions = async () => {
         try {
-            const response = await fetch('/api/inventory-transactions', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('@ti-assistant:token')}`
-                }
-            });
+            const token = localStorage.getItem('@ti-assistant:token');
+            if (!token) return;
 
-            if (response.ok) {
-                const data = await response.json();
-                setInventoryTransactions(data);
-                setFilteredInventoryTransactions(data);
-            } else {
-                console.error('Erro ao buscar transações de inventário:', response.statusText);
-            }
+            const data = await fetchInventoryTransactions(token);
+            setInventoryTransactions(data);
+            setFilteredInventoryTransactions(data);
         } catch (error) {
             console.error('Erro ao buscar transações de inventário:', error);
         }
     };
 
-    const fetchSupplyTransactions = async () => {
+    const loadSupplyTransactions = async () => {
         try {
-            const response = await fetch('/api/supply-transactions', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('@ti-assistant:token')}`
-                }
-            });
+            const token = localStorage.getItem('@ti-assistant:token');
+            if (!token) return;
 
-            if (response.ok) {
-                const data = await response.json();
-                setSupplyTransactions(data);
-                setFilteredSupplyTransactions(data);
-            } else {
-                console.error('Erro ao buscar transações de suprimento:', response.statusText);
-            }
+            const data = await fetchSupplyTransactions(token);
+            setSupplyTransactions(data);
+            setFilteredSupplyTransactions(data);
         } catch (error) {
             console.error('Erro ao buscar transações de suprimento:', error);
         }
@@ -570,22 +410,7 @@ export default function AdminSupplyRequestsPage() {
                 throw new Error('Requisição não encontrada');
             }
 
-            const endpoint = request.is_custom
-                ? `/api/custom-supply-requests/${requestId}/status`
-                : `/api/supply-requests/${requestId}`;
-
-            const response = await fetch(endpoint, {
-                method: request.is_custom ? 'PATCH' : 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status: newStatus })
-            });
-
-            if (!response.ok) {
-                throw new Error('Erro ao atualizar requisição');
-            }
+            await updateRequestStatus(requestId, newStatus, !!request.is_custom, token);
 
             toast({
                 title: 'Sucesso',
@@ -619,22 +444,7 @@ export default function AdminSupplyRequestsPage() {
                 throw new Error('Requisição não encontrada');
             }
 
-            const endpoint = request.is_custom
-                ? `/api/custom-supply-requests/${requestId}/requester-confirmation`
-                : `/api/supply-requests/${requestId}/requester-confirmation`;
-
-            const response = await fetch(endpoint, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ confirmation })
-            });
-
-            if (!response.ok) {
-                throw new Error('Erro ao atualizar confirmação');
-            }
+            await updateRequesterConfirmation(requestId, confirmation, token, !!request.is_custom);
 
             toast({
                 title: 'Sucesso',
@@ -656,7 +466,10 @@ export default function AdminSupplyRequestsPage() {
         }
     };
 
-    const handleManagerDeliveryConfirmation = async (requestOrAllocation: any, confirmation: boolean) => {
+    const handleManagerDeliveryConfirmation = async (
+        requestOrAllocation: SupplyRequest | InventoryAllocation,
+        confirmation: boolean
+    ) => {
         try {
             const token = localStorage.getItem('@ti-assistant:token');
             if (!token) {
@@ -664,30 +477,16 @@ export default function AdminSupplyRequestsPage() {
                 return;
             }
 
-            let endpoint = '';
-            if (requestOrAllocation.inventory) {
-                // Alocação de inventário
-                endpoint = `/api/inventory-allocations/${requestOrAllocation.id}/delivery-confirmation`;
-            } else if (requestOrAllocation.is_custom) {
-                // Requisição customizada de suprimento
-                endpoint = `/api/custom-supply-requests/${requestOrAllocation.id}/manager-delivery-confirmation`;
+            if ('inventory' in requestOrAllocation && requestOrAllocation.inventory) {
+                await confirmAllocationDelivery(requestOrAllocation.id, confirmation, token);
             } else {
-                // Requisição regular de suprimento
-                endpoint = `/api/supply-requests/${requestOrAllocation.id}/manager-delivery-confirmation`;
-            }
-
-            const response = await fetch(endpoint, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ confirmation })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Erro ao confirmar entrega');
+                const request = requestOrAllocation as SupplyRequest;
+                await updateManagerDeliveryConfirmation(
+                    request.id,
+                    confirmation,
+                    !!request.is_custom,
+                    token
+                );
             }
 
             toast({
@@ -698,7 +497,7 @@ export default function AdminSupplyRequestsPage() {
                 isClosable: true,
             });
 
-            if (requestOrAllocation.inventory) {
+            if ('inventory' in requestOrAllocation && requestOrAllocation.inventory) {
                 fetchAllocationRequests();
             } else {
                 fetchRequests();
@@ -723,18 +522,7 @@ export default function AdminSupplyRequestsPage() {
                 return;
             }
 
-            const response = await fetch(`/api/inventory-allocations/${allocationId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status: newStatus })
-            });
-
-            if (!response.ok) {
-                throw new Error('Erro ao atualizar status da alocação');
-            }
+            await updateAllocationStatus(allocationId, newStatus, token);
 
             toast({
                 title: 'Sucesso',
@@ -756,25 +544,16 @@ export default function AdminSupplyRequestsPage() {
         }
     };
 
-    const handleAllocationMarkAsLost = async (allocation: any) => {
+    const handleAllocationMarkAsLost = async (allocation: InventoryAllocation) => {
         try {
             const token = localStorage.getItem('@ti-assistant:token');
             if (!token) {
                 router.push('/login');
                 return;
             }
-            const response = await fetch(`/api/inventory-allocations/${allocation.id}/mark-lost`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Erro ao marcar item como perdido');
-            }
+
+            await markAllocationLost(allocation.id, token);
+
             toast({
                 title: 'Sucesso',
                 description: 'Item marcado como perdido',
@@ -794,24 +573,16 @@ export default function AdminSupplyRequestsPage() {
         }
     };
 
-    const handleAllocationManagerReturnConfirmation = async (allocation: any) => {
+    const handleAllocationManagerReturnConfirmation = async (allocation: InventoryAllocation) => {
         try {
             const token = localStorage.getItem('@ti-assistant:token');
             if (!token) {
                 router.push('/login');
                 return;
             }
-            const response = await fetch(`/api/inventory-allocations/${allocation.id}/manager-return-confirmation`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Erro ao confirmar devolução');
-            }
+
+            await confirmManagerReturn(allocation.id, token);
+
             toast({
                 title: 'Sucesso',
                 description: 'Devolução confirmada com sucesso',
@@ -936,7 +707,7 @@ export default function AdminSupplyRequestsPage() {
     useEffect(() => {
         if (isMobile) {
             setLoadingTabs(tabs => tabs.map((v, i) => i === activeTab ? true : v));
-            const fetchFns = [() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, fetchInventoryTransactions), () => fetchTabData(3, fetchSupplyTransactions)];
+            const fetchFns = [() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, loadInventoryTransactions), () => fetchTabData(3, loadSupplyTransactions)];
             fetchFns[activeTab]().finally(() => {
                 setLoadingTabs(tabs => tabs.map((v, i) => i === activeTab ? false : v));
             });
@@ -1290,7 +1061,7 @@ export default function AdminSupplyRequestsPage() {
                                 onTransactionLocaleFilterChange={setTransactionLocaleFilter}
                                 onExportPDF={exportToPDF}
                                 onClearFilters={clearFilters}
-                                onRefresh={fetchInventoryTransactions}
+                                onRefresh={loadInventoryTransactions}
                                 isMobile={true}
                             />
                         ),
@@ -1307,7 +1078,7 @@ export default function AdminSupplyRequestsPage() {
                                 onStatusFilterChange={setStatusFilter}
                                 onExportPDF={exportToPDF}
                                 onClearFilters={clearFilters}
-                                onRefresh={fetchSupplyTransactions}
+                                onRefresh={loadSupplyTransactions}
                                 isMobile={true}
                             />
                         )
@@ -1321,7 +1092,7 @@ export default function AdminSupplyRequestsPage() {
     return (
         <PersistentTabsLayout
             tabLabels={["Suprimentos", "Alocações", "Transações de Inventário", "Transações de Suprimento"]}
-            onTabChange={[() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, fetchInventoryTransactions), () => fetchTabData(3, fetchSupplyTransactions)]}
+            onTabChange={[() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, loadInventoryTransactions), () => fetchTabData(3, loadSupplyTransactions)]}
         >
             {[
                 loadingTabs[0] ? (
@@ -1391,7 +1162,7 @@ export default function AdminSupplyRequestsPage() {
                         onTransactionLocaleFilterChange={setTransactionLocaleFilter}
                         onExportPDF={exportToPDF}
                         onClearFilters={clearFilters}
-                        onRefresh={fetchInventoryTransactions}
+                        onRefresh={loadInventoryTransactions}
                     />
                 ),
                 loadingTabs[3] ? (
@@ -1407,7 +1178,7 @@ export default function AdminSupplyRequestsPage() {
                         onStatusFilterChange={setStatusFilter}
                         onExportPDF={exportToPDF}
                         onClearFilters={clearFilters}
-                        onRefresh={fetchSupplyTransactions}
+                        onRefresh={loadSupplyTransactions}
                     />
                 )
             ]}

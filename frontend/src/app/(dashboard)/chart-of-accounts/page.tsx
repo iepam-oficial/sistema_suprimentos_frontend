@@ -22,7 +22,9 @@ import {
 import { SearchIcon } from '@chakra-ui/icons';
 import { DataTable } from '@/components/data-table';
 import { ColumnDef } from '@tanstack/react-table';
-import { ChartOfAccount } from '@/utils/apiUtils';
+import { fetchChartOfAccounts as loadChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
+import type { ChartOfAccount } from '@/features/financeiro/types';
+import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
 
 export default function ChartOfAccountsPage() {
   const [allChartOfAccounts, setAllChartOfAccounts] = useState<ChartOfAccount[]>([]);
@@ -85,27 +87,14 @@ export default function ChartOfAccountsPage() {
 
   const fetchChartOfAccounts = async () => {
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
-      if (!token) {
-        throw new Error('Token não encontrado');
-      }
-
-      const response = await fetch('/api/chart-of-accounts', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-
-      if (!response.ok) throw new Error('Erro ao carregar planos de conta');
-      const data = await response.json();
+      const data = await loadChartOfAccounts();
       setAllChartOfAccounts(data);
       setFilteredChartOfAccounts(data);
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
       console.error('Erro:', error);
     }
   };

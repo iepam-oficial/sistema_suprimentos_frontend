@@ -1,6 +1,13 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
+import { fetchEvents as loadEvents } from '@/features/events/api/eventApi';
+import {
+  createExtraExpense,
+  updateExtraExpense,
+} from '@/features/financeiro/api/extraExpenseApi';
+import { fetchExtraExpenseCategories } from '@/features/financeiro/api/extraExpenseCategoryApi';
+import { fetchLocations, type LocationDTO } from '@/features/reference-data';
 import {
   Box,
   VStack,
@@ -36,7 +43,7 @@ import {
 } from '@chakra-ui/react';
 import { CloseIcon, AddIcon } from '@chakra-ui/icons';
 import { ExtraExpense, CreateExtraExpenseData, UpdateExtraExpenseData } from '../interfaces/IExtraExpense';
-import { uploadImage } from '@/utils/imageUtils';
+import { uploadImage } from '@/features/images/api/imageApi';
 
 interface ExtraExpensesFormProps {
   isOpen: boolean;
@@ -68,7 +75,7 @@ export default function ExtraExpensesForm({ isOpen, onClose, editingExpense }: E
   useEffect(() => {
     if (isOpen) {
       fetchCategories();
-      fetchLocations();
+      loadLocations();
       fetchEvents();
       
       if (editingExpense) {
@@ -92,36 +99,20 @@ export default function ExtraExpensesForm({ isOpen, onClose, editingExpense }: E
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch('/api/extra-expense-categories', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
+      if (!token) return;
+      const data = await fetchExtraExpenseCategories(token);
+      setCategories(data);
     } catch (error) {
       console.error('Erro ao buscar categorias:', error);
     }
   };
 
-  const fetchLocations = async () => {
+  const loadLocations = async () => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch('/api/locations', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setLocations(data);
-      }
+      if (!token) return;
+      const data = await fetchLocations(token);
+      setLocations(data);
     } catch (error) {
       console.error('Erro ao buscar localizações:', error);
     }
@@ -130,17 +121,9 @@ export default function ExtraExpensesForm({ isOpen, onClose, editingExpense }: E
   const fetchEvents = async () => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch('/api/events', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data);
-      }
+      if (!token) return;
+      const data = await loadEvents(token);
+      setEvents(data);
     } catch (error) {
       console.error('Erro ao buscar eventos:', error);
     }
@@ -220,31 +203,17 @@ export default function ExtraExpensesForm({ isOpen, onClose, editingExpense }: E
       }
 
       const token = localStorage.getItem('@ti-assistant:token');
-      const url = editingExpense 
-        ? `/api/extra-expenses/${editingExpense.id}`
-        : '/api/extra-expenses';
-      
-      const method = editingExpense ? 'PUT' : 'POST';
-      
+      if (!token) throw new Error('Token não encontrado');
+
       const submitData = {
         ...formData,
         receipt_url: finalReceiptUrl,
       };
 
-      console.log('Enviando dados do gasto:', submitData);
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(submitData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao salvar gasto');
+      if (editingExpense) {
+        await updateExtraExpense(token, editingExpense.id, submitData);
+      } else {
+        await createExtraExpense(token, submitData);
       }
 
       toast({

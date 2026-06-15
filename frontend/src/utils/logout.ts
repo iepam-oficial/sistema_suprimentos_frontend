@@ -1,3 +1,5 @@
+import { logout as authLogout } from '@/features/identity/api/authApi';
+
 /**
  * Função centralizada para fazer logout automático
  * Usada quando o backend retorna 401 (não autorizado)
@@ -13,12 +15,7 @@ export async function performLogout() {
   
   try {
     // Limpar cookies HTTP-only
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    await authLogout()
   } catch (error) {
     console.error('Erro ao limpar cookies no logout:', error)
   }

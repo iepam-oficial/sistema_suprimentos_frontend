@@ -34,11 +34,14 @@ import {
     formatCurrencyBR,
     parseCurrencyBR,
 } from '../utils/suppliesUtils';
-import { uploadImage } from '@/utils/imageUtils';
-import { fetchSuppliers, fetchUnits, fetchChartOfAccounts, ChartOfAccount } from '@/utils/apiUtils';
+import { uploadImage } from '@/features/images/api/imageApi';
+import { fetchSuppliers, fetchUnits } from '@/utils/apiUtils';
+import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
+import type { ChartOfAccount } from '@/features/financeiro/types';
 import { handleImageChange } from '@/utils/imageUtils';
 import { Camera, Image as ImageIcon } from 'lucide-react';
 import { ImageSourceDialog } from './ImageSourceDialog';
+import { fetchSubcategoriesByCategory, type SubcategoryDTO } from '@/features/reference-data';
 
 type Supply = BaseSupply & { freight?: number | string; subcategory_id?: string };
 
@@ -50,11 +53,6 @@ interface SupplyModalProps {
     initialData?: Supply;
 }
 
-interface Subcategory {
-    id: string;
-    label: string;
-}
-
 export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData }: SupplyModalProps) {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [units, setUnits] = useState<Unit[]>([]);
@@ -64,7 +62,7 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
     const [previewUrl, setPreviewUrl] = useState<string>('');
     const [selectedInvoiceImage, setSelectedInvoiceImage] = useState<File | null>(null);
     const [previewInvoiceUrl, setPreviewInvoiceUrl] = useState<string>('');
-    const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+    const [subcategories, setSubcategories] = useState<SubcategoryDTO[]>([]);
     const toast = useToast();
     const inputFileRef = useRef<HTMLInputElement | null>(null);
     const [fileCapture, setFileCapture] = useState<'environment' | 'user' | undefined>(undefined);
@@ -75,21 +73,16 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
     const [showInvoiceImageChoice, setShowInvoiceImageChoice] = useState(false);
     const leastDestructiveRef = useRef<HTMLButtonElement>(null);
 
-    const fetchSubcategories = useCallback(async (categoryId: string) => {
+    const loadSubcategories = useCallback(async (categoryId: string) => {
         if (!categoryId) {
             setSubcategories([]);
             return;
         }
         try {
             const token = localStorage.getItem('@ti-assistant:token');
-            const response = await fetch(`/api/subcategories/category/${categoryId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-            const data = await response.json();
-            setSubcategories(Array.isArray(data) ? data : []);
+            if (!token) return;
+            const data = await fetchSubcategoriesByCategory(token, categoryId);
+            setSubcategories(data);
         } catch (error) {
             setSubcategories([]);
         }
@@ -105,7 +98,7 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
                 setPreviewInvoiceUrl((initialData as any).invoice_url);
             }
             if (initialData.category?.id) {
-                fetchSubcategories(initialData.category.id);
+                loadSubcategories(initialData.category.id);
             }
         } else {
             setFormData(initializeFormDataWithFreight());
@@ -113,7 +106,7 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
             setPreviewInvoiceUrl('');
             setSubcategories([]);
         }
-    }, [initialData, fetchSubcategories]);
+    }, [initialData, loadSubcategories]);
 
     useEffect(() => {
         const loadData = async () => {
@@ -284,7 +277,7 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
                                     value={formData.category_id}
                                     onChange={(e) => {
                                         setFormData({ ...formData, category_id: e.target.value, subcategory_id: '' });
-                                        fetchSubcategories(e.target.value);
+                                        loadSubcategories(e.target.value);
                                     }}
                                     placeholder="Selecione uma categoria"
                                 >

@@ -1,4 +1,4 @@
-import { ticketTypeLabel } from '@/app/(dashboard)/support-tickets/types';
+import { ticketTypeLabel } from '@/features/support-tickets/types';
 import { cn } from './cn';
 
 const TYPE_CLASSES: Record<string, string> = {

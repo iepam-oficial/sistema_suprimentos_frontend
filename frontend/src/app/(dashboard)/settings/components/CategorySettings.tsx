@@ -28,16 +28,29 @@ import {
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
 import { EditIcon, DeleteIcon } from '@chakra-ui/icons'
-import { Category } from '../interfaces/ICategory'
-import { Subcategory } from '../interfaces/ISubtategory'
 import { useRouter } from 'next/navigation'
+import {
+    fetchCategories,
+    fetchSubcategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    createSubcategory,
+    updateSubcategory,
+    deleteSubcategory,
+    RateLimitError,
+    type CategoryDTO,
+    type SubcategoryDTO,
+} from '@/features/reference-data'
+
+type CategoryWithSubcategories = CategoryDTO & { subcategories?: SubcategoryDTO[] }
 
 export default function CategorySettings() {
     const router = useRouter();
-    const [categories, setCategories] = useState<Category[]>([])
+    const [categories, setCategories] = useState<CategoryWithSubcategories[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-    const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null)
+    const [editingCategory, setEditingCategory] = useState<CategoryWithSubcategories | null>(null)
+    const [editingSubcategory, setEditingSubcategory] = useState<SubcategoryDTO | null>(null)
     const toast = useToast()
     const { isOpen: isCategoryModalOpen, onOpen: onCategoryModalOpen, onClose: onCategoryModalClose } = useDisclosure()
     const { isOpen: isSubcategoryModalOpen, onOpen: onSubcategoryModalOpen, onClose: onSubcategoryModalClose } = useDisclosure()
@@ -53,30 +66,32 @@ export default function CategorySettings() {
     })
 
     useEffect(() => {
-        fetchCategories()
+        loadCategories()
     }, [])
 
-    const fetchCategories = async () => {
+    const loadCategories = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             if (!token) {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/categories', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
+            const [categoriesData, subcategoriesData] = await Promise.all([
+                fetchCategories(token),
+                fetchSubcategories(token),
+            ])
 
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            const data = await response.json()
-            setCategories(data)
+            setCategories(
+                categoriesData.map((cat) => ({
+                    ...cat,
+                    subcategories: subcategoriesData.filter((sub) => sub.category_id === cat.id),
+                }))
+            )
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível carregar as categorias.',
@@ -98,27 +113,10 @@ export default function CategorySettings() {
             }
 
             if (editingCategory) {
-                // Atualizar categoria existente
-                const response = await fetch(`/api/categories/${editingCategory.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        value: categoryFormData.value,
-                        label: categoryFormData.value
-                    }),
+                await updateCategory(token, editingCategory.id, {
+                    value: categoryFormData.value,
+                    label: categoryFormData.value,
                 })
-
-                if (response.status === 429) {
-                    router.push('/rate-limit');
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error('Erro ao atualizar categoria')
-                }
 
                 toast({
                     title: 'Sucesso',
@@ -128,53 +126,17 @@ export default function CategorySettings() {
                     isClosable: true,
                 })
             } else {
-                // Criar nova categoria
-                const categoryResponse = await fetch('/api/categories', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        value: categoryFormData.value,
-                        label: categoryFormData.value
-                    }),
+                const category = await createCategory(token, {
+                    value: categoryFormData.value,
+                    label: categoryFormData.value,
                 })
 
-                if (categoryResponse.status === 429) {
-                    router.push('/rate-limit');
-                    return;
-                }
-
-                if (!categoryResponse.ok) {
-                    throw new Error('Erro ao criar categoria')
-                }
-
-                const category = await categoryResponse.json()
-
-                // Criar subcategoria apenas se houver um valor
                 if (categoryFormData.subcategoryValue) {
-                    const subcategoryResponse = await fetch('/api/subcategories', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({
-                            value: categoryFormData.subcategoryValue,
-                            label: categoryFormData.subcategoryValue,
-                            category_id: category.id
-                        }),
+                    await createSubcategory(token, {
+                        value: categoryFormData.subcategoryValue,
+                        label: categoryFormData.subcategoryValue,
+                        category_id: category.id,
                     })
-
-                    if (subcategoryResponse.status === 429) {
-                        router.push('/rate-limit');
-                        return;
-                    }
-
-                    if (!subcategoryResponse.ok) {
-                        throw new Error('Erro ao criar subcategoria')
-                    }
                 }
 
                 toast({
@@ -186,9 +148,13 @@ export default function CategorySettings() {
                 })
             }
 
-            fetchCategories()
+            loadCategories()
             handleCategoryClose()
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível salvar a categoria.',
@@ -211,27 +177,16 @@ export default function CategorySettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const url = editingSubcategory
-                ? `/api/subcategories/${editingSubcategory.id}`
-                : '/api/subcategories'
+            const payload = {
+                value: subcategoryFormData.value,
+                label: subcategoryFormData.value,
+                category_id: subcategoryFormData.categoryId,
+            }
 
-            const method = editingSubcategory ? 'PUT' : 'POST'
-
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    value: subcategoryFormData.value,
-                    label: subcategoryFormData.value,
-                    category_id: subcategoryFormData.categoryId
-                }),
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao salvar subcategoria')
+            if (editingSubcategory) {
+                await updateSubcategory(token, editingSubcategory.id, payload)
+            } else {
+                await createSubcategory(token, payload)
             }
 
             toast({
@@ -242,9 +197,13 @@ export default function CategorySettings() {
                 isClosable: true,
             })
 
-            fetchCategories()
+            loadCategories()
             handleSubcategoryClose()
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível salvar a subcategoria.',
@@ -268,21 +227,7 @@ export default function CategorySettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/categories/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir categoria')
-            }
+            await deleteCategory(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -292,8 +237,12 @@ export default function CategorySettings() {
                 isClosable: true,
             })
 
-            fetchCategories()
+            loadCategories()
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível excluir a categoria.',
@@ -315,21 +264,7 @@ export default function CategorySettings() {
                 throw new Error('Token não encontrado');
             }
 
-            const response = await fetch(`/api/subcategories/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir subcategoria');
-            }
+            await deleteSubcategory(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -339,8 +274,12 @@ export default function CategorySettings() {
                 isClosable: true,
             })
 
-            fetchCategories()
+            loadCategories()
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível excluir a subcategoria.',
@@ -351,7 +290,7 @@ export default function CategorySettings() {
         }
     }
 
-    const handleCategoryEdit = (category: Category) => {
+    const handleCategoryEdit = (category: CategoryWithSubcategories) => {
         setEditingCategory(category)
         setCategoryFormData({
             value: category.value,
@@ -360,11 +299,11 @@ export default function CategorySettings() {
         onCategoryModalOpen()
     }
 
-    const handleEditSubcategory = (subcategory: Subcategory) => {
+    const handleEditSubcategory = (subcategory: SubcategoryDTO) => {
         setEditingSubcategory(subcategory)
         setSubcategoryFormData({
             value: subcategory.label,
-            categoryId: subcategory.categoryId
+            categoryId: subcategory.category_id
         })
         onSubcategoryModalOpen()
     }
@@ -432,10 +371,10 @@ export default function CategorySettings() {
                                 </Tr>
                             </Thead>
                             <Tbody>
-                                {category.subcategories.map((subcategory) => (
+                                {category.subcategories.map((subcategory: SubcategoryDTO) => (
                                     <Tr key={subcategory.id}>
                                         <Td>{subcategory.label}</Td>
-                                        <Td>{subcategory.description}</Td>
+                                        <Td></Td>
                                         <Td>
                                             <HStack spacing={2}>
                                                 <IconButton

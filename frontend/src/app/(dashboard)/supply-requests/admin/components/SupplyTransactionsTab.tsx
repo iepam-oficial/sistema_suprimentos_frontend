@@ -22,46 +22,7 @@ import {
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { FileText, RotateCcw } from 'lucide-react';
-
-interface SupplyTransaction {
-    id: string;
-    supply: {
-        id: string;
-        name: string;
-        description?: string;
-        quantity: number;
-        unit: {
-            id: string;
-            name: string;
-            symbol: string;
-        };
-    };
-    from_user: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    to_user: {
-        id: string;
-        name: string;
-        email: string;
-        role: string;
-    };
-    quantity: number;
-    transaction_type: string;
-    movement_type: 'IN' | 'OUT';
-    notes?: string;
-    sector?: {
-        id: string;
-        name: string;
-        location: {
-            id: string;
-            name: string;
-        };
-    };
-    created_at: string;
-}
+import type { SupplyTransaction } from '@/features/catalog/types';
 
 interface SupplyTransactionsTabProps {
     supplyTransactions: SupplyTransaction[];

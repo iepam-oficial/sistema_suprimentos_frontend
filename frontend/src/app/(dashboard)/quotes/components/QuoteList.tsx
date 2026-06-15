@@ -38,32 +38,17 @@ import { SearchIcon, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatBRL } from '@/utils/money';
-
-interface Quote {
-  id: string;
-  supplier: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  total_value: number;
-  created_at: string;
-  created_by: string;
-  user: {
-    id: string;
-    name: string;
-  };
-  items: Array<{
-    product_name: string;
-    quantity: number;
-    unit_price: number;
-  }>;
-  notes?: string | null;
-}
+import type { QuoteDTO } from '@/features/quotes';
+import { quoteStatusColor, quoteStatusLabel } from '@/features/quotes';
 
 interface QuoteListProps {
-  quotes: Quote[];
+  quotes: QuoteDTO[];
+  loading?: boolean;
   onStatusChange: (quoteId: string, status: 'APPROVED' | 'REJECTED') => Promise<void>;
+  onReload?: () => void;
 }
 
-export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
+export function QuoteList({ quotes, loading: loadingProp, onStatusChange }: QuoteListProps) {
   const { colorMode } = useColorMode();
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const drawerBg = useColorModeValue('white', 'gray.800');
@@ -74,7 +59,8 @@ export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
   const [statusFilter, setStatusFilter] = useState('');
   const [creatorFilter, setCreatorFilter] = useState('');
   const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
-  const [loading, setLoading] = useState(true);
+  const [loadingLocal, setLoadingLocal] = useState(true);
+  const loading = loadingProp ?? loadingLocal;
   const [userRole, setUserRole] = useState<string | null>(null);
   const toast = useToast();
   const router = useRouter();
@@ -88,26 +74,8 @@ export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
       const { role } = JSON.parse(userData);
       setUserRole(role);
     }
-    setLoading(false);
+    setLoadingLocal(false);
   }, []);
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      PENDING: 'yellow',
-      APPROVED: 'green',
-      REJECTED: 'red',
-    };
-    return colors[status as keyof typeof colors] || 'gray';
-  };
-
-  const getStatusText = (status: string) => {
-    const texts = {
-      PENDING: 'Pendente',
-      APPROVED: 'Aprovada',
-      REJECTED: 'Rejeitada',
-    };
-    return texts[status as keyof typeof texts] || status;
-  };
 
   const extractNameFromNotes = (notes?: string | null) => {
     if (!notes) return '';
@@ -117,7 +85,7 @@ export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
 
   const filteredQuotes = quotes.filter(quote => {
     const matchesStatus = !statusFilter || quote.status === statusFilter;
-    const matchesCreator = !creatorFilter || quote.user.id === creatorFilter;
+    const matchesCreator = !creatorFilter || quote.user?.id === creatorFilter;
     const nome = extractNameFromNotes(quote.notes).toLowerCase();
     const matchesSearch = !searchTerm || 
       nome.includes(searchTerm.toLowerCase()) ||
@@ -163,11 +131,11 @@ export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
             <option value="">Todos</option>
             {quotes
               .filter((quote, index, self) => 
-                index === self.findIndex(q => q.user.id === quote.user.id)
+                index === self.findIndex(q => q.user?.id === quote.user?.id)
               )
               .map(quote => (
-                <option key={quote.user.id} value={quote.user.id}>
-                  {quote.user.name}
+                <option key={quote.user?.id} value={quote.user?.id}>
+                  {quote.user?.name}
                 </option>
               ))
             }
@@ -225,10 +193,10 @@ export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
             {filteredQuotes.map((quote) => (
               <Tr key={quote.id}>
                 <Td>{extractNameFromNotes(quote.notes) || 'Sem nome'}</Td>
-                <Td>{quote.user.name}</Td>
+                <Td>{quote.user?.name ?? '—'}</Td>
                 <Td>
-                  <Badge colorScheme={getStatusColor(quote.status)}>
-                    {getStatusText(quote.status)}
+                  <Badge colorScheme={quoteStatusColor(quote.status)}>
+                    {quoteStatusLabel(quote.status)}
                   </Badge>
                 </Td>
                 <Td isNumeric>{formatBRL(quote.total_value)}</Td>
@@ -321,12 +289,13 @@ export function QuoteList({ quotes, onStatusChange }: QuoteListProps) {
                 >
                   <option value="">Todos</option>
                   {quotes
-                    .filter((quote, index, self) => 
-                      index === self.findIndex(q => q.user.id === quote.user.id)
+                    .filter((quote, index, self) =>
+                      quote.user?.id &&
+                      index === self.findIndex((q) => q.user?.id === quote.user?.id)
                     )
-                    .map(quote => (
-                      <option key={quote.user.id} value={quote.user.id}>
-                        {quote.user.name}
+                    .map((quote) => (
+                      <option key={quote.user?.id} value={quote.user?.id}>
+                        {quote.user?.name}
                       </option>
                     ))
                   }

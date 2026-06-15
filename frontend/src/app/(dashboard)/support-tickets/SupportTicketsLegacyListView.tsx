@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Loader2 } from 'lucide-react';
-import { useSupportTicketsFetch } from './useSupportTicketsFetch';
+import { useSupportTicketsFetch } from '@/features/support-tickets/hooks/useSupportTicketsFetch';
 import {
   canCreateSupportTicket,
   formatTicketDate,

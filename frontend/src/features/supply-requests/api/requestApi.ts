@@ -1,19 +1,9 @@
-import type { CatalogSupply } from '../context/CartContext';
+import { fetchSupplies } from '@/features/catalog/api/catalogApi';
+import type { Supply } from '@/features/catalog/types';
 import type { SupplyRequest } from '../types';
 
-export type Supply = CatalogSupply;
-
-export const fetchSupplies = async (token: string) => {
-  const response = await fetch('/api/supplies', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erro ao carregar suprimentos');
-  }
-
-  return response.json();
-};
+export type { Supply };
+export { fetchSupplies };
 
 export const fetchRequests = async (token: string) => {
   const regularResponse = await fetch('/api/supply-requests/my-requests', {
@@ -154,8 +144,8 @@ export const filterSupplies = (supplies: Supply[], search: string): Supply[] => 
   return supplies.filter(
     (supply) =>
       supply.name.toLowerCase().includes(search.toLowerCase()) ||
-      supply.description.toLowerCase().includes(search.toLowerCase()) ||
-      supply.category.label.toLowerCase().includes(search.toLowerCase())
+      (supply.description?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      (supply.category?.label.toLowerCase().includes(search.toLowerCase()) ?? false)
   );
 };
 
@@ -172,33 +162,4 @@ export const filterRequests = (requests: SupplyRequest[], search: string, status
     const matchesStatus = !statusFilter || request.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-};
-
-export const allocateInventoryItem = async (
-  itemId: string,
-  return_date: string,
-  destination: string,
-  notes: string,
-  token: string
-) => {
-  const response = await fetch('/api/inventory-allocations', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inventory_id: itemId,
-      return_date,
-      destination,
-      notes,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Erro ao criar alocação');
-  }
-
-  return response.json();
 };

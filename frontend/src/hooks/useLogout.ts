@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { performLogout } from '@/utils/logout'
+import { useAuthSession } from '@/features/identity'
 
 /**
  * Hook personalizado para logout
@@ -8,30 +8,13 @@ import { performLogout } from '@/utils/logout'
  */
 export function useLogout() {
   const router = useRouter()
+  const { logout: sessionLogout } = useAuthSession()
 
   const logout = useCallback(async () => {
     console.log('[useLogout] Iniciando logout manual')
-    
-    try {
-      // Chamar API para limpar cookies HTTP-only
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error)
-    }
-    
-    // Limpar localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('@ti-assistant:')) {
-        localStorage.removeItem(key)
-      }
-    })
-    
-    // Limpar outros itens específicos
+
+    await sessionLogout()
+
     localStorage.removeItem('filters')
     localStorage.removeItem('searchQuery')
     localStorage.removeItem('selectedUnit')
@@ -39,8 +22,7 @@ export function useLogout() {
     localStorage.removeItem('selectedEnvironment')
     localStorage.removeItem('selectedBranch')
     localStorage.removeItem('selectedCategory')
-    
-    // Expirar cookies não-HttpOnly
+
     try {
       const parts = document.cookie.split(';')
       for (const part of parts) {
@@ -51,10 +33,9 @@ export function useLogout() {
         }
       }
     } catch {}
-    
-    // Redirecionar para login
+
     router.push('/')
-  }, [router])
+  }, [router, sessionLogout])
 
   return { logout }
 }

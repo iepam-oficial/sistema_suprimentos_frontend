@@ -47,12 +47,13 @@ import { exportSuppliesBelowMinimum } from './utils/exportUtils';
 import { SupplyStatistics } from './components/SupplyStatistics';
 import { SupplyBatchList } from './components/SupplyBatchList';
 import { useRouter } from 'next/navigation';
+import { fetchCategories as fetchCategoriesApi, type CategoryDTO } from '@/features/reference-data';
 
 export default function SuppliesPage() {
     const [supplies, setSupplies] = useState<Supply[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [categories, setCategories] = useState<{ id: string; label: string }[]>([]);
+    const [categories, setCategories] = useState<CategoryDTO[]>([]);
     const { isOpen, onOpen, onClose } = useDisclosure();
     const toast = useToast();
     const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
@@ -66,7 +67,7 @@ export default function SuppliesPage() {
 
     useEffect(() => {
         fetchSupplies();
-        fetchCategories();
+        loadCategories();
     }, []);
 
     const fetchSupplies = async () => {
@@ -98,17 +99,12 @@ export default function SuppliesPage() {
         }
     };
 
-    const fetchCategories = async () => {
+    const loadCategories = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
-            const response = await fetch('/api/categories', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            const data = await response.json();
-            setCategories(Array.isArray(data) ? data : []);
+            if (!token) return;
+            const data = await fetchCategoriesApi(token);
+            setCategories(data);
         } catch (error) {
             setCategories([]);
         }

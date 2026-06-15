@@ -14,6 +14,7 @@ import {
   Heading,
   HStack,
 } from '@chakra-ui/react';
+import { createLocation } from '@/features/reference-data';
 
 export default function AddLocationPage() {
   const router = useRouter();
@@ -26,9 +27,9 @@ export default function AddLocationPage() {
 
     const formData = new FormData(e.currentTarget);
     const data = {
-      name: formData.get('name'),
-      address: formData.get('address'),
-      branch: formData.get('branch'),
+      name: String(formData.get('name') ?? ''),
+      address: String(formData.get('address') ?? ''),
+      branch: String(formData.get('branch') ?? ''),
     };
 
     try {
@@ -37,18 +38,7 @@ export default function AddLocationPage() {
         throw new Error('Token não encontrado');
       }
 
-      const response = await fetch('/api/locations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao adicionar localização');
-      }
+      await createLocation(token, data);
 
       toast({
         title: 'Localização adicionada com sucesso!',

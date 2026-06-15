@@ -35,7 +35,7 @@ import {
 import { ArrowLeft, MapPin, Calendar, Tag, Hash, Building } from 'lucide-react';
 import { fetchInventoryItemById } from '@/features/inventory/api/inventoryApi';
 import { InventoryAllocationModal } from '@/components/InventoryAllocationModal';
-import { allocateInventoryItem } from '../../utils/requestUtils';
+import { allocateInventoryItem } from '@/features/inventory/api/inventoryApi';
 import { formatBRL } from '@/utils/money';
 
 export default function InventoryDetailPage({ params }: { params: { id: string } }) {

@@ -1,3 +1,3 @@
 export type { SupplyRequest } from '@/features/supply-requests/types';
-export type { CatalogSupply as Supply } from '@/features/supply-requests/context/CartContext';
+export type { Supply } from '@/features/catalog/types';
 export { SupplyRequestStatus } from '@/features/supply-requests/types';

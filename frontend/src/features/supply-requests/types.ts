@@ -8,6 +8,12 @@ export type {
 
 export { SupplyRequestStatus } from '@ti-assistant/contracts';
 
+export type {
+  BestSupplierSummaryDTO,
+  CreatePurchaseInput,
+  PurchaseDTO,
+} from '@ti-assistant/contracts';
+
 /** Requisição com campos extras usados na UI admin */
 export type SupplyRequest = SupplyRequestDTO & {
   requester_delivery_confirmation?: boolean;

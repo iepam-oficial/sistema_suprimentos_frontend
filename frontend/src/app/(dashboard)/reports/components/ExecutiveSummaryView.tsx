@@ -1,8 +1,8 @@
 'use client';
 
 import { Box, Heading, SimpleGrid, Text, useColorMode, VStack } from '@chakra-ui/react';
-import { getExecutiveChartType } from '@/lib/reports/chartConfig';
-import { ExecutiveSummaryPayload } from '@/lib/reports/types';
+import { getExecutiveChartType } from '@/features/reports/chartConfig';
+import { ExecutiveSummaryPayload } from '@/features/reports/types';
 import { ReportChart } from './ReportChart';
 import { ReportChartCard } from './ReportChartCard';
 import { ReportDetailTable } from './ReportDetailTable';

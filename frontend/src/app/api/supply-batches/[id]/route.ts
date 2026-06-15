@@ -1,47 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import baseUrl from '@/utils/enviroments';
+import { createProxyHandler } from '@/lib/bff/createProxyHandler';
+import { NextRequest } from 'next/server';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    console.log('[API][supply-batches][GET] Iniciando request');
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      console.error('[API][supply-batches][GET] Token não fornecido');
-      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
-    }
+const handler = createProxyHandler('/supply-batches/:id');
 
-    const response = await fetch(`${baseUrl}/supply-batches/${params.id}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.status === 429) {
-      const message = await response.text();
-      console.log('[API][supply-batches][GET] Rate limit exceeded', message);
-      return NextResponse.json(
-        { error: 'Rate limit exceeded', details: message },
-        { status: 429 }
-      );
-    }
-
-    if (!response.ok) {
-      console.error('[API][supply-batches][GET] Erro ao buscar lote');
-      throw new Error('Erro ao buscar lote');
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('[API][supply-batches][GET] Erro na API route:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
-  }
-} 
+export const GET = (request: NextRequest, context: { params: { id: string } }) =>
+  handler.GET(request, context);

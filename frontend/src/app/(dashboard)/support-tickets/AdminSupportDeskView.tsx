@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
-import { useSupportTicketsFetch } from './useSupportTicketsFetch';
+import { useSupportTicketsFetch } from '@/features/support-tickets/hooks/useSupportTicketsFetch';
 import { SupportTicketDeskModal } from './SupportTicketDeskModal';
 import {
   SupportTicket,

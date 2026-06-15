@@ -14,7 +14,7 @@ import {
   Wrap,
   WrapItem,
 } from '@chakra-ui/react';
-import { FilterOptions } from '@/lib/reports/types';
+import { FilterOptions } from '@/features/reports/types';
 
 export interface ReportFiltersState {
   timeRange: string;

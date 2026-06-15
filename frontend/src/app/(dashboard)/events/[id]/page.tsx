@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
     Box,
     Button,
-    Container,
     VStack,
     Heading,
     Text,
@@ -19,51 +18,12 @@ import {
     useBreakpointValue,
 } from '@chakra-ui/react';
 import { ArrowLeft, Calendar, MapPin, Users, Phone, Mail, FileText } from 'lucide-react';
-
-interface Event {
-    id: string;
-    title: string;
-    description: string;
-    type: EventType;
-    start_date: Date;
-    start_time: string;
-    end_date: Date;
-    location: string;
-    room?: string;
-    capacity?: number;
-    is_public?: boolean;
-    max_participants?: number;
-    budget?: number;
-    contact_name?: string;
-    contact_phone?: string;
-    contact_email?: string;
-    setup_requirements?: string;
-    notes?: string;
-    status: EventStatus;
-    current_participants: number;
-    user: {
-        id: string;
-        name: string;
-    };
-    participants: {
-        id: string;
-        user: {
-            id: string;
-            name: string;
-        };
-        role: string;
-        status: string;
-    }[];
-    resources: {
-        id: string;
-        name: string;
-        quantity: number;
-        description?: string;
-    }[];
-}
-
-type EventType = 'FESTA' | 'AULA' | 'FORMATURA' | 'REUNIAO' | 'FEIRA_TECNOLOGICA' | 'ALUGUEL_SALA' | 'OUTRO';
-type EventStatus = 'AGENDADO' | 'EM_ANDAMENTO' | 'CONCLUIDO' | 'CANCELADO';
+import type { Event } from '@/features/events/types';
+import {
+  getEventStatusChakraColor,
+} from '@/features/events/types';
+import { getEventStatusLabel } from '@/features/events/lib/eventPresentation';
+import { fetchEventById, RateLimitError } from '@/features/events/api/eventApi';
 
 export default function EventDetailsPage({ params }: { params: { id: string } }) {
     const [event, setEvent] = useState<Event | null>(null);
@@ -73,65 +33,27 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
     const isMobile = useBreakpointValue({ base: true, md: false });
 
     useEffect(() => {
-        fetchEventDetails();
-    }, [params.id]);
-
-    const fetchEventDetails = async () => {
-        try {
-            const token = localStorage.getItem('@ti-assistant:token');
-            const response = await fetch(`/api/events/${params.id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+        const load = async () => {
+            try {
+                const token = localStorage.getItem('@ti-assistant:token');
+                if (!token) {
+                    router.push('/');
+                    return;
                 }
-            });
-
-            if (response.status === 429) {
-                router.push('/rate-limit')
-                return
+                const data = await fetchEventById(token, params.id);
+                setEvent(data);
+            } catch (error) {
+                if (error instanceof RateLimitError) {
+                    router.push('/rate-limit');
+                    return;
+                }
+                console.error('Erro ao buscar detalhes do evento:', error);
+            } finally {
+                setLoading(false);
             }
-
-            if (!response.ok) {
-                throw new Error('Erro ao buscar detalhes do evento');
-            }
-
-            const data = await response.json();
-            setEvent(data);
-        } catch (error) {
-            console.error('Erro ao buscar detalhes do evento:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getStatusColor = (status: EventStatus) => {
-        switch (status) {
-            case 'AGENDADO':
-                return 'yellow';
-            case 'EM_ANDAMENTO':
-                return 'blue';
-            case 'CONCLUIDO':
-                return 'green';
-            case 'CANCELADO':
-                return 'red';
-            default:
-                return 'gray';
-        }
-    };
-
-    const getStatusLabel = (status: EventStatus) => {
-        switch (status) {
-            case 'AGENDADO':
-                return 'Agendado';
-            case 'EM_ANDAMENTO':
-                return 'Em Andamento';
-            case 'CONCLUIDO':
-                return 'Concluído';
-            case 'CANCELADO':
-                return 'Cancelado';
-            default:
-                return status;
-        }
-    };
+        };
+        load();
+    }, [params.id, router]);
 
     if (loading) {
         return <Box p={8}>Carregando...</Box>;
@@ -168,8 +90,8 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
                     <CardHeader>
                         <VStack align="start" spacing={2}>
                             <Heading size="lg">{event.title}</Heading>
-                            <Badge colorScheme={getStatusColor(event.status)}>
-                                {getStatusLabel(event.status)}
+                            <Badge colorScheme={getEventStatusChakraColor(event.status)}>
+                                {getEventStatusLabel(event.status)}
                             </Badge>
                         </VStack>
                     </CardHeader>
@@ -213,7 +135,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
                             <VStack align="start" spacing={2}>
                                 <HStack>
                                     <Users size={20} />
-                                    <Text>Participantes: {event.current_participants}/{event.max_participants || '∞'}</Text>
+                                    <Text>Participantes: {event.current_participants ?? 0}/{event.max_participants || '∞'}</Text>
                                 </HStack>
                                 {event.capacity && (
                                     <HStack>
@@ -294,4 +216,4 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             </VStack>
         </Box>
     );
-} 
+}

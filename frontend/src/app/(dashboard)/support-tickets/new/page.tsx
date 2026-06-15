@@ -4,35 +4,40 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { uploadImage, handleImageChange } from '@/utils/imageUtils';
-import { canCreateSupportTicket, SupportTicketKind } from '../types';
+import { uploadImage } from '@/features/images/api/imageApi';
+import { handleImageChange } from '@/utils/imageUtils';
+import {
+  canCreateSupportTicket,
+  CreateSupportTicketInput,
+  PriorityLevel,
+  SupportTicketKind,
+} from '@/features/support-tickets/types';
+import {
+  createSupportTicket,
+  RateLimitError,
+} from '@/features/support-tickets/api/supportTicketApi';
 import { cardClass, inputClass, labelClass, btnPrimary, btnSecondary } from '@/components/support-desk/formClasses';
 import { cn } from '@/components/support-desk/cn';
+import {
+  fetchLocations,
+  fetchSectorsByLocation,
+  type LocationDTO,
+  type SectorDTO,
+} from '@/features/reference-data';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-
-interface Location {
-  id: string;
-  name: string;
-}
-
-interface Sector {
-  id: string;
-  name: string;
-  location_id: string;
-}
 
 export default function NewSupportTicketPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [locations, setLocations] = useState<LocationDTO[]>([]);
+  const [sectors, setSectors] = useState<SectorDTO[]>([]);
 
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('MEDIUM');
+  const [priority, setPriority] = useState<PriorityLevel>('MEDIUM');
   const [ticketType, setTicketType] = useState<SupportTicketKind>('INCIDENT');
   const [locationId, setLocationId] = useState('');
   const [sectorId, setSectorId] = useState('');
@@ -55,13 +60,8 @@ export default function NewSupportTicketPage() {
 
     const load = async () => {
       try {
-        const locRes = await fetch('/api/locations', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (locRes.ok) {
-          const locData = await locRes.json();
-          setLocations(Array.isArray(locData) ? locData : []);
-        }
+        const locData = await fetchLocations(token);
+        setLocations(locData);
       } catch {
         // formulário ainda funciona sem local
       } finally {
@@ -81,15 +81,8 @@ export default function NewSupportTicketPage() {
     let cancelled = false;
     const loadSectors = async () => {
       try {
-        const secRes = await fetch(`/api/sectors/location/${locationId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!secRes.ok) {
-          if (!cancelled) setSectors([]);
-          return;
-        }
-        const secData = await secRes.json();
-        if (!cancelled) setSectors(Array.isArray(secData) ? secData : []);
+        const secData = await fetchSectorsByLocation(token, locationId);
+        if (!cancelled) setSectors(secData);
       } catch {
         if (!cancelled) setSectors([]);
       }
@@ -132,39 +125,24 @@ export default function NewSupportTicketPage() {
         }
       }
 
-      const body: Record<string, unknown> = {
+      const body: CreateSupportTicketInput = {
         subject: subject.trim(),
         description: description.trim(),
         priority,
         ticket_type: ticketType,
+        ...(locationId ? { location_id: locationId } : {}),
+        ...(sectorId ? { sector_id: sectorId } : {}),
+        ...(imageUrl ? { image_url: imageUrl } : {}),
       };
-      if (locationId) body.location_id = locationId;
-      if (sectorId) body.sector_id = sectorId;
-      if (imageUrl) body.image_url = imageUrl;
 
-      const res = await fetch('/api/support-tickets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (res.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Erro ao criar chamado');
-      }
-
-      const created = await res.json();
+      const created = await createSupportTicket(token, body);
       toast.success('Chamado criado');
       router.push(`/support-tickets/${created.id}`);
     } catch (err: unknown) {
+      if (err instanceof RateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
       toast.error(err instanceof Error ? err.message : 'Erro ao criar chamado');
     } finally {
       setLoading(false);
@@ -221,7 +199,11 @@ export default function NewSupportTicketPage() {
 
           <div>
             <label className={labelClass}>Prioridade</label>
-            <select className={inputClass} value={priority} onChange={(e) => setPriority(e.target.value)}>
+            <select
+              className={inputClass}
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as PriorityLevel)}
+            >
               <option value="LOW">Baixa</option>
               <option value="MEDIUM">Média</option>
               <option value="HIGH">Alta</option>

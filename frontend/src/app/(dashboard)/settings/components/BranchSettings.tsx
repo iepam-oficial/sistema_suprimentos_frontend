@@ -27,19 +27,20 @@ import {
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
 import { EditIcon, DeleteIcon } from '@chakra-ui/icons'
-import { useRouter } from 'next/navigation';
-
-interface Branch {
-    id: string
-    name: string
-    address: string
-    branch: string
-}
+import { useRouter } from 'next/navigation'
+import {
+    fetchLocations,
+    createLocation,
+    updateLocation,
+    deleteLocation,
+    RateLimitError,
+    type LocationDTO,
+} from '@/features/reference-data'
 
 export default function BranchSettings() {
-    const [branches, setBranches] = useState<Branch[]>([])
+    const [branches, setBranches] = useState<LocationDTO[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
+    const [editingBranch, setEditingBranch] = useState<LocationDTO | null>(null)
     const toast = useToast()
     const { isOpen: isBranchModalOpen, onOpen: onBranchModalOpen, onClose: onBranchModalClose } = useDisclosure()
     const router = useRouter();
@@ -61,20 +62,13 @@ export default function BranchSettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/locations', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            const data = await response.json()
+            const data = await fetchLocations(token)
             setBranches(data)
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível carregar as localizações.',
@@ -96,19 +90,7 @@ export default function BranchSettings() {
             }
 
             if (editingBranch) {
-                // Atualizar localização existente
-                const response = await fetch(`/api/locations/${editingBranch.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(branchFormData),
-                })
-
-                if (!response.ok) {
-                    throw new Error('Erro ao atualizar localização')
-                }
+                await updateLocation(token, editingBranch.id, branchFormData)
 
                 toast({
                     title: 'Sucesso',
@@ -118,19 +100,7 @@ export default function BranchSettings() {
                     isClosable: true,
                 })
             } else {
-                // Criar nova localização
-                const response = await fetch('/api/locations', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(branchFormData),
-                })
-
-                if (!response.ok) {
-                    throw new Error('Erro ao criar localização')
-                }
+                await createLocation(token, branchFormData)
 
                 toast({
                     title: 'Sucesso',
@@ -167,16 +137,7 @@ export default function BranchSettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/locations/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir localização')
-            }
+            await deleteLocation(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -198,12 +159,12 @@ export default function BranchSettings() {
         }
     }
 
-    const handleBranchEdit = (branch: Branch) => {
+    const handleBranchEdit = (branch: LocationDTO) => {
         setEditingBranch(branch)
         setBranchFormData({
             name: branch.name,
-            address: branch.address,
-            branch: branch.branch
+            address: branch.address ?? '',
+            branch: branch.branch ?? ''
         })
         onBranchModalOpen()
     }

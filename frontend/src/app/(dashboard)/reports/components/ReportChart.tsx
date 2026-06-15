@@ -23,8 +23,8 @@ import {
   getSliceColor,
   prepareChartDataForDisplay,
   resolveChartType,
-} from '@/lib/reports/chartConfig';
-import { ChartRow, ChartType, ReportSlug } from '@/lib/reports/types';
+} from '@/features/reports/chartConfig';
+import { ChartRow, ChartType, ReportSlug } from '@/features/reports/types';
 
 interface ReportChartProps {
   slug?: ReportSlug;
