@@ -23,6 +23,11 @@ import {
 import { SearchIcon } from '@chakra-ui/icons';
 import { FileText, RotateCcw } from 'lucide-react';
 import type { SupplyTransaction } from '@/features/catalog/types';
+import {
+    formatTransactionTotalPrice,
+    formatTransactionUnitPrice,
+    getTransactionPolo,
+} from '../utils/supplyTransactionFormatters';
 
 interface SupplyTransactionsTabProps {
     supplyTransactions: SupplyTransaction[];
@@ -91,7 +96,11 @@ export function SupplyTransactionsTab({
                                     {transaction.transaction_type === 'DELIVERY' ? 'Entrega' : transaction.transaction_type === 'RETURN' ? 'Devolução' : transaction.transaction_type === 'PURCHASE' ? 'Compra' : transaction.transaction_type === 'ADJUSTMENT' ? 'Ajuste' : transaction.transaction_type}
                                 </Badge>
                                 <Badge colorScheme={transaction.movement_type === 'IN' ? 'green' : 'red'}>{transaction.movement_type === 'IN' ? 'Entrada' : 'Saída'}</Badge>
-                                <Text fontSize="sm">Usuário: {transaction.from_user.name}</Text>
+                                <Text fontSize="sm">De: {transaction.from_user.name}</Text>
+                                <Text fontSize="sm">Para: {transaction.to_user.name}</Text>
+                                <Text fontSize="sm">Preço unit.: {formatTransactionUnitPrice(transaction.supply.unit_price)}</Text>
+                                <Text fontSize="sm">Valor total: {formatTransactionTotalPrice(transaction.supply.unit_price, transaction.quantity)}</Text>
+                                <Text fontSize="sm">Polo: {getTransactionPolo(transaction)}</Text>
                                 <Text fontSize="xs" color="gray.400">Data: {new Date(transaction.created_at).toLocaleDateString('pt-BR')}</Text>
                             </Box>
                         ))}
@@ -233,7 +242,10 @@ export function SupplyTransactionsTab({
                                 <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>De</Th>
                                 <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Para</Th>
                                 <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Quantidade</Th>
+                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Preço Unit.</Th>
+                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Valor Total</Th>
                                 <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Setor</Th>
+                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Polo</Th>
                                 <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Data</Th>
                             </Tr>
                         </Thead>
@@ -303,6 +315,12 @@ export function SupplyTransactionsTab({
                                         {transaction.quantity} {transaction.supply.unit.symbol}
                                     </Td>
                                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
+                                        {formatTransactionUnitPrice(transaction.supply.unit_price)}
+                                    </Td>
+                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
+                                        {formatTransactionTotalPrice(transaction.supply.unit_price, transaction.quantity)}
+                                    </Td>
+                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
                                         {transaction.sector ? (
                                             <VStack align="start" spacing={1}>
                                                 <Text fontWeight="bold">{transaction.sector.name}</Text>
@@ -315,6 +333,9 @@ export function SupplyTransactionsTab({
                                                 N/A
                                             </Text>
                                         )}
+                                    </Td>
+                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
+                                        {getTransactionPolo(transaction)}
                                     </Td>
                                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
                                         {new Date(transaction.created_at).toLocaleDateString('pt-BR')}

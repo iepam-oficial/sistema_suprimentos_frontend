@@ -1,5 +1,8 @@
 import baseUrl from '@/utils/enviroments';
+import { mulMoney, sumMoney } from '@/utils/money';
 import { NextResponse } from 'next/server'
+
+const APPROVED_ORDER_STATUSES = new Set(['APPROVED', 'DELIVERED']);
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -16,24 +19,6 @@ export async function GET(request: Request) {
                 { status: 401 }
             )
         }
-
-        // Busca dados de inventário
-        const inventoryResponse = await fetch(`${baseUrl}/inventory`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-
-        if (inventoryResponse.status === 429) {
-            const message = await inventoryResponse.text();
-            console.log('[API][dashboard][GET] Rate limit exceeded', message);
-            return NextResponse.json(
-                { error: 'Rate limit exceeded', details: message },
-                { status: 429 }
-            );
-        }
-
-        const inventory = await inventoryResponse.json()
 
         // Busca dados de ordens de serviço
         const serviceOrdersResponse = await fetch(`${baseUrl}/service-orders`, {
@@ -125,6 +110,25 @@ export async function GET(request: Request) {
 
         const supplyRequests = await supplyRequestsResponse.json()
 
+        const inventoryAllocationsResponse = await fetch(`${baseUrl}/inventory-allocations`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+
+        if (inventoryAllocationsResponse.status === 429) {
+            const message = await inventoryAllocationsResponse.text();
+            console.log('[API][dashboard][GET] Rate limit exceeded', message);
+            return NextResponse.json(
+                { error: 'Rate limit exceeded', details: message },
+                { status: 429 }
+            );
+        }
+
+        const inventoryAllocations = inventoryAllocationsResponse.ok
+            ? await inventoryAllocationsResponse.json()
+            : []
+
         // Garante que alerts é um array
         const alerts = Array.isArray(alertsData) ? alertsData : []
 
@@ -134,10 +138,18 @@ export async function GET(request: Request) {
         // Processa o tempo médio de entrega por mês (requisições com status DELIVERED)
         const averageDeliveryTimeTrends = processAverageDeliveryTimeTrends(supplyRequests)
 
+        const approvedOrdersMonthlyInventoryValue = calculateApprovedOrdersMonthlyInventoryValue(inventoryAllocations)
+        const approvedOrdersMonthlySuppliesValue = calculateApprovedOrdersMonthlySuppliesValue(supplyRequests)
+        const approvedOrdersMonthlyTotalValue = sumMoney([
+            approvedOrdersMonthlyInventoryValue,
+            approvedOrdersMonthlySuppliesValue,
+        ])
+
         // Calcula estatísticas
         const stats = {
-            totalInventory: Array.isArray(inventory) ? inventory.length : 0,
-            totalInventoryValue: Array.isArray(inventory) ? inventory.reduce((total: number, item: any) => total + (item.acquisition_price || 0), 0) : 0,
+            approvedOrdersMonthlyInventoryValue,
+            approvedOrdersMonthlySuppliesValue,
+            approvedOrdersMonthlyTotalValue,
             totalServiceOrders: Array.isArray(serviceOrders) ? serviceOrders.length : 0,
             totalServiceOrdersValue: Array.isArray(serviceOrders) ? serviceOrders.reduce((total: number, order: any) => total + (order.total_price || 0), 0) : 0,
             openServiceOrders: Array.isArray(serviceOrders) ? serviceOrders.filter((so: any) => !so.exit_date).length : 0,
@@ -163,6 +175,41 @@ export async function GET(request: Request) {
             { status: 500 }
         )
     }
+}
+
+function isCurrentMonth(dateInput: string | Date | null | undefined): boolean {
+    if (!dateInput) return false;
+    const date = new Date(dateInput);
+    if (Number.isNaN(date.getTime())) return false;
+    const now = new Date();
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+}
+
+function calculateApprovedOrdersMonthlyInventoryValue(allocations: any[]): number {
+    if (!Array.isArray(allocations)) return 0;
+
+    const values = allocations
+        .filter((allocation) =>
+            APPROVED_ORDER_STATUSES.has(allocation.status) &&
+            isCurrentMonth(allocation.approval_date)
+        )
+        .map((allocation) => allocation.inventory?.acquisition_price ?? 0);
+
+    return sumMoney(values);
+}
+
+function calculateApprovedOrdersMonthlySuppliesValue(supplyRequests: any[]): number {
+    if (!Array.isArray(supplyRequests)) return 0;
+
+    const values = supplyRequests
+        .filter((request) =>
+            !request.is_custom &&
+            APPROVED_ORDER_STATUSES.has(request.status) &&
+            isCurrentMonth(request.updated_at)
+        )
+        .map((request) => mulMoney(request.supply?.unit_price ?? 0, request.quantity ?? 0));
+
+    return sumMoney(values);
 }
 
 function processConsumptionTrends(supplyRequests: any[]) {

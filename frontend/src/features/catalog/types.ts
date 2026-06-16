@@ -17,12 +17,16 @@ export type {
 export type { SupplyDTO as Supply } from '@ti-assistant/contracts';
 
 /** Transação de suprimento com relações expandidas usadas na UI admin */
-export type SupplyTransaction = Omit<SupplyTransactionDTO, 'supply'> & {
+export type SupplyTransaction = Omit<
+  SupplyTransactionDTO,
+  'supply' | 'from_user' | 'to_user' | 'sector'
+> & {
   supply: {
     id: string;
     name: string;
-    description?: string;
+    description?: string | null;
     quantity: number;
+    unit_price: number | null;
     unit: {
       id: string;
       name: string;
@@ -47,6 +51,7 @@ export type SupplyTransaction = Omit<SupplyTransactionDTO, 'supply'> & {
     location: {
       id: string;
       name: string;
+      branch: string;
     };
-  };
+  } | null;
 };

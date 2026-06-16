@@ -63,14 +63,14 @@ export const initializeFormData = (initialData?: Supply) => {
   };
 };
 
-type SupplyWithFreight = Supply & { freight?: number | string; subcategory_id?: string };
+type SupplyWithFreight = Supply & { freight?: number | string; subcategory_id?: string | null };
 
 export function initializeFormDataWithFreight(initialData?: SupplyWithFreight) {
   const base = initializeFormData(initialData);
   return {
     ...base,
     freight:
-      initialData?.freight !== undefined && initialData.freight !== null && initialData.freight !== ''
+      initialData?.freight != null
         ? displayCurrencyFromApi(initialData.freight)
         : '',
     subcategory_id: initialData?.subcategory_id ?? '',

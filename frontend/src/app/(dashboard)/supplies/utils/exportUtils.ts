@@ -13,13 +13,13 @@ export const exportSuppliesBelowMinimum = async (supplies: Supply[]) => {
             ],
             body: suppliesBelowMinimum.map(supply => [
                 supply.name,
-                supply.description,
+                supply.description ?? '',
                 supply.quantity.toString(),
                 supply.minimum_quantity.toString(),
                 (supply.minimum_quantity - supply.quantity).toString(),
-                supply.unit.symbol,
-                supply.category.label,
-                supply.supplier.name
+                supply.unit?.symbol ?? '',
+                supply.category?.label ?? '',
+                supply.supplier?.name ?? ''
             ]),
             fileName: 'suprimentos_abaixo_minimo.pdf',
             orientation: 'landscape'

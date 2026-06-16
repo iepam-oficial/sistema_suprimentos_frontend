@@ -87,7 +87,8 @@ function ReportsPageContent() {
   const syncUrl = useCallback(
     (slug: ReportSlug, f: ReportFiltersState) => {
       const q = buildReportsQuery(slug, f);
-      router.replace(`/reports?${q}`, { scroll: false });
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      router.replace(`/reports?${q}${hash}`, { scroll: false });
     },
     [router]
   );
@@ -166,6 +167,21 @@ function ReportsPageContent() {
 
     loadReport();
   }, [activeSlug, filters, router, syncUrl, toast]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (typeof window === 'undefined') return;
+    if (!window.location.hash) return;
+
+    const target = document.querySelector(window.location.hash);
+    if (!target) return;
+
+    const timer = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   const handleSlugChange = (slug: ReportSlug) => setActiveSlug(slug);
   const handleFiltersChange = (f: ReportFiltersState) => setFilters(f);

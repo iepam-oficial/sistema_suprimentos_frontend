@@ -7,9 +7,9 @@ export const filterSupplies = (
 ): Supply[] => {
     return Array.isArray(supplies) ? supplies.filter(supply => {
         const matchesSearch = supply.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            supply.description.toLowerCase().includes(searchTerm.toLowerCase());
+            (supply.description ?? '').toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesCategory = !selectedCategory || supply.category.id === selectedCategory;
+        const matchesCategory = !selectedCategory || supply.category?.id === selectedCategory;
 
         return matchesSearch && matchesCategory;
     }) : [];

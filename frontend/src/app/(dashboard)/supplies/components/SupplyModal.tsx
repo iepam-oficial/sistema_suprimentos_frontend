@@ -43,7 +43,7 @@ import { Camera, Image as ImageIcon } from 'lucide-react';
 import { ImageSourceDialog } from './ImageSourceDialog';
 import { fetchSubcategoriesByCategory, type SubcategoryDTO } from '@/features/reference-data';
 
-type Supply = BaseSupply & { freight?: number | string; subcategory_id?: string };
+type Supply = BaseSupply & { freight?: number | string };
 
 interface SupplyModalProps {
     isOpen: boolean;

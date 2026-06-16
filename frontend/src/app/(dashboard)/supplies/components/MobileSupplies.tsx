@@ -200,17 +200,17 @@ export function MobileSupplies({
                                     </Text>
                                     <HStack spacing={4} wrap="wrap">
                                         <Badge colorScheme={supply.quantity <= supply.minimum_quantity ? 'red' : 'green'}>
-                                            Qtd: {supply.quantity} {supply.unit.symbol}
+                                            Qtd: {supply.quantity} {supply.unit?.symbol ?? ''}
                                         </Badge>
                                         <Badge colorScheme="blue">
-                                            Mín: {supply.minimum_quantity} {supply.unit.symbol}
+                                            Mín: {supply.minimum_quantity} {supply.unit?.symbol ?? ''}
                                         </Badge>
                                         <Badge colorScheme="purple">
-                                            {supply.category.label}
+                                            {supply.category?.label ?? '—'}
                                         </Badge>
                                     </HStack>
                                     <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.400' : 'gray.500'}>
-                                        Fornecedor: {supply.supplier.name}
+                                        Fornecedor: {supply.supplier?.name ?? '—'}
                                     </Text>
                                 </VStack>
                             </CardBody>

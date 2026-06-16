@@ -411,9 +411,9 @@ export default function SuppliesPage() {
                                         { value: supply.description },
                                         { value: supply.quantity },
                                         { value: supply.minimum_quantity },
-                                        { value: supply.unit.symbol },
-                                        { value: supply.category.label },
-                                        { value: supply.supplier.name }
+                                        { value: supply.unit?.symbol ?? '' },
+                                        { value: supply.category?.label ?? '' },
+                                        { value: supply.supplier?.name ?? '' }
                                     ].map((cell, index) => (
                                         <Td 
                                             key={index}

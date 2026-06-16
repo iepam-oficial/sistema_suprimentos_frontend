@@ -77,7 +77,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
     const [categories, setCategories] = useState<{ id: string; label: string }[]>([])
     const [subcategories, setSubcategories] = useState<{ id: string; label: string }[]>([])
     const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
-    const [locales, setLocales] = useState<{ id: string; name: string; location_id: string }[]>([])
+    const [locales, setLocales] = useState<LocaleDTO[]>([])
     const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([])
     const [errors, setErrors] = useState<Record<string, string>>({})
     const toast = useToast()

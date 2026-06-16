@@ -20,8 +20,19 @@ interface ExecutiveSummaryViewProps {
   data: ExecutiveSummaryPayload;
 }
 
+type ConsumptionDimension = {
+  label: string;
+  quantity: number;
+};
+
+type ExecutiveSummaryWithConsumption = ExecutiveSummaryPayload & {
+  consumptionByPolo?: ConsumptionDimension[];
+  consumptionByCategory?: ConsumptionDimension[];
+};
+
 export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
   const { colorMode } = useColorMode();
+  const summaryWithConsumption = data as ExecutiveSummaryWithConsumption;
 
   const osData = data.serviceOrdersByMonth.map((m) => ({
     label: m.month,
@@ -35,6 +46,18 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
     label: a.level,
     count: a.count,
   }));
+  const consumptionByPolo = (summaryWithConsumption.consumptionByPolo ?? []).map((item) => ({
+    label: item.label,
+    count: (item as { quantity?: number; count?: number }).quantity ?? item.count ?? 0,
+  }));
+  const consumptionByCategory = (summaryWithConsumption.consumptionByCategory ?? []).map(
+    (item) => ({
+      label: item.label,
+      count: (item as { quantity?: number; count?: number }).quantity ?? item.count ?? 0,
+    })
+  );
+  const hasConsumptionData =
+    consumptionByPolo.length > 0 || consumptionByCategory.length > 0;
 
   const combinedHeaders = ['Indicador', 'Valor'];
   const combinedRows = [
@@ -42,6 +65,11 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
     ...data.serviceOrdersByMonth.map((m) => [`OS - ${m.month}`, String(m.count)]),
     ...data.inventoryByType.map((t) => [`Inventário - ${t.type}`, String(t.count)]),
     ...data.alertsByLevel.map((a) => [`Alerta - ${a.level}`, String(a.count)]),
+    ...consumptionByPolo.map((item) => [`Consumo por polo - ${item.label}`, String(item.count)]),
+    ...consumptionByCategory.map((item) => [
+      `Consumo por categoria - ${item.label}`,
+      String(item.count),
+    ]),
   ];
 
   return (
@@ -49,7 +77,7 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
       <Box>
         <Heading size="md" mb={1}>{data.title}</Heading>
         <Text fontSize="sm" color="gray.500">
-          Visão consolidada de inventário, ordens de serviço e alertas no período.
+          Visão consolidada de inventário, ordens de serviço, alertas e consumo no período.
         </Text>
       </Box>
 
@@ -104,6 +132,45 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
           />
         </ReportChartCard>
       </SimpleGrid>
+
+      <Box id="consumption-trends">
+        <Heading size="sm" mb={1}>Tendências de consumo</Heading>
+        <Text fontSize="sm" color="gray.500">
+          Distribuição do consumo por polo e por categoria.
+        </Text>
+      </Box>
+
+      {hasConsumptionData ? (
+        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
+          <ReportChartCard
+            title="Consumo por polo"
+            subtitle="Itens consumidos por unidade/polo"
+          >
+            <ReportChart
+              data={consumptionByPolo}
+              type={getExecutiveChartType('consumption-polo', consumptionByPolo.length)}
+              emptyMessage="Sem dados de consumo por polo"
+            />
+          </ReportChartCard>
+
+          <ReportChartCard
+            title="Consumo por categoria"
+            subtitle="Itens consumidos por categoria"
+          >
+            <ReportChart
+              data={consumptionByCategory}
+              type={getExecutiveChartType('consumption-category', consumptionByCategory.length)}
+              emptyMessage="Sem dados de consumo por categoria"
+            />
+          </ReportChartCard>
+        </SimpleGrid>
+      ) : (
+        <Box {...cardProps(colorMode)}>
+          <Text fontSize="sm" color="gray.500">
+            Nenhum dado de consumo encontrado para os filtros selecionados.
+          </Text>
+        </Box>
+      )}
 
       <ReportDetailTable
         headers={combinedHeaders}

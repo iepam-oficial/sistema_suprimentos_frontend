@@ -32,6 +32,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportToPDF as exportToPDFUtil } from '@/utils/exportToPDF';
+import { exportSupplyTransactionsPDF } from './utils/exportSupplyTransactionsPDF';
 import { ShoppingCart, TimerIcon, FileText, RotateCcw, Package, ClipboardList, BarChart3, TrendingUp } from 'lucide-react';
 import type { SupplyRequest } from '../types';
 import type { InventoryAllocation, InventoryTransaction } from '@/features/inventory/types';
@@ -323,7 +324,8 @@ export default function AdminSupplyRequestsPage() {
                 transaction.from_user.name.toLowerCase().includes(search.toLowerCase()) ||
                 transaction.from_user.email.toLowerCase().includes(search.toLowerCase()) ||
                 transaction.to_user.name.toLowerCase().includes(search.toLowerCase()) ||
-                transaction.to_user.email.toLowerCase().includes(search.toLowerCase())
+                transaction.to_user.email.toLowerCase().includes(search.toLowerCase()) ||
+                transaction.sector?.location?.branch?.toLowerCase().includes(search.toLowerCase())
             );
         }
 
@@ -682,6 +684,38 @@ export default function AdminSupplyRequestsPage() {
             duration: 3000,
             isClosable: true,
         });
+    };
+
+    const exportSupplyTransactionsToPDF = async () => {
+        if (filteredSupplyTransactions.length === 0) {
+            toast({
+                title: 'Aviso',
+                description: 'Não há dados para exportar',
+                status: 'warning',
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+
+        try {
+            await exportSupplyTransactionsPDF(filteredSupplyTransactions);
+            toast({
+                title: 'Sucesso',
+                description: 'PDF exportado com sucesso!',
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+            });
+        } catch (error) {
+            toast({
+                title: 'Erro',
+                description: error instanceof Error ? error.message : 'Erro ao exportar PDF',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        }
     };
 
     const clearFilters = () => {
@@ -1076,7 +1110,7 @@ export default function AdminSupplyRequestsPage() {
                                 onSearchChange={setSearch}
                                 statusFilter={statusFilter}
                                 onStatusFilterChange={setStatusFilter}
-                                onExportPDF={exportToPDF}
+                                onExportPDF={exportSupplyTransactionsToPDF}
                                 onClearFilters={clearFilters}
                                 onRefresh={loadSupplyTransactions}
                                 isMobile={true}
@@ -1176,7 +1210,7 @@ export default function AdminSupplyRequestsPage() {
                         onSearchChange={setSearch}
                         statusFilter={statusFilter}
                         onStatusFilterChange={setStatusFilter}
-                        onExportPDF={exportToPDF}
+                        onExportPDF={exportSupplyTransactionsToPDF}
                         onClearFilters={clearFilters}
                         onRefresh={loadSupplyTransactions}
                     />

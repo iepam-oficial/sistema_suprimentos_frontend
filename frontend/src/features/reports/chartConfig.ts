@@ -73,12 +73,17 @@ export function prepareChartDataForDisplay(
 }
 
 export function getExecutiveChartType(
-  section: 'service-orders' | 'inventory' | 'alerts',
+  section:
+    | 'service-orders'
+    | 'inventory'
+    | 'alerts'
+    | 'consumption-polo'
+    | 'consumption-category',
   dataLength: number
 ): ChartType {
   if (section === 'service-orders') return 'area';
   if (section === 'alerts') return 'donut';
-  if (dataLength <= 8) return 'donut';
+  if (dataLength <= 6) return 'donut';
   return 'bar-horizontal';
 }
 
