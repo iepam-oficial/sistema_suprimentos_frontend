@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import {
     Box,
     Heading,
@@ -27,16 +27,15 @@ import {
     SupplyRequestsTab,
     AllocationsTab,
     InventoryTransactionsTab,
-    SupplyTransactionsTab
+    StockMovementsTab
 } from './components';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { exportToPDF as exportToPDFUtil } from '@/utils/exportToPDF';
-import { exportSupplyTransactionsPDF } from './utils/exportSupplyTransactionsPDF';
+import { exportStockMovementsPDF } from './utils/exportStockMovementsPDF';
 import { ShoppingCart, TimerIcon, FileText, RotateCcw, Package, ClipboardList, BarChart3, TrendingUp } from 'lucide-react';
 import type { SupplyRequest } from '../types';
 import type { InventoryAllocation, InventoryTransaction } from '@/features/inventory/types';
-import type { SupplyTransaction } from '@/features/catalog/types';
+import type { StockMovement } from '@/features/catalog/types';
 import {
     fetchAllSupplyRequests,
     updateRequestStatus,
@@ -52,7 +51,7 @@ import {
     markAllocationLost,
     confirmManagerReturn,
 } from '@/features/inventory/api/inventoryApi';
-import { fetchSupplyTransactions } from '@/features/catalog/api/catalogApi';
+import { fetchStockMovements } from '@/features/catalog/api/catalogApi';
 
 // Layout reutilizável para abas persistentes
 function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = 'persistentTabIndex' }: { tabLabels: string[], children: React.ReactNode[], onTabChange?: (() => void)[], storageKey?: string }) {
@@ -192,11 +191,17 @@ export default function AdminSupplyRequestsPage() {
     const [requests, setRequests] = useState<SupplyRequest[]>([]);
     const [allocationRequests, setAllocationRequests] = useState<InventoryAllocation[]>([]);
     const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransaction[]>([]);
-    const [supplyTransactions, setSupplyTransactions] = useState<SupplyTransaction[]>([]);
+    const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+    const [filteredStockMovements, setFilteredStockMovements] = useState<StockMovement[]>([]);
+    const [movementSearch, setMovementSearch] = useState('');
+    const [movementTypeFilter, setMovementTypeFilter] = useState('');
+    const [movementPoloFilter, setMovementPoloFilter] = useState('');
+    const [movementSectorFilter, setMovementSectorFilter] = useState('');
+    const [movementDateFrom, setMovementDateFrom] = useState('');
+    const [movementDateTo, setMovementDateTo] = useState('');
     const [filteredRequests, setFilteredRequests] = useState<SupplyRequest[]>([]);
     const [filteredAllocationRequests, setFilteredAllocationRequests] = useState<InventoryAllocation[]>([]);
     const [filteredInventoryTransactions, setFilteredInventoryTransactions] = useState<InventoryTransaction[]>([]);
-    const [filteredSupplyTransactions, setFilteredSupplyTransactions] = useState<SupplyTransaction[]>([]);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('PENDING');
     const [returnDateFilter, setReturnDateFilter] = useState('');
@@ -226,12 +231,12 @@ export default function AdminSupplyRequestsPage() {
         fetchRequests();
         fetchAllocationRequests();
         loadInventoryTransactions();
-        loadSupplyTransactions();
+        loadStockMovements();
     }, [router]);
 
     useEffect(() => {
         setLoading(true);
-        Promise.all([fetchRequests(), fetchAllocationRequests(), loadInventoryTransactions(), loadSupplyTransactions()]).finally(() => setLoading(false));
+        Promise.all([fetchRequests(), fetchAllocationRequests(), loadInventoryTransactions(), loadStockMovements()]).finally(() => setLoading(false));
     }, []);
 
     useEffect(() => {
@@ -315,26 +320,69 @@ export default function AdminSupplyRequestsPage() {
     }, [inventoryTransactions, search, statusFilter, returnDateFilter, sectorFilter, locationFilter, localeFilter, requesterFilter, transactionLocationFilter, transactionLocaleFilter]);
 
     useEffect(() => {
-        let filtered = supplyTransactions;
+        let filtered = stockMovements;
 
-        if (search) {
-            filtered = filtered.filter(transaction =>
-                transaction.supply.name.toLowerCase().includes(search.toLowerCase()) ||
-                transaction.supply.description?.toLowerCase().includes(search.toLowerCase()) ||
-                transaction.from_user.name.toLowerCase().includes(search.toLowerCase()) ||
-                transaction.from_user.email.toLowerCase().includes(search.toLowerCase()) ||
-                transaction.to_user.name.toLowerCase().includes(search.toLowerCase()) ||
-                transaction.to_user.email.toLowerCase().includes(search.toLowerCase()) ||
-                transaction.sector?.location?.branch?.toLowerCase().includes(search.toLowerCase())
+        if (movementSearch) {
+            const query = movementSearch.toLowerCase();
+            filtered = filtered.filter(movement =>
+                movement.supply?.name.toLowerCase().includes(query) ||
+                movement.from_user?.name.toLowerCase().includes(query) ||
+                movement.from_user?.email.toLowerCase().includes(query) ||
+                movement.to_user?.name.toLowerCase().includes(query) ||
+                movement.to_user?.email.toLowerCase().includes(query) ||
+                movement.sector?.location?.branch?.toLowerCase().includes(query)
             );
         }
 
-        if (statusFilter) {
-            filtered = filtered.filter(transaction => transaction.transaction_type === statusFilter);
+        if (movementTypeFilter) {
+            filtered = filtered.filter(movement => movement.movement_type === movementTypeFilter);
         }
 
-        setFilteredSupplyTransactions(filtered);
-    }, [supplyTransactions, search, statusFilter]);
+        if (movementPoloFilter) {
+            filtered = filtered.filter(movement =>
+                movement.sector?.location?.branch === movementPoloFilter
+            );
+        }
+
+        if (movementSectorFilter) {
+            filtered = filtered.filter(movement =>
+                movement.sector?.name === movementSectorFilter
+            );
+        }
+
+        if (movementDateFrom || movementDateTo) {
+            if (movementDateFrom && movementDateTo && movementDateFrom > movementDateTo) {
+                filtered = [];
+            } else {
+                filtered = filtered.filter(movement => {
+                    const date = movement.created_at.slice(0, 10);
+                    if (movementDateFrom && date < movementDateFrom) return false;
+                    if (movementDateTo && date > movementDateTo) return false;
+                    return true;
+                });
+            }
+        }
+
+        setFilteredStockMovements(filtered);
+    }, [stockMovements, movementSearch, movementTypeFilter, movementPoloFilter, movementSectorFilter, movementDateFrom, movementDateTo]);
+
+    const movementPoloOptions = useMemo(
+        () => [...new Set(
+            stockMovements
+                .map(movement => movement.sector?.location?.branch?.trim())
+                .filter((branch): branch is string => Boolean(branch))
+        )].sort(),
+        [stockMovements],
+    );
+
+    const movementSectorOptions = useMemo(
+        () => [...new Set(
+            stockMovements
+                .map(movement => movement.sector?.name?.trim())
+                .filter((name): name is string => Boolean(name))
+        )].sort(),
+        [stockMovements],
+    );
 
     const fetchRequests = async () => {
         try {
@@ -387,16 +435,22 @@ export default function AdminSupplyRequestsPage() {
         }
     };
 
-    const loadSupplyTransactions = async () => {
+    const loadStockMovements = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token');
             if (!token) return;
 
-            const data = await fetchSupplyTransactions(token);
-            setSupplyTransactions(data);
-            setFilteredSupplyTransactions(data);
+            const data = await fetchStockMovements(token);
+            setStockMovements(data);
+            setFilteredStockMovements(data);
         } catch (error) {
-            console.error('Erro ao buscar transações de suprimento:', error);
+            toast({
+                title: 'Erro',
+                description: error instanceof Error ? error.message : 'Erro ao carregar movimentações',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
         }
     };
 
@@ -686,8 +740,8 @@ export default function AdminSupplyRequestsPage() {
         });
     };
 
-    const exportSupplyTransactionsToPDF = async () => {
-        if (filteredSupplyTransactions.length === 0) {
+    const exportStockMovementsToPDF = async () => {
+        if (filteredStockMovements.length === 0) {
             toast({
                 title: 'Aviso',
                 description: 'Não há dados para exportar',
@@ -699,7 +753,7 @@ export default function AdminSupplyRequestsPage() {
         }
 
         try {
-            await exportSupplyTransactionsPDF(filteredSupplyTransactions);
+            await exportStockMovementsPDF(filteredStockMovements);
             toast({
                 title: 'Sucesso',
                 description: 'PDF exportado com sucesso!',
@@ -716,6 +770,15 @@ export default function AdminSupplyRequestsPage() {
                 isClosable: true,
             });
         }
+    };
+
+    const clearMovementFilters = () => {
+        setMovementSearch('');
+        setMovementTypeFilter('');
+        setMovementPoloFilter('');
+        setMovementSectorFilter('');
+        setMovementDateFrom('');
+        setMovementDateTo('');
     };
 
     const clearFilters = () => {
@@ -741,7 +804,7 @@ export default function AdminSupplyRequestsPage() {
     useEffect(() => {
         if (isMobile) {
             setLoadingTabs(tabs => tabs.map((v, i) => i === activeTab ? true : v));
-            const fetchFns = [() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, loadInventoryTransactions), () => fetchTabData(3, loadSupplyTransactions)];
+            const fetchFns = [() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, loadInventoryTransactions), () => fetchTabData(3, loadStockMovements)];
             fetchFns[activeTab]().finally(() => {
                 setLoadingTabs(tabs => tabs.map((v, i) => i === activeTab ? false : v));
             });
@@ -996,7 +1059,7 @@ export default function AdminSupplyRequestsPage() {
                         >
                             <VStack spacing={2} align="center">
                                 <TrendingUp size={22} />
-                                <Text fontSize="xs" fontWeight="semibold" textAlign="center">Suprimentos</Text>
+                                <Text fontSize="xs" fontWeight="semibold" textAlign="center">Movimentações</Text>
                             </VStack>
                             {activeTab === 3 && (
                                 <Box
@@ -1102,17 +1165,27 @@ export default function AdminSupplyRequestsPage() {
                         loadingTabs[3] ? (
                             <Skeleton key="skeleton-supply" height="400px"><SkeletonText mt="4" noOfLines={8} spacing="4" /></Skeleton>
                         ) : (
-                            <SupplyTransactionsTab
-                                key="transacoes-suprimento"
-                                supplyTransactions={supplyTransactions}
-                                filteredSupplyTransactions={filteredSupplyTransactions}
-                                search={search}
-                                onSearchChange={setSearch}
-                                statusFilter={statusFilter}
-                                onStatusFilterChange={setStatusFilter}
-                                onExportPDF={exportSupplyTransactionsToPDF}
-                                onClearFilters={clearFilters}
-                                onRefresh={loadSupplyTransactions}
+                            <StockMovementsTab
+                                key="movimentacoes-estoque"
+                                stockMovements={stockMovements}
+                                filteredStockMovements={filteredStockMovements}
+                                movementSearch={movementSearch}
+                                onMovementSearchChange={setMovementSearch}
+                                movementTypeFilter={movementTypeFilter}
+                                onMovementTypeFilterChange={setMovementTypeFilter}
+                                movementPoloFilter={movementPoloFilter}
+                                onMovementPoloFilterChange={setMovementPoloFilter}
+                                movementSectorFilter={movementSectorFilter}
+                                onMovementSectorFilterChange={setMovementSectorFilter}
+                                movementDateFrom={movementDateFrom}
+                                onMovementDateFromChange={setMovementDateFrom}
+                                movementDateTo={movementDateTo}
+                                onMovementDateToChange={setMovementDateTo}
+                                poloOptions={movementPoloOptions}
+                                sectorOptions={movementSectorOptions}
+                                onExportPDF={exportStockMovementsToPDF}
+                                onClearFilters={clearMovementFilters}
+                                onRefresh={loadStockMovements}
                                 isMobile={true}
                             />
                         )
@@ -1125,8 +1198,8 @@ export default function AdminSupplyRequestsPage() {
 
     return (
         <PersistentTabsLayout
-            tabLabels={["Suprimentos", "Alocações", "Transações de Inventário", "Transações de Suprimento"]}
-            onTabChange={[() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, loadInventoryTransactions), () => fetchTabData(3, loadSupplyTransactions)]}
+            tabLabels={["Suprimentos", "Alocações", "Transações de Inventário", "Movimentações de Estoque"]}
+            onTabChange={[() => fetchTabData(0, fetchRequests), () => fetchTabData(1, fetchAllocationRequests), () => fetchTabData(2, loadInventoryTransactions), () => fetchTabData(3, loadStockMovements)]}
         >
             {[
                 loadingTabs[0] ? (
@@ -1202,17 +1275,27 @@ export default function AdminSupplyRequestsPage() {
                 loadingTabs[3] ? (
                     <Skeleton key="skeleton-supply" height="400px"><SkeletonText mt="4" noOfLines={8} spacing="4" /></Skeleton>
                 ) : (
-                    <SupplyTransactionsTab
-                        key="transacoes-suprimento"
-                        supplyTransactions={supplyTransactions}
-                        filteredSupplyTransactions={filteredSupplyTransactions}
-                        search={search}
-                        onSearchChange={setSearch}
-                        statusFilter={statusFilter}
-                        onStatusFilterChange={setStatusFilter}
-                        onExportPDF={exportSupplyTransactionsToPDF}
-                        onClearFilters={clearFilters}
-                        onRefresh={loadSupplyTransactions}
+                    <StockMovementsTab
+                        key="movimentacoes-estoque"
+                        stockMovements={stockMovements}
+                        filteredStockMovements={filteredStockMovements}
+                        movementSearch={movementSearch}
+                        onMovementSearchChange={setMovementSearch}
+                        movementTypeFilter={movementTypeFilter}
+                        onMovementTypeFilterChange={setMovementTypeFilter}
+                        movementPoloFilter={movementPoloFilter}
+                        onMovementPoloFilterChange={setMovementPoloFilter}
+                        movementSectorFilter={movementSectorFilter}
+                        onMovementSectorFilterChange={setMovementSectorFilter}
+                        movementDateFrom={movementDateFrom}
+                        onMovementDateFromChange={setMovementDateFrom}
+                        movementDateTo={movementDateTo}
+                        onMovementDateToChange={setMovementDateTo}
+                        poloOptions={movementPoloOptions}
+                        sectorOptions={movementSectorOptions}
+                        onExportPDF={exportStockMovementsToPDF}
+                        onClearFilters={clearMovementFilters}
+                        onRefresh={loadStockMovements}
                     />
                 )
             ]}
