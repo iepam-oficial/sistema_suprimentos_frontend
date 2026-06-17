@@ -24,35 +24,36 @@ import {
   StatNumber,
   IconButton,
   Tooltip,
-  Image,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
 } from '@chakra-ui/react';
-import { FiEye, FiFileText } from 'react-icons/fi';
+import { FileCode, FileText, Image as ImageIcon } from 'lucide-react';
+import { FiEye } from 'react-icons/fi';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatBRL, sumMoney } from '@/utils/money';
+
+type InvoiceFileType = 'image' | 'pdf' | 'xml';
+
+function getInvoiceAction(fileType?: InvoiceFileType | null) {
+  switch (fileType) {
+    case 'image':
+      return { icon: ImageIcon, label: 'Imagem' };
+    case 'pdf':
+      return { icon: FileText, label: 'PDF' };
+    case 'xml':
+      return { icon: FileCode, label: 'XML' };
+    default:
+      return { icon: FileText, label: 'NF' };
+  }
+}
 
 export function SupplyBatchList() {
   const [batches, setBatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState('');
-  const [selectedInvoiceUrl, setSelectedInvoiceUrl] = useState<string>('');
-  const { isOpen: isInvoiceOpen, onOpen: onInvoiceOpen, onClose: onInvoiceClose } = useDisclosure();
   const toast = useToast();
   const router = useRouter();
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
-
-  const handleViewInvoice = (invoiceUrl: string) => {
-    setSelectedInvoiceUrl(invoiceUrl);
-    onInvoiceOpen();
-  };
 
   const handleViewDetails = (batchId: string) => {
     router.push(`/supplies/batches/${batchId}`);
@@ -157,7 +158,13 @@ export function SupplyBatchList() {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {filteredBatches.length > 0 && filteredBatches.map((b) => (
+                  {filteredBatches.length > 0 && filteredBatches.map((b) => {
+                    const invoiceAction = b.invoice_url
+                      ? getInvoiceAction(b.invoice_file_type)
+                      : null;
+                    const InvoiceIcon = invoiceAction?.icon;
+
+                    return (
                     <Tr key={b.id}>
                       <Td>{b.supply?.name || '-'}</Td>
                       <Td>{b.supplier?.name || '-'}</Td>
@@ -178,48 +185,29 @@ export function SupplyBatchList() {
                               onClick={() => handleViewDetails(b.id)}
                             />
                           </Tooltip>
-                          {b.invoice_url && (
-                            <Tooltip label="Visualizar Nota Fiscal">
+                          {InvoiceIcon && invoiceAction && (
+                            <Tooltip label="Abrir NF">
                               <IconButton
-                                aria-label="Visualizar Nota Fiscal"
-                                icon={<FiFileText />}
+                                aria-label={`Abrir NF - ${invoiceAction.label}`}
+                                icon={<InvoiceIcon size={16} />}
                                 size="sm"
                                 variant="ghost"
                                 colorScheme="green"
-                                onClick={() => handleViewInvoice(b.invoice_url)}
+                                onClick={() => window.open(b.invoice_url, '_blank')}
                               />
                             </Tooltip>
                           )}
                         </HStack>
                       </Td>
                     </Tr>
-                  ))}
+                    );
+                  })}
                 </Tbody>
               </Table>
             </Box>
           </CardBody>
         </Card>
       </VStack>
-
-      {/* Modal para visualizar Nota Fiscal */}
-      <Modal isOpen={isInvoiceOpen} onClose={onInvoiceClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Nota Fiscal</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            {selectedInvoiceUrl && (
-              <Image
-                src={selectedInvoiceUrl}
-                alt="Nota Fiscal"
-                maxH="70vh"
-                objectFit="contain"
-                mx="auto"
-              />
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
     </>
   );
 } 
