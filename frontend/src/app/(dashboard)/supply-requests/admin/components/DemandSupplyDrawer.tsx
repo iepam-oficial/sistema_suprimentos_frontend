@@ -21,9 +21,11 @@ import { Package } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import {
     confirmApprovalBatchManager,
+    fetchDeliveryReportPayload,
     fetchDemandSupplyDetail,
     submitApproval,
 } from '@/features/supply-requests/api/demandSupplyApi';
+import { generateDeliveryReportPDF } from '../utils/generateDeliveryReportPDF';
 import {
     formatAggregateStatusLabel,
     formatDemandSupplyCode,
@@ -78,6 +80,8 @@ export function DemandSupplyDrawer({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
     const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string | null>(null);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [generatingReportId, setGeneratingReportId] = useState<string | null>(null);
 
     const loadDetail = useCallback(async () => {
         if (!demandSupplyId) return;
@@ -169,6 +173,41 @@ export function DemandSupplyDrawer({
             });
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleGenerateReport = async (approvalId: string) => {
+        setIsGeneratingReport(true);
+        setGeneratingReportId(approvalId);
+
+        try {
+            const token = localStorage.getItem('@ti-assistant:token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const payload = await fetchDeliveryReportPayload(token, approvalId);
+            await generateDeliveryReportPDF(payload);
+
+            toast({
+                title: 'Sucesso',
+                description: 'Relatório PDF gerado com sucesso',
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+            });
+        } catch (err) {
+            toast({
+                title: 'Erro',
+                description:
+                    err instanceof Error ? err.message : 'Erro ao gerar relatório PDF',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        } finally {
+            setIsGeneratingReport(false);
+            setGeneratingReportId(null);
         }
     };
 
@@ -280,6 +319,9 @@ export function DemandSupplyDrawer({
                             <ApprovalHistorySection
                                 approvals={detail.approvals}
                                 demandSupplyCode={detail.code}
+                                onGenerateReport={handleGenerateReport}
+                                isGeneratingReport={isGeneratingReport}
+                                generatingReportId={generatingReportId}
                                 onConfirmDelivery={handleConfirmDelivery}
                                 isConfirmingDelivery={isConfirmingDelivery}
                                 confirmingDeliveryId={confirmingDeliveryId}
