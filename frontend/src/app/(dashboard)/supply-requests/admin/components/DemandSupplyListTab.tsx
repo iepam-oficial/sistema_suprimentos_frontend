@@ -42,6 +42,7 @@ import { AdminFiltersDrawer } from './AdminFiltersDrawer';
 interface DemandSupplyListTabProps {
     onOpenDrawer: (id: string) => void;
     isMobile?: boolean;
+    extraToolbarActions?: React.ReactNode;
 }
 
 function getAggregateStatusColorScheme(status: string): string {
@@ -69,6 +70,7 @@ function formatDeadline(value: string): string {
 export function DemandSupplyListTab({
     onOpenDrawer,
     isMobile = false,
+    extraToolbarActions,
 }: DemandSupplyListTabProps) {
     const { colorMode } = useColorMode();
     const colorModeVal = useColorModeValue('light', 'dark');
@@ -191,6 +193,7 @@ export function DemandSupplyListTab({
 
     const toolbarActions = (
         <>
+            {extraToolbarActions}
             <Button size="sm" onClick={() => void loadItems()} colorScheme="blue">
                 Atualizar
             </Button>

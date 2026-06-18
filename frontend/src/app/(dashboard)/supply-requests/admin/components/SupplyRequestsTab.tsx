@@ -24,13 +24,22 @@ import {
     useColorMode,
 } from '@chakra-ui/react';
 import { CheckCircle, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SupplyRequest } from '../../types';
 import { AdminTabShell } from './AdminTabShell';
 import { AdminTabToolbar } from './AdminTabToolbar';
 import { AdminFiltersDrawer } from './AdminFiltersDrawer';
 import { DemandSupplyDrawer } from './DemandSupplyDrawer';
 import { DemandSupplyListTab } from './DemandSupplyListTab';
+import {
+    SupplyRequestsViewToggle,
+    SUPPLY_REQUESTS_VIEW_MODE_STORAGE_KEY,
+    type SupplyRequestsViewMode,
+} from './SupplyRequestsViewToggle';
+
+function isLegacySupplyRequest(request: SupplyRequest): boolean {
+    return request.demand_supply_id == null;
+}
 
 interface SupplyRequestsTabProps {
     requests: SupplyRequest[];
@@ -73,7 +82,24 @@ export function SupplyRequestsTab({
 
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedDemandSupplyId, setSelectedDemandSupplyId] = useState<string | null>(null);
-    const showPerItemView = false;
+    const [viewMode, setViewMode] = useState<SupplyRequestsViewMode>('per-order');
+
+    useEffect(() => {
+        const saved = localStorage.getItem(SUPPLY_REQUESTS_VIEW_MODE_STORAGE_KEY);
+        if (saved === 'per-order' || saved === 'per-item') {
+            setViewMode(saved);
+        }
+    }, []);
+
+    const handleViewModeChange = (mode: SupplyRequestsViewMode) => {
+        setViewMode(mode);
+        localStorage.setItem(SUPPLY_REQUESTS_VIEW_MODE_STORAGE_KEY, mode);
+    };
+
+    const showPerItemView = viewMode === 'per-item';
+    const viewToggle = (
+        <SupplyRequestsViewToggle value={viewMode} onChange={handleViewModeChange} />
+    );
 
     const handleOpenDrawer = (id: string) => {
         setSelectedDemandSupplyId(id);
@@ -110,7 +136,9 @@ export function SupplyRequestsTab({
         onSearchChange('');
     };
 
-    const filtered = filteredRequests
+    const legacyRequests = filteredRequests.filter(isLegacySupplyRequest);
+
+    const filtered = legacyRequests
         .filter((r) => {
             if (!deliveryDeadlineStart && !deliveryDeadlineEnd) return true;
             if (!r.delivery_deadline) return false;
@@ -128,6 +156,7 @@ export function SupplyRequestsTab({
 
     const toolbarActions = (
         <>
+            {viewToggle}
             <Button size="sm" onClick={onExportPDF} colorScheme="blue" isDisabled={filtered.length === 0}>
                 Exportar PDF
             </Button>
@@ -171,7 +200,7 @@ export function SupplyRequestsTab({
                 <FormLabel color={textColor} fontSize="sm">Filial</FormLabel>
                 <Select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} bg={inputBg} borderColor={inputBorder} size="sm">
                     <option value="">Todas</option>
-                    {Array.from(new Set(filteredRequests.map((r) => r.location?.name).filter(Boolean))).map((loc) => (
+                    {Array.from(new Set(legacyRequests.map((r) => r.location?.name).filter(Boolean))).map((loc) => (
                         <option key={loc} value={loc}>{loc}</option>
                     ))}
                 </Select>
@@ -180,7 +209,7 @@ export function SupplyRequestsTab({
                 <FormLabel color={textColor} fontSize="sm">Setor</FormLabel>
                 <Select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)} bg={inputBg} borderColor={inputBorder} size="sm">
                     <option value="">Todos</option>
-                    {Array.from(new Set(filteredRequests.map((r) => r.sector?.name).filter(Boolean))).map((sector) => (
+                    {Array.from(new Set(legacyRequests.map((r) => r.sector?.name).filter(Boolean))).map((sector) => (
                         <option key={sector} value={sector}>{sector}</option>
                     ))}
                 </Select>
@@ -189,7 +218,7 @@ export function SupplyRequestsTab({
                 <FormLabel color={textColor} fontSize="sm">Local de entrega</FormLabel>
                 <Select value={localeFilter} onChange={(e) => setLocaleFilter(e.target.value)} bg={inputBg} borderColor={inputBorder} size="sm">
                     <option value="">Todos</option>
-                    {Array.from(new Set(filteredRequests.map((r) => r.locale?.name).filter(Boolean))).map((locale) => (
+                    {Array.from(new Set(legacyRequests.map((r) => r.locale?.name).filter(Boolean))).map((locale) => (
                         <option key={locale} value={locale}>{locale}</option>
                     ))}
                 </Select>
@@ -296,7 +325,11 @@ export function SupplyRequestsTab({
     if (!showPerItemView) {
         return (
             <>
-                <DemandSupplyListTab onOpenDrawer={handleOpenDrawer} isMobile={isMobile} />
+                <DemandSupplyListTab
+                    onOpenDrawer={handleOpenDrawer}
+                    isMobile={isMobile}
+                    extraToolbarActions={viewToggle}
+                />
                 <DemandSupplyDrawer
                     isOpen={drawerOpen}
                     onClose={handleCloseDrawer}
