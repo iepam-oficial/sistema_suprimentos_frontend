@@ -269,6 +269,7 @@ export default function SupplyRequestsPage() {
     removeFromCart,
     updateCartItem,
     clearCart,
+    reconcileCart,
   } = useCartContext();
   const { inventoryItems, inventoryLastFetched, setInventoryItems } = useInventoryCache();
   const [categories, setCategories] = useState<{ id: string; label: string; }[]>([]);
@@ -302,6 +303,24 @@ export default function SupplyRequestsPage() {
   const [localeId, setLocaleId] = useState('');
   const [loadingTabs, setLoadingTabs] = useState([true, true, true, true, true]);
 
+  const availableSuppliesCount = supplies.filter((supply) => supply.available_quantity > 0).length;
+
+  const notifyCartReconciliation = (changed: boolean) => {
+    if (!changed) return;
+    toast({
+      title: 'Carrinho atualizado',
+      description: 'Carrinho atualizado conforme estoque disponível',
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const applySuppliesUpdate = (suppliesData: Supply[]) => {
+    setSupplies(suppliesData);
+    notifyCartReconciliation(reconcileCart(suppliesData));
+  };
+
   // Verificar se precisa buscar suprimentos
   const shouldFetchSupplies = () => {
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
@@ -322,7 +341,9 @@ export default function SupplyRequestsPage() {
     }
 
     // Transformar categorias em objetos
-    const uniqueCategories = Array.from(new Set(supplies.map(s => s.category.label)));
+    const uniqueCategories = Array.from(
+      new Set(supplies.map(s => s.category?.label).filter((label): label is string => Boolean(label))),
+    );
     setCategories(uniqueCategories.map((label, index) => ({ id: String(index), label })));
 
     // Buscar locais da filial do usuário
@@ -350,7 +371,7 @@ export default function SupplyRequestsPage() {
       let suppliesData = supplies;
       if (shouldFetchSupplies()) {
         suppliesData = await fetchSupplies(token);
-        setSupplies(suppliesData);
+        applySuppliesUpdate(suppliesData);
       }
 
       // Buscar inventário apenas se necessário
@@ -601,7 +622,7 @@ export default function SupplyRequestsPage() {
       // Buscar suprimentos apenas se necessário
       if (shouldFetchSupplies()) {
         const suppliesData = await fetchSupplies(token);
-        setSupplies(suppliesData);
+        applySuppliesUpdate(suppliesData);
         setFilteredSupplies(filterSupplies(suppliesData, searchQuery));
       } else {
         // Usar dados do cache
@@ -733,6 +754,7 @@ export default function SupplyRequestsPage() {
           ) : (
             <CatalogTab
               supplies={filteredSupplies}
+              availableSuppliesCount={availableSuppliesCount}
               onAddToCart={handleAddToCart}
               onOpenCustomRequestModal={() => setIsCustomRequestModalOpen(true)}
             />
@@ -764,6 +786,7 @@ export default function SupplyRequestsPage() {
               requests={filteredRequests}
               onRequesterConfirmation={handleRequesterConfirmation}
               onCancelRequest={handleCancelRequest}
+              onBatchConfirmed={loadInitialData}
             />
           ),
           loadingTabs[3] ? (

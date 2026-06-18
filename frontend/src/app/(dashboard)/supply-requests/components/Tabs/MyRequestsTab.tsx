@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card,
   CardBody,
@@ -8,7 +8,9 @@ import {
   Badge,
   Button,
   useColorMode,
+  useColorModeValue,
   useMediaQuery,
+  useToast,
   InputGroup,
   InputLeftElement,
   Input,
@@ -23,20 +25,138 @@ import {
   Td,
   Image,
 } from '@chakra-ui/react';
+import type { DemandSupplyApprovalDTO, SupplyRequestDTO } from '@ti-assistant/contracts';
 import { SearchIcon, CheckCircle, X } from 'lucide-react';
 import { SupplyRequest } from '../../types';
 import { useFilters } from '@/contexts/GlobalContext';
+import {
+  confirmApprovalBatchRequester,
+  fetchPendingConfirmations,
+} from '@/features/supply-requests/api/demandSupplyApi';
 
 interface MyRequestsTabProps {
   requests: SupplyRequest[];
   onRequesterConfirmation: (requestId: string, confirmation: boolean, token: string, isCustom: boolean) => void;
   onCancelRequest: (requestId: string, token: string, isCustom: boolean) => void;
+  onBatchConfirmed?: () => void | Promise<void>;
 }
 
-export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelRequest }: MyRequestsTabProps) {
+function getItemName(item: SupplyRequestDTO): string {
+  return item.is_custom ? item.item_name ?? '-' : item.supply?.name ?? '-';
+}
+
+function getNonCustomItems(approval: DemandSupplyApprovalDTO): SupplyRequestDTO[] {
+  return (approval.items ?? []).filter((item) => !item.is_custom);
+}
+
+function formatBatchItemsSummary(approval: DemandSupplyApprovalDTO): string {
+  const items = getNonCustomItems(approval);
+  const count = items.length;
+  const itemLabel = count === 1 ? 'item aprovado' : 'itens aprovados';
+  return `${count} ${itemLabel}`;
+}
+
+function formatBatchItemsList(approval: DemandSupplyApprovalDTO): string {
+  return getNonCustomItems(approval)
+    .map((item) => `${getItemName(item)} (${item.quantity})`)
+    .join(', ');
+}
+
+export function MyRequestsTab({
+  requests,
+  onRequesterConfirmation,
+  onCancelRequest,
+  onBatchConfirmed,
+}: MyRequestsTabProps) {
   const { colorMode } = useColorMode();
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const { searchQuery, setSearchQuery, statusFilter, setStatusFilter } = useFilters();
+  const toast = useToast();
+  const textColor = useColorModeValue('gray.800', 'white');
+  const mutedColor = useColorModeValue('gray.500', 'gray.400');
+  const sectionBorder = useColorModeValue('gray.200', 'gray.600');
+  const sectionBg = useColorModeValue('white', 'rgba(45, 55, 72, 0.5)');
+  const entryBorder = useColorModeValue('gray.100', 'rgba(255,255,255,0.08)');
+
+  const [pendingBatches, setPendingBatches] = useState<DemandSupplyApprovalDTO[]>([]);
+  const [isLoadingPending, setIsLoadingPending] = useState(true);
+  const [confirmingBatchId, setConfirmingBatchId] = useState<string | null>(null);
+
+  const visiblePendingBatches = useMemo(
+    () =>
+      pendingBatches.filter((approval) => getNonCustomItems(approval).length > 0),
+    [pendingBatches],
+  );
+
+  const loadPendingConfirmations = useCallback(async () => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token) {
+      setPendingBatches([]);
+      return;
+    }
+
+    setIsLoadingPending(true);
+    try {
+      const batches = await fetchPendingConfirmations(token);
+      setPendingBatches(batches);
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Erro ao carregar confirmações pendentes',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoadingPending(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    void loadPendingConfirmations();
+  }, [loadPendingConfirmations]);
+
+  const handleBatchConfirmation = async (approvalId: string) => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token) {
+      toast({
+        title: 'Erro',
+        description: 'Token não encontrado',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setConfirmingBatchId(approvalId);
+    try {
+      await confirmApprovalBatchRequester(token, approvalId, true);
+      toast({
+        title: 'Sucesso',
+        description: 'Recebimento confirmado com sucesso',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      await loadPendingConfirmations();
+      await onBatchConfirmed?.();
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description:
+          error instanceof Error ? error.message : 'Erro ao confirmar recebimento',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setConfirmingBatchId(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -92,6 +212,66 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
               <option value="CANCELLED">Cancelado</option>
             </Select>
           </HStack>
+        )}
+        {!isLoadingPending && visiblePendingBatches.length > 0 && (
+          <Box
+            mb={6}
+            borderWidth="1px"
+            borderColor={sectionBorder}
+            borderRadius="md"
+            bg={sectionBg}
+            p={4}
+          >
+            <Text
+              fontSize="xs"
+              fontWeight="semibold"
+              textTransform="uppercase"
+              letterSpacing="wider"
+              color={mutedColor}
+              mb={3}
+            >
+              Confirmações pendentes
+            </Text>
+            <VStack spacing={3} align="stretch">
+              {visiblePendingBatches.map((approval) => (
+                <Box
+                  key={approval.id}
+                  p={3}
+                  borderWidth="1px"
+                  borderColor={entryBorder}
+                  borderRadius="md"
+                >
+                  <HStack
+                    justify="space-between"
+                    align={isMobile ? 'stretch' : 'center'}
+                    flexDirection={isMobile ? 'column' : 'row'}
+                    spacing={3}
+                  >
+                    <VStack align="start" spacing={1} flex="1">
+                      <Text fontSize="sm" fontWeight="semibold" color={textColor}>
+                        Lote {approval.report_id} — {formatBatchItemsSummary(approval)}
+                      </Text>
+                      <Text fontSize="sm" color={mutedColor}>
+                        {formatBatchItemsList(approval)}
+                      </Text>
+                    </VStack>
+                    <Button
+                      size="sm"
+                      colorScheme="blue"
+                      leftIcon={<CheckCircle size={16} />}
+                      onClick={() => handleBatchConfirmation(approval.id)}
+                      isLoading={confirmingBatchId === approval.id}
+                      isDisabled={confirmingBatchId !== null && confirmingBatchId !== approval.id}
+                      alignSelf={isMobile ? 'stretch' : 'flex-end'}
+                      flexShrink={0}
+                    >
+                      Confirmar recebimento
+                    </Button>
+                  </HStack>
+                </Box>
+              ))}
+            </VStack>
+          </Box>
         )}
         {requests.length === 0 ? (
           <VStack align="center" justify="center" py={8}>
