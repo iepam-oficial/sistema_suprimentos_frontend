@@ -3,6 +3,7 @@ export { AdminTabToolbar } from './AdminTabToolbar';
 export { AdminFiltersDrawer } from './AdminFiltersDrawer';
 export { AdminTabSkeleton } from './AdminTabSkeleton';
 export { DemandSupplyListTab } from './DemandSupplyListTab';
+export { DemandSupplyDrawer } from './DemandSupplyDrawer';
 export { SupplyRequestsTab } from './SupplyRequestsTab';
 export { AllocationsTab } from './AllocationsTab';
 export { InventoryTransactionsTab } from './InventoryTransactionsTab';
