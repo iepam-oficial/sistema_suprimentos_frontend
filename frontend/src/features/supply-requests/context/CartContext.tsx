@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import type { SupplyDTO } from '@/features/catalog/types';
+import { clampCartQuantity, reconcileCartItems } from '../utils/cartStockUtils';
 
 export interface CartItem {
   id: string;
@@ -21,6 +22,7 @@ type CartAction =
   | { type: 'UPDATE_CART_ITEM'; payload: { id: string; quantity: number } }
   | { type: 'CLEAR_CART' }
   | { type: 'SET_SUPPLIES'; payload: SupplyDTO[] }
+  | { type: 'RECONCILE_CART'; payload: CartItem[] }
   | { type: 'INITIALIZE_FROM_STORAGE' };
 
 const initialState: CartState = {
@@ -32,32 +34,50 @@ const initialState: CartState = {
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case 'ADD_TO_CART': {
-      const existing = state.cart.find((item) => item.id === action.payload.id);
+      const { id, quantity, supply } = action.payload;
+      const maxQty = supply.available_quantity;
+      if (maxQty <= 0) return state;
+
+      const existing = state.cart.find((item) => item.id === id);
       if (existing) {
+        if (existing.quantity >= maxQty) return state;
+        const nextQty = clampCartQuantity(existing.quantity + quantity, maxQty);
         return {
           ...state,
           cart: state.cart.map((item) =>
-            item.id === action.payload.id
-              ? { ...item, quantity: item.quantity + action.payload.quantity }
-              : item
+            item.id === id ? { ...item, quantity: nextQty, supply } : item
           ),
         };
       }
-      return { ...state, cart: [...state.cart, action.payload] };
+
+      const initialQty = clampCartQuantity(quantity, maxQty);
+      if (initialQty <= 0) return state;
+      return { ...state, cart: [...state.cart, { id, quantity: initialQty, supply }] };
     }
     case 'REMOVE_FROM_CART':
       return { ...state, cart: state.cart.filter((item) => item.id !== action.payload) };
-    case 'UPDATE_CART_ITEM':
+    case 'UPDATE_CART_ITEM': {
+      const item = state.cart.find((cartItem) => cartItem.id === action.payload.id);
+      if (!item) return state;
+
+      const clamped = clampCartQuantity(action.payload.quantity, item.supply.available_quantity);
+      if (clamped <= 0) {
+        return { ...state, cart: state.cart.filter((cartItem) => cartItem.id !== action.payload.id) };
+      }
+
       return {
         ...state,
-        cart: state.cart.map((item) =>
-          item.id === action.payload.id ? { ...item, quantity: action.payload.quantity } : item
+        cart: state.cart.map((cartItem) =>
+          cartItem.id === action.payload.id ? { ...cartItem, quantity: clamped } : cartItem
         ),
       };
+    }
     case 'CLEAR_CART':
       return { ...state, cart: [] };
     case 'SET_SUPPLIES':
       return { ...state, supplies: action.payload, suppliesLastFetched: Date.now() };
+    case 'RECONCILE_CART':
+      return { ...state, cart: action.payload };
     case 'INITIALIZE_FROM_STORAGE': {
       try {
         const storedCart = localStorage.getItem('@ti-assistant:cart');
@@ -87,6 +107,7 @@ const CartContext = createContext<{
   updateCartItem: (itemId: string, quantity: number) => void;
   clearCart: () => void;
   setSupplies: (supplies: SupplyDTO[]) => void;
+  reconcileCart: (supplies: SupplyDTO[]) => boolean;
 } | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -110,6 +131,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [state.suppliesLastFetched]);
 
+  const reconcileCart = (supplies: SupplyDTO[]): boolean => {
+    const { cart, changed } = reconcileCartItems(state.cart, supplies);
+    dispatch({ type: 'RECONCILE_CART', payload: cart });
+    return changed;
+  };
+
   const value = {
     cart: state.cart,
     supplies: state.supplies,
@@ -120,6 +147,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'UPDATE_CART_ITEM', payload: { id: itemId, quantity } }),
     clearCart: () => dispatch({ type: 'CLEAR_CART' }),
     setSupplies: (supplies: SupplyDTO[]) => dispatch({ type: 'SET_SUPPLIES', payload: supplies }),
+    reconcileCart,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

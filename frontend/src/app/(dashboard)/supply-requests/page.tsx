@@ -57,10 +57,9 @@ import {
   SkeletonText,
   Divider,
 } from '@chakra-ui/react';
-import { SearchIcon, ShoppingCart, TimerIcon, CheckCircle, Trash2, Plus } from 'lucide-react';
+import { SearchIcon, ShoppingCart, TimerIcon, CheckCircle, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import { CustomSupplyRequestModal, CustomSupplyRequestBatchPayload } from './components/CustomSupplyRequestModal';
 import { Supply, SupplyRequest } from './types';
 import {
   fetchSupplies,
@@ -91,7 +90,7 @@ import type { InventoryItem, InventoryAllocation } from '@/features/inventory/ty
 import { fetchLocalesByUserLocation } from '@/features/reference-data';
 
 // Layout reutilizável para abas persistentes (copiado/adaptado do admin)
-function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = 'persistentTabIndexColab', onOpenCustomRequestModal }: { tabLabels: string[], children: React.ReactNode[], onTabChange?: (() => void)[], storageKey?: string, onOpenCustomRequestModal?: () => void }) {
+function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = 'persistentTabIndexColab' }: { tabLabels: string[], children: React.ReactNode[], onTabChange?: (() => void)[], storageKey?: string }) {
   const { activeTab, setActiveTab } = useTabs();
   const prevTab = useRef(0);
   const [hasFetched, setHasFetched] = useState(() => tabLabels.map(() => false));
@@ -164,28 +163,6 @@ function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = '
           <>
             <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align={{ base: 'stretch', md: 'center' }} gap={3}>
               <Heading size={{ base: 'md', md: 'lg' }} color={headingColor}>Requisições de Suprimentos</Heading>
-              {/* Botão Pedido Customizado só na aba Catálogo (índice 0) */}
-              {activeTab === 0 && onOpenCustomRequestModal && (
-                <Button
-                  data-testid="custom-request-open-button"
-                  colorScheme="blue"
-                  leftIcon={<Plus size={18} />}
-                  onClick={onOpenCustomRequestModal}
-                  fontWeight="medium"
-                  fontSize="md"
-                  borderRadius="lg"
-                  boxShadow="sm"
-                  transition="all 0.2s"
-                  _hover={{
-                    bg: 'blue.600',
-                    color: 'white',
-                    transform: 'translateY(-2px)',
-                    boxShadow: 'md',
-                  }}
-                >
-                  Pedido Customizado
-                </Button>
-              )}
             </Flex>
             <Divider />
           </>
@@ -288,7 +265,6 @@ export default function SupplyRequestsPage() {
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const hoverBgColor = useColorModeValue('gray.50', 'gray.600');
-  const [isCustomRequestModalOpen, setIsCustomRequestModalOpen] = useState(false);
   const [filteredInventoryItems, setFilteredInventoryItems] = useState<InventoryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [isAllocationModalOpen, setIsAllocationModalOpen] = useState(false);
@@ -367,11 +343,10 @@ export default function SupplyRequestsPage() {
         throw new Error('Token não encontrado');
       }
 
-      // Buscar suprimentos apenas se necessário
-      let suppliesData = supplies;
       if (shouldFetchSupplies()) {
-        suppliesData = await fetchSupplies(token);
+        const suppliesData = await fetchSupplies(token);
         applySuppliesUpdate(suppliesData);
+        setFilteredSupplies(filterSupplies(suppliesData, searchQuery));
       }
 
       // Buscar inventário apenas se necessário
@@ -385,8 +360,6 @@ export default function SupplyRequestsPage() {
         fetchRequests(token),
         fetchAllocations(token)
       ]);
-
-      setFilteredSupplies(filterSupplies(suppliesData, searchQuery));
       setFilteredInventoryItems(
         inventoryData.filter((item: InventoryItem) =>
         (item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -519,54 +492,6 @@ export default function SupplyRequestsPage() {
     }
   };
 
-  const handleCustomRequest = async (data: CustomSupplyRequestBatchPayload) => {
-    try {
-      const token = localStorage.getItem('@ti-assistant:token');
-      if (!token) {
-        throw new Error('Token não encontrado');
-      }
-
-      const response = await fetch('/api/supply-requests/custom/many', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao criar requisições customizadas');
-      }
-
-      const n = data.items.length;
-      toast({
-        title: 'Sucesso',
-        description:
-          n === 1
-            ? 'Requisição customizada criada com sucesso.'
-            : `${n} requisições customizadas criadas com sucesso.`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-
-      setIsCustomRequestModalOpen(false);
-      setLocaleId('');
-      loadInitialData();
-    } catch (error) {
-      toast({
-        title: 'Erro',
-        description: error instanceof Error ? error.message : 'Erro ao criar requisições customizadas',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      throw error;
-    }
-  };
-
   const handleAllocateItem = (item: InventoryItem) => {
     setSelectedItem(item);
     setIsAllocationModalOpen(true);
@@ -609,7 +534,6 @@ export default function SupplyRequestsPage() {
     setLoadingTabs(tabs => tabs.map((v, i) => i === tabIndex ? false : v));
   };
 
-  // Função específica para o catálogo que usa cache
   const fetchTabCatalog = async () => {
     setLoadingTabs(tabs => tabs.map((v, i) => i === 0 ? true : v));
 
@@ -619,15 +543,9 @@ export default function SupplyRequestsPage() {
         throw new Error('Token não encontrado');
       }
 
-      // Buscar suprimentos apenas se necessário
-      if (shouldFetchSupplies()) {
-        const suppliesData = await fetchSupplies(token);
-        applySuppliesUpdate(suppliesData);
-        setFilteredSupplies(filterSupplies(suppliesData, searchQuery));
-      } else {
-        // Usar dados do cache
-        setFilteredSupplies(filterSupplies(supplies, searchQuery));
-      }
+      const suppliesData = await fetchSupplies(token);
+      applySuppliesUpdate(suppliesData);
+      setFilteredSupplies(filterSupplies(suppliesData, searchQuery));
     } catch (error) {
       toast({
         title: 'Erro',
@@ -690,9 +608,9 @@ export default function SupplyRequestsPage() {
   const fetchTabMyAllocations = () => fetchTabData(3);
   const fetchTabCart = () => fetchTabData(4);
 
-  const handleRequesterConfirmation = async (requestId: string, confirmation: boolean, token: string, isCustom: boolean) => {
+  const handleRequesterConfirmation = async (requestId: string, confirmation: boolean, token: string) => {
     try {
-      await handleRequesterConfirmationOrig(requestId, confirmation, token, isCustom);
+      await handleRequesterConfirmationOrig(requestId, confirmation, token);
       toast({
         title: 'Sucesso',
         description: 'Confirmação atualizada com sucesso',
@@ -712,9 +630,9 @@ export default function SupplyRequestsPage() {
     }
   };
 
-  const handleCancelRequest = async (requestId: string, token: string, isCustom: boolean) => {
+  const handleCancelRequest = async (requestId: string, token: string) => {
     try {
-      await cancelRequestOrig(requestId, token, isCustom);
+      await cancelRequestOrig(requestId, token);
       toast({
         title: 'Sucesso',
         description: 'Requisição cancelada com sucesso',
@@ -740,7 +658,6 @@ export default function SupplyRequestsPage() {
         tabLabels={['Catálogo', 'Inventário', 'Minhas Requisições', 'Minhas Alocações', 'Carrinho']}
         onTabChange={[fetchTabCatalog, fetchTabInventory, fetchTabMyRequests, fetchTabMyAllocations, fetchTabCart]}
         storageKey="persistentTabIndexColab"
-        onOpenCustomRequestModal={() => setIsCustomRequestModalOpen(true)}
       >
         {[
           loadingTabs[0] ? (
@@ -756,7 +673,6 @@ export default function SupplyRequestsPage() {
               supplies={filteredSupplies}
               availableSuppliesCount={availableSuppliesCount}
               onAddToCart={handleAddToCart}
-              onOpenCustomRequestModal={() => setIsCustomRequestModalOpen(true)}
             />
           ),
           loadingTabs[1] ? (
@@ -845,16 +761,6 @@ export default function SupplyRequestsPage() {
         userLocales={userLocales}
         onSubmit={handleSubmitRequest}
         isSubmitting={false}
-        localeId={localeId}
-        setLocaleId={setLocaleId}
-      />
-
-      {/* Modal CustomSupplyRequestModal */}
-      <CustomSupplyRequestModal
-        isOpen={isCustomRequestModalOpen}
-        onClose={() => setIsCustomRequestModalOpen(false)}
-        onSubmit={handleCustomRequest}
-        userLocales={userLocales}
         localeId={localeId}
         setLocaleId={setLocaleId}
       />

@@ -162,6 +162,26 @@ describe('stockMovementFormatters', () => {
       expect(formatBatchSupplier(null)).toBe('N/A');
     });
 
+    it('returns supplier name when purchased_at uses Date.toString format', () => {
+      expect(
+        formatBatchSupplier({
+          id: 'batch-1',
+          supply_id: 'supply-1',
+          supplier_id: 'supplier-1',
+          purchased_quantity: 100,
+          computed_balance: 95,
+          unit_price: 10,
+          freight: 0,
+          total_price: 1000,
+          purchased_at: 'Wed May 01 2024 00:00:00 GMT+0000 (Coordinated Universal Time)',
+          expires_at: null,
+          notes: null,
+          invoice_url: null,
+          supplier: { id: 'supplier-1', name: 'Tech Solutions LTDA' },
+        }),
+      ).toBe('01/05/2024 - Tech Solutions LTDA');
+    });
+
     it('returns N/A when supplier is missing', () => {
       expect(
         formatBatchSupplier({
@@ -194,7 +214,6 @@ describe('stockMovementFormatters', () => {
         'R$\u00a010,00',
         'R$\u00a050,00',
         '01/05/2024 - Fornecedor ABC',
-        'req-1',
         'TI',
         'Campus Norte',
         new Date('2024-06-15T10:00:00.000Z').toLocaleDateString('pt-BR'),
@@ -213,9 +232,8 @@ describe('stockMovementFormatters', () => {
       const row = buildStockMovementPdfRow(movement);
       expect(row[6]).toBe('R$\u00a00,00');
       expect(row[7]).toBe('N/A');
-      expect(row[8]).toBe('—');
+      expect(row[8]).toBe('N/A');
       expect(row[9]).toBe('N/A');
-      expect(row[10]).toBe('N/A');
     });
   });
 });

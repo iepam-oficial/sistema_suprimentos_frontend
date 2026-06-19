@@ -38,8 +38,9 @@ async function proxyRequest(
 
   try {
     let url = buildBackendUrl(backendPath, options.pathParams);
-    if (request instanceof NextRequest && request.nextUrl.search) {
-      url += request.nextUrl.search;
+    const search = new URL(request.url).search;
+    if (search) {
+      url += search;
     }
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,

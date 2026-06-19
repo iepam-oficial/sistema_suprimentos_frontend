@@ -28,6 +28,10 @@ export interface InventoryItem {
   subcategory_id: string;
   status: InventoryStatus;
   sector_id?: string | null;
+  sector?: {
+    id: string;
+    name: string;
+  };
   location: {
     id: string;
     name: string;

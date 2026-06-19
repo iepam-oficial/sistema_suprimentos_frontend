@@ -11,7 +11,6 @@ const PDF_HEAD = [
   'Custo Unit.',
   'Custo Total',
   'Lote/Fornecedor',
-  'Requisição',
   'Setor',
   'Polo',
   'Data',

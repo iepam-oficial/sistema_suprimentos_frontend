@@ -1,51 +1,29 @@
 import { fetchSupplies } from '@/features/catalog/api/catalogApi';
 import type { Supply } from '@/features/catalog/types';
 import type { SupplyRequest } from '../types';
+import { filterAvailableSupplies } from '../utils/cartStockUtils';
 
 export type { Supply };
 export { fetchSupplies };
 
 export const fetchRequests = async (token: string) => {
-  const regularResponse = await fetch('/api/supply-requests/my-requests', {
+  const response = await fetch('/api/supply-requests/my-requests', {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (!regularResponse.ok) {
-    throw new Error('Erro ao carregar requisições regulares');
+  if (!response.ok) {
+    throw new Error('Erro ao carregar requisições');
   }
 
-  const regularData = await regularResponse.json();
-
-  const customResponse = await fetch('/api/custom-supply-requests/user', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!customResponse.ok) {
-    throw new Error('Erro ao carregar requisições customizadas');
-  }
-
-  const customData = await customResponse.json();
-
-  return [
-    ...regularData,
-    ...customData.map((request: Record<string, unknown>) => ({
-      ...request,
-      is_custom: true,
-    })),
-  ];
+  return response.json();
 };
 
 export const handleRequesterConfirmation = async (
   requestId: string,
   confirmation: boolean,
-  token: string,
-  isCustom: boolean
+  token: string
 ) => {
-  const endpoint = isCustom
-    ? `/api/custom-supply-requests/${requestId}/requester-confirmation`
-    : `/api/supply-requests/${requestId}/requester-confirmation`;
-
-  const response = await fetch(endpoint, {
+  const response = await fetch(`/api/supply-requests/${requestId}/requester-confirmation`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -61,12 +39,8 @@ export const handleRequesterConfirmation = async (
   return response.json();
 };
 
-export const cancelRequest = async (requestId: string, token: string, isCustom: boolean) => {
-  const endpoint = isCustom
-    ? `/api/custom-supply-requests/${requestId}/cancel`
-    : `/api/supply-requests/${requestId}/cancel`;
-
-  const response = await fetch(endpoint, {
+export const cancelRequest = async (requestId: string, token: string) => {
+  const response = await fetch(`/api/supply-requests/${requestId}/cancel`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -117,31 +91,11 @@ export const submitRequest = async (
   return response.json();
 };
 
-export const handleCustomRequest = async (
-  data: { items: Array<Record<string, unknown>> },
-  token: string
-) => {
-  const response = await fetch('/api/supply-requests/custom/many', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as { message?: string }).message || 'Erro ao criar requisições customizadas');
-  }
-
-  return response.json();
-};
-
 export const filterSupplies = (supplies: Supply[], search: string): Supply[] => {
-  if (!search) return supplies;
+  const available = filterAvailableSupplies(supplies);
+  if (!search) return available;
 
-  return supplies.filter(
+  return available.filter(
     (supply) =>
       supply.name.toLowerCase().includes(search.toLowerCase()) ||
       (supply.description?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
@@ -154,9 +108,7 @@ export const filterRequests = (requests: SupplyRequest[], search: string, status
 
   return requests.filter((request) => {
     const matchesSearch =
-      (request.is_custom
-        ? request.item_name?.toLowerCase().includes(search.toLowerCase())
-        : request.supply?.name.toLowerCase().includes(search.toLowerCase())) ||
+      (request.supply?.name.toLowerCase().includes(search.toLowerCase()) ?? false) ||
       request.user.name.toLowerCase().includes(search.toLowerCase()) ||
       request.user.email.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || request.status === statusFilter;

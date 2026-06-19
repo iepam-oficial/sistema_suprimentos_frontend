@@ -32,6 +32,24 @@ export function getMovementPolo(
   return branch;
 }
 
+function formatPurchasedAtDate(purchasedAt: string): string | null {
+  const isoDateMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(purchasedAt);
+  if (isoDateMatch) {
+    const year = Number(isoDateMatch[1]);
+    const month = Number(isoDateMatch[2]);
+    const day = Number(isoDateMatch[3]);
+    const date = new Date(year, month - 1, day);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString('pt-BR');
+    }
+  }
+
+  const date = new Date(purchasedAt);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+}
+
 export function formatBatchSupplier(
   batch: SupplyBatchDTO | undefined | null,
 ): string {
@@ -39,8 +57,9 @@ export function formatBatchSupplier(
   const purchasedAt = batch?.purchased_at;
   if (!batch || !supplierName || !purchasedAt) return 'N/A';
 
-  const [year, month, day] = purchasedAt.slice(0, 10).split('-').map(Number);
-  const formattedDate = new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+  const formattedDate = formatPurchasedAtDate(purchasedAt);
+  if (!formattedDate) return supplierName;
+
   return `${formattedDate} - ${supplierName}`;
 }
 
@@ -56,7 +75,6 @@ export function buildStockMovementPdfRow(
     formatMovementUnitCost(movement.unit_cost),
     formatMovementTotalCost(movement.total_cost),
     formatBatchSupplier(movement.batch),
-    movement.supply_request_id ?? '—',
     movement.sector?.name ?? 'N/A',
     getMovementPolo(movement),
     new Date(movement.created_at).toLocaleDateString('pt-BR'),

@@ -239,9 +239,9 @@ export function SupplyRequestsTab({
         <VStack spacing={3} align="stretch" p={2}>
             {filtered.map((request) => (
                 <Box key={request.id} p={2} borderRadius="md" boxShadow="sm" bg={colorMode === 'dark' ? 'rgba(45,55,72,0.7)' : 'white'} borderWidth="1px" borderColor={colorMode === 'dark' ? 'rgba(255,255,255,0.08)' : 'gray.200'}>
-                    <Text fontWeight="bold">{request.is_custom ? request.item_name : request.supply?.name}</Text>
+                    <Text fontWeight="bold">{request.supply?.name}</Text>
                     <Text fontSize="sm" color="gray.500">{request.user.name} - {request.user.email}</Text>
-                    <Text fontSize="sm">Qtd: {request.quantity} {request.supply?.unit?.symbol || request.unit?.symbol}</Text>
+                    <Text fontSize="sm">Qtd: {request.quantity} {request.supply?.unit?.symbol || request.supply?.unit?.name}</Text>
                     <Badge colorScheme={request.status === 'APPROVED' ? 'green' : request.status === 'REJECTED' ? 'red' : request.status === 'DELIVERED' ? 'purple' : request.status === 'CANCELLED' ? 'gray' : 'yellow'} mt={1} mb={1}>
                         {request.status === 'PENDING' ? 'Pendente' : request.status === 'APPROVED' ? 'Aprovado' : request.status === 'REJECTED' ? 'Rejeitado' : request.status === 'CANCELLED' ? 'Cancelado' : 'Entregue'}
                     </Badge>
@@ -280,7 +280,7 @@ export function SupplyRequestsTab({
             <Tbody>
                 {filtered.map((request) => (
                     <Tr key={request.id} _hover={{ bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.4)' : 'gray.50' }}>
-                        <Td py={1.5} px={2} color={textColor} fontSize="sm">{request.is_custom ? request.item_name : request.supply?.name}</Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">{request.supply?.name}</Td>
                         <Td py={1.5} px={2}>
                             <Text color={textColor} fontSize="sm">{request.user.name}</Text>
                             <Text fontSize="xs" color="gray.500">{request.user.email}</Text>

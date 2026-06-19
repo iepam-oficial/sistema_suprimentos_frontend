@@ -9,9 +9,10 @@ import {
     VStack,
     useColorModeValue,
 } from '@chakra-ui/react';
-import type { DemandSupplyApprovalDTO, SupplyRequestDTO } from '@ti-assistant/contracts';
+import type { DemandSupplyApprovalDTO } from '@ti-assistant/contracts';
 import { CheckCircle, FileText } from 'lucide-react';
 import { useMemo } from 'react';
+import { formatApprovalBatchItemLines } from '@/features/supply-requests/utils/formatApprovalBatchItems';
 import { formatApprovalReportId } from '@/features/supply-requests/utils/formatDemandSupply';
 
 interface ApprovalHistorySectionProps {
@@ -23,25 +24,6 @@ interface ApprovalHistorySectionProps {
     isConfirmingDelivery?: boolean;
     generatingReportId?: string | null;
     confirmingDeliveryId?: string | null;
-}
-
-function getItemName(item: SupplyRequestDTO): string {
-    return item.is_custom ? item.item_name ?? '-' : item.supply?.name ?? '-';
-}
-
-function formatItemsSummary(approval: DemandSupplyApprovalDTO): string {
-    const items = approval.items ?? [];
-    const count = approval.item_count || items.length;
-    const names = items.map(getItemName).filter(Boolean);
-    const itemLabel = count === 1 ? 'item' : 'itens';
-
-    if (names.length === 0) {
-        return `${count} ${itemLabel}`;
-    }
-
-    const preview = names.slice(0, 3).join(', ');
-    const suffix = names.length > 3 ? '...' : '';
-    return `${count} ${itemLabel} · ${preview}${suffix}`;
 }
 
 function formatApprovalDate(value: string): string {
@@ -120,6 +102,11 @@ export function ApprovalHistorySection({
                         formatApprovalReportId(demandSupplyCode, approval.sequence);
                     const showPdfButton = approval.action === 'APPROVED';
                     const showConfirmDelivery = canConfirmManagerDelivery(approval);
+                    const showActions = showPdfButton || showConfirmDelivery;
+                    const items = approval.items ?? [];
+                    const count = approval.item_count || items.length;
+                    const itemLabel = count === 1 ? 'item' : 'itens';
+                    const itemLines = formatApprovalBatchItemLines(items);
 
                     return (
                         <Box
@@ -150,11 +137,26 @@ export function ApprovalHistorySection({
                             <Text fontSize="sm" color={textColor} mb={1}>
                                 {approval.approved_by.name}
                             </Text>
-                            <Text fontSize="sm" color={mutedColor} mb={showPdfButton ? 3 : 0}>
-                                {formatItemsSummary(approval)}
-                            </Text>
+                            <Box mb={showActions ? 3 : 0}>
+                                <Text fontSize="sm" color={mutedColor}>
+                                    {count} {itemLabel}
+                                </Text>
+                                {itemLines.length > 0 && (
+                                    <VStack align="stretch" spacing={0.5} mt={1}>
+                                        {itemLines.map((line, index) => (
+                                            <Text
+                                                key={items[index]?.id ?? `${approval.id}-item-${index}`}
+                                                fontSize="sm"
+                                                color={mutedColor}
+                                            >
+                                                {line}
+                                            </Text>
+                                        ))}
+                                    </VStack>
+                                )}
+                            </Box>
 
-                            {(showPdfButton || showConfirmDelivery) && (
+                            {showActions && (
                                 <HStack spacing={2} flexWrap="wrap">
                                     {showPdfButton && (
                                         <Button

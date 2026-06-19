@@ -107,7 +107,6 @@ interface SupplyRequest {
     manager_delivery_confirmation: boolean;
     delivery_deadline: string;
     destination: string;
-    is_custom: boolean;
 }
 
 export default function SupplyDetails({ params }: { params: { id: string } }) {
@@ -341,11 +340,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                 return;
             }
 
-            const endpoint = request?.is_custom
-                ? `/api/custom-supply-requests/${params.id}/manager-delivery-confirmation`
-                : `/api/supply-requests/${params.id}/manager-delivery-confirmation`;
-
-            const response = await fetch(endpoint, {
+            const response = await fetch(`/api/supply-requests/${params.id}/manager-delivery-confirmation`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,

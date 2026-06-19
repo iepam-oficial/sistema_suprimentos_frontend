@@ -30,7 +30,7 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
     const { colorMode } = useColorMode();
 
     return (
-        <VStack spacing={3} align="stretch" marginTop="4vh">
+        <VStack spacing={3} align="stretch">
             {items.map(item => (
                 <Box
                     key={item.id}
@@ -39,13 +39,11 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
                     border="1px solid"
                     borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
                     borderRadius="lg"
-                    p={3}
+                    p={2}
                     position="relative"
                     transition="all 0.3s ease"
                     _hover={{
                         bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.6)' : 'rgba(255, 255, 255, 0.6)',
-                        transform: 'translateY(-2px)',
-                        shadow: 'lg'
                     }}
                 >
                     <Flex justify="space-between" align="center" mb={2}>
@@ -63,14 +61,10 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
                                 <IconButton
                                     aria-label="Editar item"
                                     icon={<FiEdit2 size="14px" />}
-                                    size="xs"
+                                    size="sm"
                                     variant="ghost"
+                                    colorScheme="blue"
                                     onClick={() => onEdit(item)}
-                                    _hover={{
-                                        bg: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                                        transform: 'translateY(-1px)'
-                                    }}
-                                    transition="all 0.2s ease"
                                 />
                             </Tooltip>
                             <Tooltip label="Excluir">
@@ -83,7 +77,6 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
                                     onClick={() => onDelete(item.id)}
                                     _hover={{
                                         bg: colorMode === 'dark' ? 'rgba(255, 0, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)',
-                                        transform: 'translateY(-1px)'
                                     }}
                                     transition="all 0.2s ease"
                                 />
@@ -93,20 +86,9 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
 
                     <VStack align="stretch" spacing={2}>
                         <Box>
-                            <Text fontWeight="bold" fontSize="sm" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Nome</Text>
-                            <Text fontSize="md" noOfLines={1} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>{item.name}</Text>
+                            <Text fontWeight="bold" fontSize="xs" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Nº Série</Text>
+                            <Text fontSize="sm" fontFamily="mono" noOfLines={1} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>{item.serial_number}</Text>
                         </Box>
-
-                        <HStack spacing={4}>
-                            <Box flex={1}>
-                                <Text fontWeight="bold" fontSize="xs" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Modelo</Text>
-                                <Text fontSize="sm" noOfLines={1} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>{item.model}</Text>
-                            </Box>
-                            <Box flex={1}>
-                                <Text fontWeight="bold" fontSize="xs" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Nº Série</Text>
-                                <Text fontSize="sm" fontFamily="mono" noOfLines={1} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>{item.serial_number}</Text>
-                            </Box>
-                        </HStack>
 
                         <HStack spacing={4}>
                             <Box flex={1}>
@@ -142,93 +124,82 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
 
 export const DesktopView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
     const { colorMode } = useColorMode();
+    const thProps = {
+        py: 2,
+        color: colorMode === 'dark' ? 'gray.300' : 'gray.600',
+        bg: colorMode === 'dark' ? 'gray.700' : 'gray.50',
+    };
+    const tdTextProps = {
+        py: 1.5,
+        px: 2,
+        fontSize: 'sm' as const,
+        color: colorMode === 'dark' ? 'white' : 'gray.800',
+    };
 
     return (
-        <Box
-            bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
-            p={6}
-            borderRadius="lg"
-            boxShadow="sm"
-            borderWidth="1px"
-            borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-            backdropFilter="blur(12px)"
-            overflowX="auto"
-        >
-            <Table variant="simple">
-                <Thead>
+        <Box overflowX="auto">
+            <Table size="sm" variant="simple">
+                <Thead position="sticky" top={0} zIndex={1}>
                     <Tr>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Item</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Fabricante</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Modelo</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Número de Série</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Status</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Polo</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Ambiente</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Preço de Aquisição</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Valor Depreciado</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Categoria</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Subcategoria</Th>
-                        <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Ações</Th>
+                        <Th {...thProps}>Item</Th>
+                        <Th {...thProps}>Número de Série</Th>
+                        <Th {...thProps}>Status</Th>
+                        <Th {...thProps}>Polo</Th>
+                        <Th {...thProps}>Ambiente</Th>
+                        <Th {...thProps}>Preço de Aquisição</Th>
+                        <Th {...thProps}>Valor Depreciado</Th>
+                        <Th {...thProps}>Categoria</Th>
+                        <Th {...thProps}>Subcategoria</Th>
+                        <Th {...thProps}>Ações</Th>
                     </Tr>
                 </Thead>
                 <Tbody>
                     {items.map((item) => (
                         <Tr
                             key={item.id}
-                            transition="all 0.3s ease"
                             _hover={{
-                                bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.3)' : 'rgba(255, 255, 255, 0.3)',
-                                transform: 'translateY(-1px)',
+                                bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.4)' : 'gray.50',
                             }}
                         >
-                            <Td bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
-                                <Badge colorScheme="blue">{item.item}</Badge>
+                            <Td py={1.5} px={2}>
+                                <Badge size="sm" colorScheme="blue">{item.item}</Badge>
                             </Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{item.name}</Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{item.model}</Td>
-                            <Td bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
-                                <Text fontFamily="mono" color={colorMode === 'dark' ? 'white' : 'gray.800'}>{item.serial_number}</Text>
+                            <Td py={1.5} px={2} fontSize="sm" maxW="140px" isTruncated>
+                                <Text fontFamily="mono" color={colorMode === 'dark' ? 'white' : 'gray.800'} isTruncated>
+                                    {item.serial_number}
+                                </Text>
                             </Td>
-                            <Td bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
-                                <Badge colorScheme={getStatusColor(item.status)}>
+                            <Td py={1.5} px={2}>
+                                <Badge size="sm" colorScheme={getStatusColor(item.status)}>
                                     {getStatusLabel(item.status)}
                                 </Badge>
                             </Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{item.location.name}</Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{item.locale?.name || '-'}</Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{formatCurrency(item.acquisition_price)}</Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{item.residual_value === 0 ? '-' : formatCurrency(item.depreciated_value)}</Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{item.category.label}</Td>
-                            <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{item.subcategory.label}</Td>
-                            <Td bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
-                                <HStack spacing={2}>
+                            <Td {...tdTextProps} maxW="140px" isTruncated>{item.location.name}</Td>
+                            <Td {...tdTextProps} maxW="140px" isTruncated>{item.locale?.name || '-'}</Td>
+                            <Td {...tdTextProps}>{formatCurrency(item.acquisition_price)}</Td>
+                            <Td {...tdTextProps}>{item.residual_value === 0 ? '-' : formatCurrency(item.depreciated_value)}</Td>
+                            <Td {...tdTextProps} maxW="140px" isTruncated>{item.category.label}</Td>
+                            <Td {...tdTextProps} maxW="140px" isTruncated>{item.subcategory.label}</Td>
+                            <Td py={1} px={2}>
+                                <HStack spacing={0}>
                                     <Tooltip label="Editar">
                                         <IconButton
                                             aria-label="Editar item"
                                             icon={<FiEdit2 />}
                                             size="sm"
                                             variant="ghost"
+                                            colorScheme="blue"
                                             onClick={() => onEdit(item)}
-                                            _hover={{
-                                                bg: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                                                transform: 'translateY(-1px)'
-                                            }}
-                                            transition="all 0.2s ease"
                                         />
                                     </Tooltip>
                                     <Tooltip label="Excluir">
                                         <IconButton
                                             aria-label="Excluir item"
                                             icon={<FiTrash2 />}
-                                            size="sm"
+                                            size="xs"
                                             variant="ghost"
                                             colorScheme="red"
                                             onClick={() => onDelete(item.id)}
-                                            _hover={{
-                                                bg: colorMode === 'dark' ? 'rgba(255, 0, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)',
-                                                transform: 'translateY(-1px)'
-                                            }}
-                                            transition="all 0.2s ease"
                                         />
                                     </Tooltip>
                                 </HStack>
@@ -239,4 +210,4 @@ export const DesktopView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
             </Table>
         </Box>
     );
-}; 
+};

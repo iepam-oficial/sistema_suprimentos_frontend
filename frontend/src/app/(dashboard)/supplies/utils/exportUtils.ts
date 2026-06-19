@@ -9,17 +9,16 @@ export const exportSuppliesBelowMinimum = async (supplies: Supply[]) => {
         await exportToPDF({
             title: 'Relatório de Suprimentos Abaixo do Mínimo',
             head: [
-                'Nome', 'Descrição', 'Quantidade Atual', 'Quantidade Mínima', 'Quantidade a Comprar', 'Unidade', 'Categoria', 'Fornecedor'
+                'Nome', 'Descrição', 'Quantidade Atual', 'Quantidade Mínima', 'Quantidade a Comprar', 'Unidade', 'Categoria'
             ],
             body: suppliesBelowMinimum.map(supply => [
                 supply.name,
                 supply.description ?? '',
-                supply.quantity.toString(),
+                supply.available_quantity.toString(),
                 supply.minimum_quantity.toString(),
-                (supply.minimum_quantity - supply.quantity).toString(),
+                (supply.minimum_quantity - supply.available_quantity).toString(),
                 supply.unit?.symbol ?? '',
                 supply.category?.label ?? '',
-                supply.supplier?.name ?? ''
             ]),
             fileName: 'suprimentos_abaixo_minimo.pdf',
             orientation: 'landscape'

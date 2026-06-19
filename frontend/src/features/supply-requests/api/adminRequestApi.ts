@@ -8,51 +8,28 @@ export class RateLimitError extends Error {
 }
 
 export async function fetchAllSupplyRequests(token: string): Promise<SupplyRequest[]> {
-  const regularResponse = await fetch('/api/supply-requests', {
+  const response = await fetch('/api/supply-requests', {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  if (regularResponse.status === 429) {
+  if (response.status === 429) {
     throw new RateLimitError();
   }
 
-  if (!regularResponse.ok) {
-    throw new Error('Erro ao carregar requisições regulares');
+  if (!response.ok) {
+    throw new Error('Erro ao carregar requisições');
   }
 
-  const regularData = await regularResponse.json();
-
-  const customResponse = await fetch('/api/custom-supply-requests', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!customResponse.ok) {
-    throw new Error('Erro ao carregar requisições customizadas');
-  }
-
-  const customData = await customResponse.json();
-
-  return [
-    ...regularData,
-    ...customData.map((request: Record<string, unknown>) => ({
-      ...request,
-      is_custom: true,
-    })),
-  ];
+  return response.json();
 }
 
 export async function updateRequestStatus(
   requestId: string,
   newStatus: 'APPROVED' | 'REJECTED',
-  isCustom: boolean,
   token: string
 ) {
-  const endpoint = isCustom
-    ? `/api/custom-supply-requests/${requestId}/status`
-    : `/api/supply-requests/${requestId}`;
-
-  const response = await fetch(endpoint, {
-    method: isCustom ? 'PATCH' : 'PUT',
+  const response = await fetch(`/api/supply-requests/${requestId}`, {
+    method: 'PUT',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -70,21 +47,19 @@ export async function updateRequestStatus(
 export async function updateManagerDeliveryConfirmation(
   requestId: string,
   confirmation: boolean,
-  isCustom: boolean,
   token: string
 ) {
-  const endpoint = isCustom
-    ? `/api/custom-supply-requests/${requestId}/manager-delivery-confirmation`
-    : `/api/supply-requests/${requestId}/manager-delivery-confirmation`;
-
-  const response = await fetch(endpoint, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ confirmation }),
-  });
+  const response = await fetch(
+    `/api/supply-requests/${requestId}/manager-delivery-confirmation`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ confirmation }),
+    }
+  );
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

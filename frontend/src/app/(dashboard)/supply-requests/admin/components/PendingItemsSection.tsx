@@ -22,11 +22,11 @@ interface PendingItemsSectionProps {
 }
 
 function getItemName(item: SupplyRequestDTO): string {
-    return item.is_custom ? item.item_name ?? '-' : item.supply?.name ?? '-';
+    return item.supply?.name ?? '-';
 }
 
 function getItemUnit(item: SupplyRequestDTO): string {
-    return item.supply?.unit?.symbol ?? item.unit?.symbol ?? item.supply?.unit?.name ?? '';
+    return item.supply?.unit?.symbol ?? item.supply?.unit?.name ?? '';
 }
 
 export function PendingItemsSection({

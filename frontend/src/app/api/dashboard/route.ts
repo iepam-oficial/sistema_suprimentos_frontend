@@ -203,7 +203,6 @@ function calculateApprovedOrdersMonthlySuppliesValue(supplyRequests: any[]): num
 
     const values = supplyRequests
         .filter((request) =>
-            !request.is_custom &&
             APPROVED_ORDER_STATUSES.has(request.status) &&
             isCurrentMonth(request.updated_at)
         )

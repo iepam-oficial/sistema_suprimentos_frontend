@@ -31,7 +31,7 @@ import { uploadSupplyBatchInvoice } from '@/features/catalog/api/supplyBatchInvo
 import type { CreateSupplyBatchInput, SupplierDTO, SupplyDTO } from '@/features/catalog/types';
 import type { SupplyBatchInvoiceFileType } from '@ti-assistant/contracts';
 import { formatBRL } from '@/utils/money';
-import { formatCurrencyBR, parseCurrencyBR } from '../utils/suppliesUtils';
+import { formatCurrencyBR, parseCurrencyBR, sanitizeCurrencyInput } from '../utils/suppliesUtils';
 
 const inferInvoiceFileType = (file: File): SupplyBatchInvoiceFileType | null => {
   const name = file.name.toLowerCase();
@@ -136,6 +136,12 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
       return;
     }
 
+    if (selectedSupply && trimmed === selectedSupply.name) {
+      setSupplySuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
@@ -158,12 +164,17 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [supplyQuery, isOpen]);
+  }, [supplyQuery, isOpen, selectedSupply]);
 
   const handleSupplySelect = (supply: SupplyDTO) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
     setSelectedSupply(supply);
     setSupplyQuery(supply.name);
     setFormData((prev) => ({ ...prev, supply_id: supply.id }));
+    setSupplySuggestions([]);
     setShowSuggestions(false);
   };
 
@@ -209,7 +220,7 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
       const payload: CreateSupplyBatchInput = {
         supply_id: formData.supply_id,
         supplier_id: formData.supplier_id,
-        purchased_quantity: formData.purchased_quantity,
+        purchased_quantity: Math.floor(formData.purchased_quantity),
         unit_price: parseCurrencyBR(formData.unit_price),
         freight: parseCurrencyBR(formData.freight) || undefined,
         purchased_at: formData.purchased_at
@@ -249,6 +260,13 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
     }
   };
 
+  const handleCurrencyBlur = (field: 'unit_price' | 'freight') => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: prev[field] ? formatCurrencyBR(prev[field]) : '',
+    }));
+  };
+
   const unitPrice = parseCurrencyBR(formData.unit_price);
   const freight = parseCurrencyBR(formData.freight);
   const totalPreview = unitPrice * formData.purchased_quantity + freight;
@@ -267,9 +285,14 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
                 <Input
                   value={supplyQuery}
                   onChange={(e) => {
-                    setSupplyQuery(e.target.value);
-                    setSelectedSupply(null);
-                    setFormData((prev) => ({ ...prev, supply_id: '' }));
+                    const value = e.target.value;
+                    setSupplyQuery(value);
+                    if (selectedSupply && value !== selectedSupply.name) {
+                      setSelectedSupply(null);
+                      setFormData((prev) => ({ ...prev, supply_id: '' }));
+                    } else if (!selectedSupply) {
+                      setFormData((prev) => ({ ...prev, supply_id: '' }));
+                    }
                   }}
                   onBlur={() => {
                     window.setTimeout(() => setShowSuggestions(false), 150);
@@ -277,7 +300,7 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
                   placeholder="Buscar suprimento..."
                   autoComplete="off"
                 />
-                {showSuggestions && (
+                {showSuggestions && !selectedSupply && supplySuggestions.length > 0 && (
                   <List
                     position="absolute"
                     zIndex={10}
@@ -298,6 +321,7 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
                         py={2}
                         cursor="pointer"
                         _hover={{ bg: 'gray.100', _dark: { bg: 'gray.600' } }}
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => handleSupplySelect(supply)}
                       >
                         <Text fontWeight="medium">{supply.name}</Text>
@@ -341,12 +365,15 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
                   <FormLabel>Quantidade Comprada</FormLabel>
                   <NumberInput
                     min={1}
+                    step={1}
+                    precision={0}
                     value={formData.purchased_quantity}
-                    onChange={(_, value) =>
-                      setFormData((prev) => ({ ...prev, purchased_quantity: value || 1 }))
-                    }
+                    onChange={(_, value) => {
+                      const qty = Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+                      setFormData((prev) => ({ ...prev, purchased_quantity: qty }));
+                    }}
                   >
-                    <NumberInputField />
+                    <NumberInputField inputMode="numeric" pattern="[0-9]*" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -361,10 +388,12 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        unit_price: formatCurrencyBR(e.target.value),
+                        unit_price: sanitizeCurrencyInput(e.target.value),
                       }))
                     }
+                    onBlur={() => handleCurrencyBlur('unit_price')}
                     placeholder="0,00"
+                    inputMode="decimal"
                   />
                 </FormControl>
 
@@ -375,10 +404,12 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        freight: formatCurrencyBR(e.target.value),
+                        freight: sanitizeCurrencyInput(e.target.value),
                       }))
                     }
+                    onBlur={() => handleCurrencyBlur('freight')}
                     placeholder="0,00"
+                    inputMode="decimal"
                   />
                 </FormControl>
 

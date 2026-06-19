@@ -19,9 +19,8 @@ import {
   Divider,
   Box,
 } from '@chakra-ui/react';
-import { ShoppingCart, Trash2, Package, DollarSign } from 'lucide-react';
+import { ShoppingCart, Trash2, Package } from 'lucide-react';
 import { Supply } from '../../types';
-import { formatBRL, mulMoney, sumMoney } from '@/utils/money';
 
 interface CartItem {
   id: string;
@@ -43,11 +42,6 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
 
   // Calcular total de itens
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  
-  // Calcular valor total estimado (se disponível)
-  const totalValue = sumMoney(
-    cart.map((item) => mulMoney(item.supply?.unit_price || 0, item.quantity)),
-  );
 
   return (
     <Card bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'gray.50'} backdropFilter="blur(12px)" borderWidth="1px" borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}>
@@ -88,19 +82,6 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
                         </Text>
                       </VStack>
                     </HStack>
-                    {totalValue > 0 && (
-                      <VStack align="end" spacing={0}>
-                        <HStack spacing={1}>
-                          <DollarSign size={isMobile ? 16 : 18} color={colorMode === 'dark' ? '#A0AEC0' : '#718096'} />
-                          <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>
-                            Valor estimado
-                          </Text>
-                        </HStack>
-                        <Text fontSize="lg" fontWeight="bold" color="green.500">
-                          {formatBRL(totalValue)}
-                        </Text>
-                      </VStack>
-                    )}
                   </HStack>
                 </CardBody>
               </Card>
@@ -123,7 +104,7 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
                               </Text>
                               {item.supply.category && (
                                 <Badge colorScheme="blue" size="sm" variant="subtle">
-                                  {item.supply.category.label}
+                                  {item.supply.category?.label}
                                 </Badge>
                               )}
                           </VStack>
@@ -148,7 +129,7 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
                           <NumberInput 
                             value={item.quantity} 
                             min={1} 
-                            max={item.supply.quantity} 
+                            max={item.supply.available_quantity} 
                             onChange={(_, value) => onUpdateQuantity(item.id, value)} 
                                 size="sm" 
                                 maxW="100px"
@@ -176,27 +157,6 @@ export function CartTab({ cart, onRemoveFromCart, onUpdateQuantity, onOpenModal,
                               </Text>
                             </HStack>
 
-                            {item.supply.unit_price && (
-                              <HStack justify="space-between">
-                                <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                                  Preço unitário:
-                                </Text>
-                                <Text fontSize="sm" color="green.500" fontWeight="medium">
-                                  {formatBRL(item.supply.unit_price)}
-                                </Text>
-                              </HStack>
-                            )}
-
-                            {item.supply.unit_price && (
-                              <HStack justify="space-between">
-                                <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                                  Subtotal:
-                                </Text>
-                                <Text fontSize="sm" color={colorMode === 'dark' ? 'white' : 'gray.800'} fontWeight="bold">
-                                  {formatBRL(mulMoney(item.supply.unit_price, item.quantity))}
-                                </Text>
-                              </HStack>
-                            )}
                           </VStack>
                       </VStack>
                     </CardBody>

@@ -9,20 +9,20 @@ import {
     Th,
     Td,
     Badge,
-    InputGroup,
-    InputLeftElement,
+    Button,
     Input,
     Select,
     Text,
     Flex,
     VStack,
+    FormControl,
+    FormLabel,
     useColorModeValue,
+    useColorMode,
+    useDisclosure,
     Image,
-    Button,
 } from '@chakra-ui/react';
-import { SearchIcon } from '@chakra-ui/icons';
 import { FileText, RotateCcw } from 'lucide-react';
-import Link from 'next/link';
 import type { StockMovement } from '@/features/catalog/types';
 import {
     formatMovementTypeLabel,
@@ -31,6 +31,9 @@ import {
     getMovementPolo,
     formatBatchSupplier,
 } from '../utils/stockMovementFormatters';
+import { AdminTabShell } from './AdminTabShell';
+import { AdminTabToolbar } from './AdminTabToolbar';
+import { AdminFiltersDrawer } from './AdminFiltersDrawer';
 
 interface StockMovementsTabProps {
     stockMovements: StockMovement[];
@@ -78,352 +81,6 @@ function MovementTypeBadge({ movementType }: { movementType: string }) {
     );
 }
 
-function RequestLink({ supplyRequestId }: { supplyRequestId: string | null }) {
-    if (!supplyRequestId) {
-        return <>—</>;
-    }
-
-    return (
-        <Link href={`/supply-requests/${supplyRequestId}`}>
-            <Text
-                as="span"
-                color="blue.400"
-                fontSize="sm"
-                wordBreak="break-all"
-                _hover={{ textDecoration: 'underline' }}
-            >
-                {supplyRequestId}
-            </Text>
-        </Link>
-    );
-}
-
-const inputStyles = (colorMode: string) => ({
-    bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)',
-    backdropFilter: 'blur(12px)',
-    borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-    _hover: {
-        borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
-    },
-    _focus: {
-        borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500',
-        boxShadow: 'none',
-    },
-});
-
-function MovementFilters({
-    colorMode,
-    movementSearch,
-    onMovementSearchChange,
-    movementTypeFilter,
-    onMovementTypeFilterChange,
-    movementPoloFilter,
-    onMovementPoloFilterChange,
-    movementSectorFilter,
-    onMovementSectorFilterChange,
-    movementDateFrom,
-    onMovementDateFromChange,
-    movementDateTo,
-    onMovementDateToChange,
-    poloOptions,
-    sectorOptions,
-    isMobile,
-}: Pick<
-    StockMovementsTabProps,
-    | 'movementSearch'
-    | 'onMovementSearchChange'
-    | 'movementTypeFilter'
-    | 'onMovementTypeFilterChange'
-    | 'movementPoloFilter'
-    | 'onMovementPoloFilterChange'
-    | 'movementSectorFilter'
-    | 'onMovementSectorFilterChange'
-    | 'movementDateFrom'
-    | 'onMovementDateFromChange'
-    | 'movementDateTo'
-    | 'onMovementDateToChange'
-    | 'poloOptions'
-    | 'sectorOptions'
-> & { colorMode: string; isMobile: boolean }) {
-    const styles = inputStyles(colorMode);
-
-    if (isMobile) {
-        return (
-            <>
-                <InputGroup size="md" mb={3} mt="5vh">
-                    <InputLeftElement pointerEvents="none">
-                        <SearchIcon color={colorMode === 'dark' ? 'gray.400' : 'gray.300'} />
-                    </InputLeftElement>
-                    <Input
-                        placeholder="Buscar suprimento ou usuário..."
-                        value={movementSearch}
-                        onChange={(e) => onMovementSearchChange(e.target.value)}
-                        {...styles}
-                    />
-                </InputGroup>
-                <Select
-                    value={movementTypeFilter}
-                    onChange={(e) => onMovementTypeFilterChange(e.target.value)}
-                    size="sm"
-                    mb={3}
-                >
-                    <option value="">Todos os tipos</option>
-                    <option value="ENTRADA">Entrada</option>
-                    <option value="SAIDA">Saída</option>
-                    <option value="DEVOLUCAO">Devolução</option>
-                    <option value="PERDA">Perda</option>
-                </Select>
-                <Select
-                    value={movementPoloFilter}
-                    onChange={(e) => onMovementPoloFilterChange(e.target.value)}
-                    size="sm"
-                    mb={3}
-                >
-                    <option value="">Todos os polos</option>
-                    {poloOptions.map((polo) => (
-                        <option key={polo} value={polo}>
-                            {polo}
-                        </option>
-                    ))}
-                </Select>
-                <Select
-                    value={movementSectorFilter}
-                    onChange={(e) => onMovementSectorFilterChange(e.target.value)}
-                    size="sm"
-                    mb={3}
-                >
-                    <option value="">Todos os setores</option>
-                    {sectorOptions.map((sector) => (
-                        <option key={sector} value={sector}>
-                            {sector}
-                        </option>
-                    ))}
-                </Select>
-                <Input
-                    type="date"
-                    value={movementDateFrom}
-                    onChange={(e) => onMovementDateFromChange(e.target.value)}
-                    size="sm"
-                    mb={3}
-                    {...styles}
-                />
-                <Input
-                    type="date"
-                    value={movementDateTo}
-                    onChange={(e) => onMovementDateToChange(e.target.value)}
-                    size="sm"
-                    mb={3}
-                    {...styles}
-                />
-            </>
-        );
-    }
-
-    return (
-        <Flex gap={4} mb={4} flexWrap="wrap" align="flex-end">
-            <InputGroup flex="1" minW="200px">
-                <InputLeftElement pointerEvents="none">
-                    <SearchIcon color={colorMode === 'dark' ? 'gray.400' : 'gray.300'} />
-                </InputLeftElement>
-                <Input
-                    placeholder="Buscar por item ou usuário..."
-                    value={movementSearch}
-                    onChange={(e) => onMovementSearchChange(e.target.value)}
-                    {...styles}
-                />
-            </InputGroup>
-            <Select
-                placeholder="Filtrar por tipo"
-                value={movementTypeFilter}
-                onChange={(e) => onMovementTypeFilterChange(e.target.value)}
-                maxW="180px"
-                {...styles}
-            >
-                <option value="">Todos</option>
-                <option value="ENTRADA">Entrada</option>
-                <option value="SAIDA">Saída</option>
-                <option value="DEVOLUCAO">Devolução</option>
-                <option value="PERDA">Perda</option>
-            </Select>
-            <Select
-                placeholder="Filtrar por polo"
-                value={movementPoloFilter}
-                onChange={(e) => onMovementPoloFilterChange(e.target.value)}
-                maxW="180px"
-                {...styles}
-            >
-                <option value="">Todos</option>
-                {poloOptions.map((polo) => (
-                    <option key={polo} value={polo}>
-                        {polo}
-                    </option>
-                ))}
-            </Select>
-            <Select
-                placeholder="Filtrar por setor"
-                value={movementSectorFilter}
-                onChange={(e) => onMovementSectorFilterChange(e.target.value)}
-                maxW="180px"
-                {...styles}
-            >
-                <option value="">Todos</option>
-                {sectorOptions.map((sector) => (
-                    <option key={sector} value={sector}>
-                        {sector}
-                    </option>
-                ))}
-            </Select>
-            <Input
-                type="date"
-                value={movementDateFrom}
-                onChange={(e) => onMovementDateFromChange(e.target.value)}
-                maxW="160px"
-                {...styles}
-            />
-            <Input
-                type="date"
-                value={movementDateTo}
-                onChange={(e) => onMovementDateToChange(e.target.value)}
-                maxW="160px"
-                {...styles}
-            />
-        </Flex>
-    );
-}
-
-function ActionButtons({
-    colorMode,
-    filteredStockMovements,
-    onExportPDF,
-    onRefresh,
-    onClearFilters,
-    isMobile,
-}: {
-    colorMode: string;
-    filteredStockMovements: StockMovement[];
-    onExportPDF: () => void;
-    onRefresh: () => void;
-    onClearFilters: () => void;
-    isMobile: boolean;
-}) {
-    const isEmpty = filteredStockMovements.length === 0;
-
-    if (isMobile) {
-        return (
-            <>
-                <Button
-                    w="full"
-                    size="sm"
-                    colorScheme="blue"
-                    mb={2}
-                    leftIcon={<FileText size={16} />}
-                    onClick={onExportPDF}
-                    isDisabled={isEmpty}
-                >
-                    Exportar PDF
-                </Button>
-                <Button
-                    w="full"
-                    size="sm"
-                    colorScheme="blue"
-                    mb={2}
-                    leftIcon={<RotateCcw size={16} />}
-                    onClick={onRefresh}
-                >
-                    Atualizar
-                </Button>
-                <Button
-                    w="full"
-                    size="sm"
-                    colorScheme="gray"
-                    variant="outline"
-                    mb={4}
-                    onClick={onClearFilters}
-                >
-                    Limpar Filtros
-                </Button>
-            </>
-        );
-    }
-
-    return (
-        <Flex gap={4} mb={4} flexWrap="wrap">
-            <Button
-                size="sm"
-                onClick={onExportPDF}
-                colorScheme="blue"
-                leftIcon={<FileText size={16} />}
-                isDisabled={isEmpty}
-                minW="140px"
-                h="36px"
-                fontSize="sm"
-                fontWeight="medium"
-                _hover={{
-                    transform: 'translateY(-1px)',
-                    boxShadow: 'lg',
-                }}
-                transition="all 0.2s ease"
-            >
-                Exportar PDF
-            </Button>
-            <Button
-                size="sm"
-                onClick={onRefresh}
-                colorScheme="blue"
-                leftIcon={<RotateCcw size={16} />}
-                minW="140px"
-                h="36px"
-                fontSize="sm"
-                fontWeight="medium"
-                _hover={{
-                    transform: 'translateY(-1px)',
-                    boxShadow: 'lg',
-                }}
-                transition="all 0.2s ease"
-            >
-                Atualizar
-            </Button>
-            <Button
-                size="sm"
-                onClick={onClearFilters}
-                colorScheme="gray"
-                variant="outline"
-                leftIcon={<RotateCcw size={16} />}
-                minW="140px"
-                h="36px"
-                fontSize="sm"
-                fontWeight="medium"
-                _hover={{
-                    transform: 'translateY(-1px)',
-                    boxShadow: 'lg',
-                }}
-                transition="all 0.2s ease"
-            >
-                Limpar Filtros
-            </Button>
-        </Flex>
-    );
-}
-
-function EmptyState({ colorMode, isMobile }: { colorMode: string; isMobile: boolean }) {
-    return (
-        <Flex direction="column" align="center" justify="center" py={8}>
-            <Image
-                src="/Task-complete.svg"
-                alt="Nenhuma movimentação encontrada"
-                maxW={isMobile ? '200px' : '300px'}
-                mb={4}
-            />
-            <Text
-                color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}
-                fontSize={isMobile ? 'md' : 'lg'}
-            >
-                Nenhuma movimentação encontrada
-            </Text>
-        </Flex>
-    );
-}
-
 function MobileMovementCard({
     movement,
     colorMode,
@@ -457,9 +114,6 @@ function MobileMovementCard({
             <Text fontSize="xs" color="gray.400" mt={1}>
                 Data: {new Date(movement.created_at).toLocaleDateString('pt-BR')}
             </Text>
-            <Text fontSize="sm" mt={1}>
-                Requisição: <RequestLink supplyRequestId={movement.supply_request_id} />
-            </Text>
         </Box>
     );
 }
@@ -486,200 +140,283 @@ export function StockMovementsTab({
     onRefresh,
     isMobile = false,
 }: StockMovementsTabProps) {
-    const colorMode = useColorModeValue('light', 'dark');
+    const { colorMode } = useColorMode();
+    const colorModeVal = useColorModeValue('light', 'dark');
+    const { isOpen, onOpen, onClose } = useDisclosure();
 
-    const containerProps = {
-        bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)',
-        p: isMobile ? 2 : 6,
-        borderRadius: 'lg',
-        boxShadow: 'sm',
-        borderWidth: '1px',
-        borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-        backdropFilter: 'blur(12px)',
+    const inputBg = colorMode === 'dark' ? 'gray.700' : 'white';
+    const inputBorder = colorMode === 'dark' ? 'gray.600' : 'gray.200';
+    const textColor = colorMode === 'dark' ? 'white' : 'gray.800';
+    const thBg = colorMode === 'dark' ? 'gray.700' : 'gray.50';
+    const thColor = colorMode === 'dark' ? 'gray.300' : 'gray.600';
+
+    const filtersActive = Boolean(
+        movementTypeFilter ||
+        movementPoloFilter ||
+        movementSectorFilter ||
+        movementDateFrom ||
+        movementDateTo
+    );
+
+    const handleClearFilters = () => {
+        onClearFilters();
     };
 
-    const thProps = {
-        color: colorMode === 'dark' ? 'gray.300' : 'gray.600',
-        bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)',
-    };
+    const toolbarActions = (
+        <>
+            <Button
+                size="sm"
+                onClick={onExportPDF}
+                colorScheme="blue"
+                leftIcon={<FileText size={16} />}
+                isDisabled={filteredStockMovements.length === 0}
+            >
+                Exportar PDF
+            </Button>
+            <Button
+                size="sm"
+                onClick={onRefresh}
+                colorScheme="blue"
+                leftIcon={<RotateCcw size={16} />}
+            >
+                Atualizar
+            </Button>
+            <Button
+                size="sm"
+                onClick={handleClearFilters}
+                colorScheme="gray"
+                variant="outline"
+            >
+                Limpar Filtros
+            </Button>
+        </>
+    );
 
-    const tdProps = {
-        bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)',
-    };
-
-    if (isMobile) {
-        return (
-            <Box {...containerProps}>
-                <MovementFilters
-                    colorMode={colorMode}
-                    movementSearch={movementSearch}
-                    onMovementSearchChange={onMovementSearchChange}
-                    movementTypeFilter={movementTypeFilter}
-                    onMovementTypeFilterChange={onMovementTypeFilterChange}
-                    movementPoloFilter={movementPoloFilter}
-                    onMovementPoloFilterChange={onMovementPoloFilterChange}
-                    movementSectorFilter={movementSectorFilter}
-                    onMovementSectorFilterChange={onMovementSectorFilterChange}
-                    movementDateFrom={movementDateFrom}
-                    onMovementDateFromChange={onMovementDateFromChange}
-                    movementDateTo={movementDateTo}
-                    onMovementDateToChange={onMovementDateToChange}
-                    poloOptions={poloOptions}
-                    sectorOptions={sectorOptions}
-                    isMobile
+    const filterFields = (
+        <>
+            <FormControl>
+                <FormLabel color={textColor} fontSize="sm">Tipo</FormLabel>
+                <Select
+                    value={movementTypeFilter}
+                    onChange={(e) => onMovementTypeFilterChange(e.target.value)}
+                    bg={inputBg}
+                    borderColor={inputBorder}
+                    size="sm"
+                >
+                    <option value="">Todos os tipos</option>
+                    <option value="ENTRADA">Entrada</option>
+                    <option value="SAIDA">Saída</option>
+                    <option value="DEVOLUCAO">Devolução</option>
+                    <option value="PERDA">Perda</option>
+                </Select>
+            </FormControl>
+            <FormControl>
+                <FormLabel color={textColor} fontSize="sm">Polo</FormLabel>
+                <Select
+                    value={movementPoloFilter}
+                    onChange={(e) => onMovementPoloFilterChange(e.target.value)}
+                    bg={inputBg}
+                    borderColor={inputBorder}
+                    size="sm"
+                >
+                    <option value="">Todos os polos</option>
+                    {poloOptions.map((polo) => (
+                        <option key={polo} value={polo}>
+                            {polo}
+                        </option>
+                    ))}
+                </Select>
+            </FormControl>
+            <FormControl>
+                <FormLabel color={textColor} fontSize="sm">Setor</FormLabel>
+                <Select
+                    value={movementSectorFilter}
+                    onChange={(e) => onMovementSectorFilterChange(e.target.value)}
+                    bg={inputBg}
+                    borderColor={inputBorder}
+                    size="sm"
+                >
+                    <option value="">Todos os setores</option>
+                    {sectorOptions.map((sector) => (
+                        <option key={sector} value={sector}>
+                            {sector}
+                        </option>
+                    ))}
+                </Select>
+            </FormControl>
+            <FormControl>
+                <FormLabel color={textColor} fontSize="sm">Período de</FormLabel>
+                <Input
+                    type="date"
+                    value={movementDateFrom}
+                    onChange={(e) => onMovementDateFromChange(e.target.value)}
+                    bg={inputBg}
+                    borderColor={inputBorder}
+                    size="sm"
                 />
-                <ActionButtons
-                    colorMode={colorMode}
-                    filteredStockMovements={filteredStockMovements}
-                    onExportPDF={onExportPDF}
-                    onRefresh={onRefresh}
-                    onClearFilters={onClearFilters}
-                    isMobile
+            </FormControl>
+            <FormControl>
+                <FormLabel color={textColor} fontSize="sm">Período até</FormLabel>
+                <Input
+                    type="date"
+                    value={movementDateTo}
+                    onChange={(e) => onMovementDateToChange(e.target.value)}
+                    bg={inputBg}
+                    borderColor={inputBorder}
+                    size="sm"
                 />
-                {filteredStockMovements.length === 0 ? (
-                    <EmptyState colorMode={colorMode} isMobile />
-                ) : (
-                    <VStack spacing={3} align="stretch">
-                        {filteredStockMovements.map((movement) => (
-                            <MobileMovementCard
-                                key={movement.id}
-                                movement={movement}
-                                colorMode={colorMode}
-                            />
-                        ))}
-                    </VStack>
-                )}
-            </Box>
-        );
-    }
+            </FormControl>
+        </>
+    );
+
+    const emptyState = (
+        <Flex direction="column" align="center" justify="center" py={8} h="full">
+            <Image
+                src="/Task-complete.svg"
+                alt="Nenhuma movimentação encontrada"
+                maxW={isMobile ? '200px' : '300px'}
+                mb={4}
+            />
+            <Text
+                color={colorModeVal === 'dark' ? 'gray.300' : 'gray.500'}
+                fontSize={isMobile ? 'md' : 'lg'}
+            >
+                Nenhuma movimentação encontrada
+            </Text>
+        </Flex>
+    );
+
+    const mobileCards = (
+        <VStack spacing={3} align="stretch" p={2}>
+            {filteredStockMovements.map((movement) => (
+                <MobileMovementCard
+                    key={movement.id}
+                    movement={movement}
+                    colorMode={colorMode}
+                />
+            ))}
+        </VStack>
+    );
+
+    const desktopTable = (
+        <Table size="sm" variant="simple">
+            <Thead position="sticky" top={0} zIndex={1}>
+                <Tr>
+                    <Th py={2} color={thColor} bg={thBg}>Suprimento</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Tipo</Th>
+                    <Th py={2} color={thColor} bg={thBg}>De</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Para</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Quantidade</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Custo Unit.</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Custo Total</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Lote/Fornecedor</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Setor</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Polo</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Data</Th>
+                </Tr>
+            </Thead>
+            <Tbody>
+                {filteredStockMovements.map((movement) => (
+                    <Tr
+                        key={movement.id}
+                        _hover={{ bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.4)' : 'gray.50' }}
+                    >
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            <Text fontWeight="bold">{movement.supply?.name ?? 'N/A'}</Text>
+                        </Td>
+                        <Td py={1.5} px={2}>
+                            <MovementTypeBadge movementType={movement.movement_type} />
+                        </Td>
+                        <Td py={1.5} px={2}>
+                            <Text color={textColor} fontSize="sm">
+                                {movement.from_user?.name ?? 'N/A'}
+                            </Text>
+                            {movement.from_user?.email && (
+                                <Text fontSize="xs" color="gray.500">
+                                    {movement.from_user.email}
+                                </Text>
+                            )}
+                        </Td>
+                        <Td py={1.5} px={2}>
+                            <Text color={textColor} fontSize="sm">
+                                {movement.to_user?.name ?? 'N/A'}
+                            </Text>
+                            {movement.to_user?.email && (
+                                <Text fontSize="xs" color="gray.500">
+                                    {movement.to_user.email}
+                                </Text>
+                            )}
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {movement.quantity} {movement.supply?.unit?.symbol ?? ''}
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {formatMovementUnitCost(movement.unit_cost)}
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {formatMovementTotalCost(movement.total_cost)}
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {formatBatchSupplier(movement.batch)}
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {movement.sector ? (
+                                <VStack align="start" spacing={0}>
+                                    <Text fontWeight="bold" fontSize="sm">{movement.sector.name}</Text>
+                                    <Text fontSize="xs" color="gray.500">
+                                        {movement.sector.location?.name ?? 'N/A'}
+                                    </Text>
+                                </VStack>
+                            ) : (
+                                <Text color="gray.500" fontSize="sm">N/A</Text>
+                            )}
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {getMovementPolo(movement)}
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {new Date(movement.created_at).toLocaleDateString('pt-BR')}
+                        </Td>
+                    </Tr>
+                ))}
+            </Tbody>
+        </Table>
+    );
 
     return (
-        <Box {...containerProps}>
-            <MovementFilters
-                colorMode={colorMode}
-                movementSearch={movementSearch}
-                onMovementSearchChange={onMovementSearchChange}
-                movementTypeFilter={movementTypeFilter}
-                onMovementTypeFilterChange={onMovementTypeFilterChange}
-                movementPoloFilter={movementPoloFilter}
-                onMovementPoloFilterChange={onMovementPoloFilterChange}
-                movementSectorFilter={movementSectorFilter}
-                onMovementSectorFilterChange={onMovementSectorFilterChange}
-                movementDateFrom={movementDateFrom}
-                onMovementDateFromChange={onMovementDateFromChange}
-                movementDateTo={movementDateTo}
-                onMovementDateToChange={onMovementDateToChange}
-                poloOptions={poloOptions}
-                sectorOptions={sectorOptions}
-                isMobile={false}
-            />
-            <ActionButtons
-                colorMode={colorMode}
-                filteredStockMovements={filteredStockMovements}
-                onExportPDF={onExportPDF}
-                onRefresh={onRefresh}
-                onClearFilters={onClearFilters}
-                isMobile={false}
-            />
-
-            {filteredStockMovements.length === 0 ? (
-                <EmptyState colorMode={colorMode} isMobile={false} />
-            ) : (
-                <Box overflowX="auto">
-                    <Table variant="simple">
-                        <Thead>
-                            <Tr>
-                                <Th {...thProps}>Suprimento</Th>
-                                <Th {...thProps}>Tipo</Th>
-                                <Th {...thProps}>De</Th>
-                                <Th {...thProps}>Para</Th>
-                                <Th {...thProps}>Quantidade</Th>
-                                <Th {...thProps}>Custo Unit.</Th>
-                                <Th {...thProps}>Custo Total</Th>
-                                <Th {...thProps}>Lote/Fornecedor</Th>
-                                <Th {...thProps}>Requisição</Th>
-                                <Th {...thProps}>Setor</Th>
-                                <Th {...thProps}>Polo</Th>
-                                <Th {...thProps}>Data</Th>
-                            </Tr>
-                        </Thead>
-                        <Tbody>
-                            {filteredStockMovements.map((movement) => (
-                                <Tr
-                                    key={movement.id}
-                                    transition="all 0.3s ease"
-                                    _hover={{
-                                        bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.3)' : 'rgba(255, 255, 255, 0.3)',
-                                        transform: 'translateY(-1px)',
-                                    }}
-                                >
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        <Text fontWeight="bold">{movement.supply?.name ?? 'N/A'}</Text>
-                                    </Td>
-                                    <Td {...tdProps}>
-                                        <MovementTypeBadge movementType={movement.movement_type} />
-                                    </Td>
-                                    <Td {...tdProps}>
-                                        <Text color={colorMode === 'dark' ? 'white' : 'gray.800'}>
-                                            {movement.from_user?.name ?? 'N/A'}
-                                        </Text>
-                                        {movement.from_user?.email && (
-                                            <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                                                {movement.from_user.email}
-                                            </Text>
-                                        )}
-                                    </Td>
-                                    <Td {...tdProps}>
-                                        <Text color={colorMode === 'dark' ? 'white' : 'gray.800'}>
-                                            {movement.to_user?.name ?? 'N/A'}
-                                        </Text>
-                                        {movement.to_user?.email && (
-                                            <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                                                {movement.to_user.email}
-                                            </Text>
-                                        )}
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        {movement.quantity} {movement.supply?.unit?.symbol ?? ''}
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        {formatMovementUnitCost(movement.unit_cost)}
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        {formatMovementTotalCost(movement.total_cost)}
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        {formatBatchSupplier(movement.batch)}
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        <RequestLink supplyRequestId={movement.supply_request_id} />
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        {movement.sector ? (
-                                            <VStack align="start" spacing={1}>
-                                                <Text fontWeight="bold">{movement.sector.name}</Text>
-                                                <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                                                    {movement.sector.location?.name ?? 'N/A'}
-                                                </Text>
-                                            </VStack>
-                                        ) : (
-                                            <Text color={colorMode === 'dark' ? 'gray.400' : 'gray.500'} fontSize="sm">
-                                                N/A
-                                            </Text>
-                                        )}
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        {getMovementPolo(movement)}
-                                    </Td>
-                                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} {...tdProps}>
-                                        {new Date(movement.created_at).toLocaleDateString('pt-BR')}
-                                    </Td>
-                                </Tr>
-                            ))}
-                        </Tbody>
-                    </Table>
-                </Box>
-            )}
-        </Box>
+        <>
+            <AdminTabShell
+                scrollContent={
+                    filteredStockMovements.length === 0
+                        ? emptyState
+                        : isMobile
+                          ? mobileCards
+                          : desktopTable
+                }
+            >
+                <AdminTabToolbar
+                    searchValue={movementSearch}
+                    onSearchChange={onMovementSearchChange}
+                    searchPlaceholder={
+                        isMobile
+                            ? 'Buscar suprimento ou usuário...'
+                            : 'Buscar por item ou usuário...'
+                    }
+                    filtersActive={filtersActive}
+                    onFilterOpen={onOpen}
+                    actions={toolbarActions}
+                    isMobile={isMobile}
+                />
+            </AdminTabShell>
+            <AdminFiltersDrawer
+                isOpen={isOpen}
+                onClose={onClose}
+                placement={isMobile ? 'bottom' : 'right'}
+                filtersActive={filtersActive}
+                onClearFilters={handleClearFilters}
+            >
+                {filterFields}
+            </AdminFiltersDrawer>
+        </>
     );
 }

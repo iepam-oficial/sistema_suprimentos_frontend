@@ -36,28 +36,28 @@ import {
 
 interface MyRequestsTabProps {
   requests: SupplyRequest[];
-  onRequesterConfirmation: (requestId: string, confirmation: boolean, token: string, isCustom: boolean) => void;
-  onCancelRequest: (requestId: string, token: string, isCustom: boolean) => void;
+  onRequesterConfirmation: (requestId: string, confirmation: boolean, token: string) => void;
+  onCancelRequest: (requestId: string, token: string) => void;
   onBatchConfirmed?: () => void | Promise<void>;
 }
 
 function getItemName(item: SupplyRequestDTO): string {
-  return item.is_custom ? item.item_name ?? '-' : item.supply?.name ?? '-';
+  return item.supply?.name ?? '-';
 }
 
-function getNonCustomItems(approval: DemandSupplyApprovalDTO): SupplyRequestDTO[] {
-  return (approval.items ?? []).filter((item) => !item.is_custom);
+function getApprovalItems(approval: DemandSupplyApprovalDTO): SupplyRequestDTO[] {
+  return approval.items ?? [];
 }
 
 function formatBatchItemsSummary(approval: DemandSupplyApprovalDTO): string {
-  const items = getNonCustomItems(approval);
+  const items = getApprovalItems(approval);
   const count = items.length;
   const itemLabel = count === 1 ? 'item aprovado' : 'itens aprovados';
   return `${count} ${itemLabel}`;
 }
 
 function formatBatchItemsList(approval: DemandSupplyApprovalDTO): string {
-  return getNonCustomItems(approval)
+  return getApprovalItems(approval)
     .map((item) => `${getItemName(item)} (${item.quantity})`)
     .join(', ');
 }
@@ -84,7 +84,7 @@ export function MyRequestsTab({
 
   const visiblePendingBatches = useMemo(
     () =>
-      pendingBatches.filter((approval) => getNonCustomItems(approval).length > 0),
+      pendingBatches.filter((approval) => getApprovalItems(approval).length > 0),
     [pendingBatches],
   );
 
@@ -287,10 +287,10 @@ export function MyRequestsTab({
                     <HStack justify="space-between" align="start">
                       <VStack align="start" spacing={1} flex="1">
                         <Text fontWeight="bold" fontSize="md" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
-                          {request.is_custom ? request.item_name : request.supply?.name}
+                          {request.supply?.name}
                         </Text>
                         <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                          {request.quantity} {request.is_custom ? request.unit?.symbol || request.unit?.name : request.supply?.unit?.symbol || request.supply?.unit?.name}
+                          {request.quantity} {request.supply?.unit?.symbol || request.supply?.unit?.name}
                         </Text>
                       </VStack>
                       <Badge colorScheme={getStatusColor(request.status)} size="sm">
@@ -324,7 +324,7 @@ export function MyRequestsTab({
                           size="sm"
                           colorScheme="blue"
                           leftIcon={<CheckCircle size={16} />}
-                          onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                          onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '')}
                           isDisabled={request.requester_confirmation}
                           bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined}
                           _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }}
@@ -340,7 +340,7 @@ export function MyRequestsTab({
                           colorScheme="red"
                           variant="outline"
                           leftIcon={<X size={16} />}
-                          onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                          onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '')}
                           bg={colorMode === 'dark' ? 'rgba(220, 38, 38, 0.1)' : undefined}
                           _hover={{ bg: colorMode === 'dark' ? 'rgba(220, 38, 38, 0.2)' : undefined, transform: 'translateY(-1px)' }}
                           transition="all 0.3s ease"
@@ -373,11 +373,11 @@ export function MyRequestsTab({
                   <Tr key={request.id}>
                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'}>
                       <VStack align="start" spacing={1}>
-                        <Text fontWeight="medium">{request.is_custom ? request.item_name : request.supply?.name}</Text>
+                        <Text fontWeight="medium">{request.supply?.name}</Text>
                       </VStack>
                     </Td>
                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', md: 'table-cell' }}>
-                      {request.quantity} {request.is_custom ? request.unit?.symbol || request.unit?.name : request.supply?.unit?.symbol || request.supply?.unit?.name}
+                      {request.quantity} {request.supply?.unit?.symbol || request.supply?.unit?.name}
                     </Td>
                     <Td>
                       <Badge colorScheme={getStatusColor(request.status)} size={{ base: 'sm', md: 'md' }}>
@@ -410,7 +410,7 @@ export function MyRequestsTab({
                             size={{ base: 'xs', md: 'sm' }}
                             colorScheme="blue"
                             leftIcon={<CheckCircle size={isMobile ? 14 : 16} />}
-                            onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                            onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '')}
                             isDisabled={request.requester_confirmation}
                             bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined}
                             _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }}
@@ -425,7 +425,7 @@ export function MyRequestsTab({
                             colorScheme="red"
                             variant="outline"
                             leftIcon={<X size={isMobile ? 14 : 16} />}
-                            onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                            onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '')}
                             bg={colorMode === 'dark' ? 'rgba(220, 38, 38, 0.1)' : undefined}
                             _hover={{ bg: colorMode === 'dark' ? 'rgba(220, 38, 38, 0.2)' : undefined, transform: 'translateY(-1px)' }}
                             transition="all 0.3s ease"

@@ -148,7 +148,7 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
               >
                 {locales.map((locale) => (
                   <option key={locale.id} value={locale.id}>
-                    {locale.name} - {locale.location.name}
+                    {locale.name} - {locale.location?.name ?? '—'}
                   </option>
                 ))}
               </Select>

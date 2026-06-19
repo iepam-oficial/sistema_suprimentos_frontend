@@ -19,7 +19,8 @@ import {
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SupplyRequest } from "../types";
-import { loadMyRequests, confirmDelivery } from "../utils/myRequestsUtils";
+import { loadMyRequests } from "../utils/myRequestsUtils";
+import { handleRequesterConfirmation } from "../utils/requestUtils";
 
 export default function MyRequestsPage() {
   const [requests, setRequests] = useState<SupplyRequest[]>([]);
@@ -56,7 +57,7 @@ export default function MyRequestsPage() {
     loadRequests();
   }, [router, toast]);
 
-  const handleConfirmDelivery = async (requestId: string, isCustom: boolean) => {
+  const handleConfirmDelivery = async (requestId: string) => {
     try {
       const token = localStorage.getItem("@ti-assistant:token");
       if (!token) {
@@ -64,7 +65,7 @@ export default function MyRequestsPage() {
         return;
       }
 
-      await confirmDelivery(requestId, isCustom, token);
+      await handleRequesterConfirmation(requestId, true, token);
       
       toast({
         title: "Sucesso",
@@ -116,7 +117,7 @@ export default function MyRequestsPage() {
                 <VStack align="stretch" spacing={3}>
                   <HStack justify="space-between">
                     <Text fontWeight="bold">
-                      {req.is_custom ? req.item_name : req.supply?.name}
+                      {req.supply?.name}
                     </Text>
                     <Badge colorScheme={
                       (() => {
@@ -156,12 +157,12 @@ export default function MyRequestsPage() {
                   </HStack>
 
                   <Text fontSize="sm" color="gray.500">
-                    {req.supply?.description || req.description}
+                    {req.supply?.description}
                   </Text>
 
                   <HStack justify="space-between">
                     <Text fontSize="sm">
-                      Quantidade: {req.quantity} {req.is_custom ? req.unit?.symbol || req.unit?.name : req.supply?.unit?.symbol || req.supply?.unit?.name}
+                      Quantidade: {req.quantity} {req.supply?.unit?.symbol || req.supply?.unit?.name}
                     </Text>
                     <Text fontSize="sm" color="gray.500">
                       {new Date(req.created_at).toLocaleDateString('pt-BR')}
@@ -202,7 +203,7 @@ export default function MyRequestsPage() {
                       leftIcon={<CheckCircle />}
                       colorScheme="blue"
                       size="sm"
-                      onClick={() => handleConfirmDelivery(req.id, req.is_custom || false)}
+                      onClick={() => handleConfirmDelivery(req.id)}
                     >
                       Confirmar Recebimento
                     </Button>
