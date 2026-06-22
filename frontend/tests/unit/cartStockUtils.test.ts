@@ -2,6 +2,7 @@ import type { SupplyDTO } from '@/features/catalog/types';
 import {
   clampCartQuantity,
   filterAvailableSupplies,
+  normalizeSupplyStock,
   reconcileCartItems,
   type CartStockItem,
 } from '@/features/supply-requests/utils/cartStockUtils';
@@ -21,6 +22,23 @@ function createSupply(id: string, available_quantity: number): SupplyDTO {
 function createCartItem(id: string, quantity: number, available: number): CartStockItem {
   return { id, quantity, supply: createSupply(id, available) };
 }
+
+describe('normalizeSupplyStock', () => {
+  it('maps legacy quantity to available_quantity', () => {
+    const legacy = { ...createSupply('1', 0), quantity: 8, available_quantity: undefined as unknown as number };
+    expect(normalizeSupplyStock(legacy).available_quantity).toBe(8);
+  });
+
+  it('prefers available_quantity when both fields exist', () => {
+    const supply = { ...createSupply('1', 5), quantity: 10 };
+    expect(normalizeSupplyStock(supply).available_quantity).toBe(5);
+  });
+
+  it('defaults to zero when neither field is present', () => {
+    const supply = { ...createSupply('1', 0), available_quantity: undefined as unknown as number };
+    expect(normalizeSupplyStock(supply).available_quantity).toBe(0);
+  });
+});
 
 describe('filterAvailableSupplies', () => {
   it('keeps only supplies with available_quantity > 0', () => {

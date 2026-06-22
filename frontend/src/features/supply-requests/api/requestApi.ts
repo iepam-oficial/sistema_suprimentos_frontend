@@ -1,10 +1,12 @@
-import { fetchSupplies } from '@/features/catalog/api/catalogApi';
+import { fetchSupplies as fetchCatalogSupplies } from '@/features/catalog/api/catalogApi';
 import type { Supply } from '@/features/catalog/types';
 import type { SupplyRequest } from '../types';
 import { filterAvailableSupplies } from '../utils/cartStockUtils';
 
 export type { Supply };
-export { fetchSupplies };
+
+export const fetchSupplies = (token: string) =>
+  fetchCatalogSupplies(token, { audience: 'requester' });
 
 export const fetchRequests = async (token: string) => {
   const response = await fetch('/api/supply-requests/my-requests', {

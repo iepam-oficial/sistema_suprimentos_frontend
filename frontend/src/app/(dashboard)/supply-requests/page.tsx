@@ -300,7 +300,8 @@ export default function SupplyRequestsPage() {
   // Verificar se precisa buscar suprimentos
   const shouldFetchSupplies = () => {
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
-    return !suppliesLastFetched || (Date.now() - suppliesLastFetched) > CACHE_DURATION;
+    const hasInvalidShape = supplies.some((supply) => typeof supply.available_quantity !== 'number');
+    return hasInvalidShape || !suppliesLastFetched || (Date.now() - suppliesLastFetched) > CACHE_DURATION;
   };
 
   // Verificar se precisa buscar inventário

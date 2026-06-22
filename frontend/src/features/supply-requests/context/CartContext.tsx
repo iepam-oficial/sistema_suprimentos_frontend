@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import type { SupplyDTO } from '@/features/catalog/types';
-import { clampCartQuantity, reconcileCartItems } from '../utils/cartStockUtils';
+import { clampCartQuantity, normalizeSupplyStock, reconcileCartItems } from '../utils/cartStockUtils';
 
 export interface CartItem {
   id: string;
@@ -83,11 +83,36 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         const storedCart = localStorage.getItem('@ti-assistant:cart');
         const storedSupplies = localStorage.getItem('@ti-assistant:supplies');
         const storedSuppliesLastFetched = localStorage.getItem('@ti-assistant:suppliesLastFetched');
+
+        const rawSupplies = storedSupplies ? JSON.parse(storedSupplies) : [];
+        const rawCart = storedCart ? JSON.parse(storedCart) : [];
+
+        const hadLegacyShape =
+          rawSupplies.some(
+            (supply: SupplyDTO & { quantity?: number }) =>
+              typeof supply.available_quantity !== 'number' && typeof supply.quantity === 'number',
+          ) ||
+          rawCart.some(
+            (item: CartItem) =>
+              typeof item.supply?.available_quantity !== 'number' &&
+              typeof (item.supply as SupplyDTO & { quantity?: number })?.quantity === 'number',
+          );
+
+        const supplies = rawSupplies.map(normalizeSupplyStock);
+        const cart = rawCart.map((item: CartItem) => ({
+          ...item,
+          supply: normalizeSupplyStock(item.supply),
+        }));
+
         return {
           ...state,
-          cart: storedCart ? JSON.parse(storedCart) : [],
-          supplies: storedSupplies ? JSON.parse(storedSupplies) : [],
-          suppliesLastFetched: storedSuppliesLastFetched ? parseInt(storedSuppliesLastFetched, 10) : null,
+          cart,
+          supplies,
+          suppliesLastFetched: hadLegacyShape
+            ? null
+            : storedSuppliesLastFetched
+              ? parseInt(storedSuppliesLastFetched, 10)
+              : null,
         };
       } catch {
         return state;

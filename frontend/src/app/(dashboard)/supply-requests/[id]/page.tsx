@@ -39,50 +39,14 @@ import {
     useMediaQuery,
     Icon,
 } from '@chakra-ui/react';
-import { ArrowLeft, ShoppingCart, Package, DollarSign, Tag, Hash, Calendar, Building } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Package, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { DeliveryDetailsModal } from '../components/DeliveryDetailsModal';
-import { formatBRL } from '@/utils/money';
+import { fetchSupplyById } from '@/features/catalog/api/catalogApi';
+import type { SupplyDTO } from '@/features/catalog/types';
 import { fetchLocalesByUserLocation } from '@/features/reference-data';
-
-interface Supply {
-    id: string;
-    name: string;
-    description: string;
-    category: {
-        id: string;
-        value: string;
-        label: string;
-    };
-    subcategory?: {
-        id: string;
-        value: string;
-        label: string;
-    };
-    minimum_quantity: number;
-    current_quantity: number;
-    quantity: number;
-    unit_price?: number;
-    unit?: string | {
-        id: string;
-        name: string;
-        symbol: string;
-        description?: string;
-    };
-    supplier?: string | {
-        id: string;
-        name: string;
-        phone?: string;
-        email?: string;
-        address?: string;
-        cnpj?: string;
-        contact_person?: string;
-    };
-    freight?: number;
-    image_url?: string;
-}
 
 interface SupplyRequest {
     id: string;
@@ -112,7 +76,7 @@ interface SupplyRequest {
 export default function SupplyDetails({ params }: { params: { id: string } }) {
     const router = useRouter();
     const toast = useToast();
-    const [supply, setSupply] = useState<Supply | null>(null);
+    const [supply, setSupply] = useState<SupplyDTO | null>(null);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
     const [deliveryDeadline, setDeliveryDeadline] = useState('');
@@ -138,23 +102,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                 return;
             }
 
-            const response = await fetch(`/api/supplies/${params.id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-            });
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Erro ao carregar detalhes do suprimento');
-            }
-            const data = await response.json();
+            const data = await fetchSupplyById(token, params.id, { audience: 'requester' });
             setSupply(data);
         } catch (error) {
             toast({
@@ -189,8 +137,8 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
     const handleQuantityChange = (value: string) => {
         if (!supply) return;
         const numValue = parseInt(value);
-        if (numValue > supply.quantity) {
-            setQuantity(supply.quantity);
+        if (numValue > supply.available_quantity) {
+            setQuantity(supply.available_quantity);
         } else if (numValue < 1) {
             setQuantity(1);
         } else {
@@ -198,7 +146,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
         }
     };
 
-    const addToCart = (supply: Supply, quantity: number) => {
+    const addToCart = (supply: SupplyDTO, quantity: number) => {
         const cart = JSON.parse(localStorage.getItem('@ti-assistant:cart') || '[]');
         const existingItem = cart.find((item: any) => item.supply.id === supply.id);
 
@@ -460,7 +408,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                                                     py={2}
                                                     borderRadius="full"
                                                 >
-                                {supply.category.label}
+                                {supply.category?.label}
                             </Badge>
                             {supply.subcategory && (
                                                     <Badge 
@@ -474,13 +422,13 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                                 </Badge>
                             )}
                                                 <Badge 
-                                                    colorScheme={supply.quantity > 0 ? 'green' : 'red'} 
+                                                    colorScheme={supply.available_quantity > 0 ? 'green' : 'red'} 
                                                     size="lg"
                                                     px={4}
                                                     py={2}
                                                     borderRadius="full"
                                                 >
-                                                    {supply.quantity > 0 ? 'Disponível' : 'Indisponível'}
+                                                    {supply.available_quantity > 0 ? 'Disponível' : 'Indisponível'}
                                                 </Badge>
                                             </HStack>
                                         </VStack>
@@ -501,7 +449,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                                                         <Text fontSize="sm" color="gray.500">Quantidade Disponível</Text>
                                                     </HStack>
                                                     <Text fontWeight="bold" fontSize="lg">
-                                                        {supply.quantity} {typeof supply.unit === 'string' ? supply.unit : supply.unit?.symbol || 'un'}
+                                                        {supply.available_quantity} {supply.unit?.symbol ?? 'un'}
                                                     </Text>
                                                 </VStack>
                                                 <VStack align="start" spacing={2}>
@@ -510,41 +458,9 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                                                         <Text fontSize="sm" color="gray.500">Quantidade Mínima</Text>
                                                     </HStack>
                                                     <Text fontWeight="medium">
-                                                        {supply.minimum_quantity} {typeof supply.unit === 'string' ? supply.unit : supply.unit?.symbol || 'un'}
+                                                        {supply.minimum_quantity} {supply.unit?.symbol ?? 'un'}
                                                     </Text>
                                                 </VStack>
-                                                {supply.unit_price && (
-                                                    <VStack align="start" spacing={2}>
-                                                        <HStack>
-                                                            <DollarSign size={16} color="gray.500" />
-                                                            <Text fontSize="sm" color="gray.500">Preço Unitário</Text>
-                                                        </HStack>
-                                                        <Text fontWeight="bold" color="green.600" fontSize="lg">
-                                                            {formatBRL(supply.unit_price)}
-                                                        </Text>
-                                                    </VStack>
-                                                )}
-                                                {supply.supplier && (
-                                                    <VStack align="start" spacing={2}>
-                                                        <HStack>
-                                                            <Building size={16} color="gray.500" />
-                                                            <Text fontSize="sm" color="gray.500">Fornecedor</Text>
-                        </HStack>
-                                                        <VStack align="start" spacing={1}>
-                                                            <Text fontWeight="medium">
-                                                                {typeof supply.supplier === 'string' 
-                                                                    ? supply.supplier 
-                                                                    : supply.supplier.name || 'N/A'
-                                                                }
-                                                            </Text>
-                                                            {typeof supply.supplier === 'object' && supply.supplier.contact_person && (
-                                                                <Text fontSize="xs" color="gray.500">
-                                                                    Contato: {supply.supplier.contact_person}
-                                                                </Text>
-                                                            )}
-                                                        </VStack>
-                                                    </VStack>
-                                                )}
                                             </Grid>
                                         </VStack>
                                     </CardBody>
@@ -561,13 +477,13 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                                             <VStack spacing={3} align="stretch">
                             <HStack justify="space-between" align="center">
                                                     <Text fontSize="sm" color="gray.500">Quantidade Desejada:</Text>
-                                                    <Text fontSize="sm" color="gray.500">Máx: {supply.quantity}</Text>
+                                                    <Text fontSize="sm" color="gray.500">Máx: {supply.available_quantity}</Text>
                             </HStack>
                                 <NumberInput
                                     value={quantity}
                                     onChange={handleQuantityChange}
                                     min={1}
-                                    max={supply.quantity}
+                                    max={supply.available_quantity}
                                     size="lg"
                                 >
                                     <NumberInputField />
@@ -584,7 +500,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                                 colorScheme="blue"
                                                     leftIcon={<ShoppingCart size={20} />} 
                                 onClick={() => addToCart(supply, quantity)}
-                                isDisabled={supply.quantity <= 0}
+                                isDisabled={supply.available_quantity <= 0}
                                 size="lg"
                                                     height="50px"
                                                     fontWeight="semibold"
@@ -597,7 +513,7 @@ export default function SupplyDetails({ params }: { params: { id: string } }) {
                             <Button
                                 colorScheme="green"
                                 onClick={onOpen}
-                                isDisabled={supply.quantity <= 0}
+                                isDisabled={supply.available_quantity <= 0}
                                 size="lg"
                                                     height="50px"
                                                     fontWeight="semibold"

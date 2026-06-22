@@ -5,8 +5,12 @@ import type {
   SupplyDTO,
 } from '../types';
 
-export async function fetchSupplies(token: string): Promise<SupplyDTO[]> {
-  const response = await fetch('/api/supplies', {
+export async function fetchSupplies(
+  token: string,
+  options?: { audience?: 'requester' | 'manager' },
+): Promise<SupplyDTO[]> {
+  const params = options?.audience ? `?audience=${options.audience}` : '';
+  const response = await fetch(`/api/supplies${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -17,8 +21,13 @@ export async function fetchSupplies(token: string): Promise<SupplyDTO[]> {
   return response.json();
 }
 
-export async function fetchSupplyById(token: string, id: string): Promise<SupplyDTO> {
-  const response = await fetch(`/api/supplies/${id}`, {
+export async function fetchSupplyById(
+  token: string,
+  id: string,
+  options?: { audience?: 'requester' | 'manager' },
+): Promise<SupplyDTO> {
+  const params = options?.audience ? `?audience=${options.audience}` : '';
+  const response = await fetch(`/api/supplies/${id}${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 

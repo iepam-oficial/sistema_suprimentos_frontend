@@ -1,5 +1,18 @@
 import type { SupplyDTO } from '@/features/catalog/types';
 
+type LegacySupply = SupplyDTO & { quantity?: number };
+
+export function normalizeSupplyStock(supply: LegacySupply): SupplyDTO {
+  const available =
+    typeof supply.available_quantity === 'number'
+      ? supply.available_quantity
+      : typeof supply.quantity === 'number'
+        ? supply.quantity
+        : 0;
+
+  return { ...supply, available_quantity: available };
+}
+
 export interface CartStockItem {
   id: string;
   quantity: number;
