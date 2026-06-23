@@ -23,6 +23,10 @@ import {
   Headphones,
   LayoutGrid,
   PlusCircle,
+  ClipboardList,
+  CheckSquare,
+  Scale,
+  Receipt,
   LucideIcon,
 } from 'lucide-react';
 import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
@@ -40,6 +44,8 @@ const ROLE_LABELS: Record<string, string> = {
   EMPLOYEE: 'Colaborador',
   ORGANIZER: 'Organizador',
   SUPPORT: 'Suporte',
+  COORDINATOR: 'Coordenador',
+  DIRECTOR: 'Diretor',
 };
 
 function getInitials(name?: string): string {
@@ -102,6 +108,10 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
   const isMenuItemActive = (href: string) => {
     if (href === '/maintenance-schedules') return pathname.startsWith('/maintenance-schedules');
     if (href === '/support-tickets') return pathname.startsWith('/support-tickets');
+    if (href === '/procurement/solicitacoes') return pathname.startsWith('/procurement/solicitacoes');
+    if (href === '/procurement/aprovacoes-sc') return pathname.startsWith('/procurement/aprovacoes-sc');
+    if (href === '/procurement/cotacoes') return pathname.startsWith('/procurement/cotacoes');
+    if (href === '/procurement/pedidos') return pathname.startsWith('/procurement/pedidos');
     return pathname === href;
   };
 
@@ -131,6 +141,18 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
       : []),
     ...(user && ['EMPLOYEE', 'ORGANIZER', 'TECHNICIAN'].includes(user.role)
       ? [{ icon: ShoppingCart, label: 'Requisições', href: '/supply-requests' }]
+      : []),
+    ...(user && ['COORDINATOR', 'ADMIN'].includes(user.role)
+      ? [{ icon: ClipboardList, label: 'Solicitações de Compra', href: '/procurement/solicitacoes' }]
+      : []),
+    ...(user && ['DIRECTOR', 'ADMIN'].includes(user.role)
+      ? [{ icon: CheckSquare, label: 'Aprovações SC', href: '/procurement/aprovacoes-sc' }]
+      : []),
+    ...(user && ['MANAGER', 'DIRECTOR', 'ADMIN'].includes(user.role)
+      ? [{ icon: Scale, label: 'Cotações de Compras', href: '/procurement/cotacoes' }]
+      : []),
+    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+      ? [{ icon: Receipt, label: 'Pedidos de Compra', href: '/procurement/pedidos' }]
       : []),
     { icon: FileText, label: 'Cotações', href: '/quotes' },
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
