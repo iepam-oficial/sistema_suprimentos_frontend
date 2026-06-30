@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Badge,
   Box,
   Button,
   Checkbox,
@@ -21,6 +22,7 @@ import type { PurchaseRequestDTO, SupplierDTO } from '@ti-assistant/contracts';
 import { fetchSuppliers } from '@/features/catalog/api/catalogApi';
 import { createProcurementQuote, sendProcurementQuote } from '../api/procurementQuoteApi';
 import { fetchPurchaseRequests } from '../api/purchaseRequestApi';
+import { purchaseRequestPriorityColor, purchaseRequestPriorityLabel } from '../types';
 
 const MIN_SUPPLIERS = 3;
 const STEPS = ['Solicitação', 'Fornecedores', 'Confirmar'];
@@ -28,9 +30,14 @@ const STEPS = ['Solicitação', 'Fornecedores', 'Confirmar'];
 interface ProcurementQuoteWizardProps {
   onSuccess: (quoteId: string) => void;
   onCancel: () => void;
+  initialPurchaseRequestId?: string;
 }
 
-export function ProcurementQuoteWizard({ onSuccess, onCancel }: ProcurementQuoteWizardProps) {
+export function ProcurementQuoteWizard({
+  onSuccess,
+  onCancel,
+  initialPurchaseRequestId,
+}: ProcurementQuoteWizardProps) {
   const toast = useToast();
   const [step, setStep] = useState(0);
   const [approvedRequests, setApprovedRequests] = useState<PurchaseRequestDTO[]>([]);
@@ -38,7 +45,7 @@ export function ProcurementQuoteWizard({ onSuccess, onCancel }: ProcurementQuote
   const [loadingData, setLoadingData] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [purchaseRequestId, setPurchaseRequestId] = useState('');
+  const [purchaseRequestId, setPurchaseRequestId] = useState(initialPurchaseRequestId ?? '');
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [sendAfterCreate, setSendAfterCreate] = useState(true);
@@ -59,6 +66,12 @@ export function ProcurementQuoteWizard({ onSuccess, onCancel }: ProcurementQuote
   );
 
   useEffect(() => {
+    if (initialPurchaseRequestId) {
+      setPurchaseRequestId(initialPurchaseRequestId);
+    }
+  }, [initialPurchaseRequestId]);
+
+  useEffect(() => {
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) {
       setLoadingData(false);
@@ -72,6 +85,9 @@ export function ProcurementQuoteWizard({ onSuccess, onCancel }: ProcurementQuote
       .then(([requestsResult, suppliersList]) => {
         setApprovedRequests(requestsResult.items);
         setSuppliers(Array.isArray(suppliersList) ? suppliersList : []);
+        if (initialPurchaseRequestId) {
+          setPurchaseRequestId(initialPurchaseRequestId);
+        }
       })
       .catch((err) => {
         toast({
@@ -83,7 +99,7 @@ export function ProcurementQuoteWizard({ onSuccess, onCancel }: ProcurementQuote
         });
       })
       .finally(() => setLoadingData(false));
-  }, [toast]);
+  }, [toast, initialPurchaseRequestId]);
 
   const toggleSupplier = (supplierId: string) => {
     setSelectedSupplierIds((prev) =>
@@ -261,9 +277,16 @@ export function ProcurementQuoteWizard({ onSuccess, onCancel }: ProcurementQuote
       {step === 2 && (
         <VStack align="stretch" spacing={4}>
           <Box>
-            <Text fontSize="sm" fontWeight="medium">
-              Solicitação
-            </Text>
+            <HStack spacing={2} mb={1}>
+              <Text fontSize="sm" fontWeight="medium">
+                Solicitação
+              </Text>
+              {selectedRequest?.priority && (
+                <Badge colorScheme={purchaseRequestPriorityColor(selectedRequest.priority)}>
+                  {purchaseRequestPriorityLabel(selectedRequest.priority)}
+                </Badge>
+              )}
+            </HStack>
             <Text fontSize="sm" color={mutedColor}>
               {selectedRequest?.display_code} — {selectedRequest?.justification}
             </Text>

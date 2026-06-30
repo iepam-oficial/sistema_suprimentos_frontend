@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -14,7 +14,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { Plus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ProcurementQuoteList,
   ProcurementQuoteWizard,
@@ -25,12 +25,22 @@ const ALLOWED_ROLES = ['MANAGER', 'DIRECTOR', 'ADMIN'];
 const MANAGER_ROLES = ['MANAGER', 'ADMIN'];
 
 export default function ProcurementQuotesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProcurementQuotesPageContent />
+    </Suspense>
+  );
+}
+
+function ProcurementQuotesPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const { isOpen: isWizardOpen, onOpen: openWizard, onClose: closeWizard } = useDisclosure();
   const [authorized, setAuthorized] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [initialPurchaseRequestId, setInitialPurchaseRequestId] = useState<string | undefined>();
   const { items, loading, error, reload } = useProcurementQuotes();
 
   const bgColor = useColorModeValue('white', 'gray.700');
@@ -59,10 +69,31 @@ export default function ProcurementQuotesPage() {
     }
   }, [error, toast]);
 
+  useEffect(() => {
+    if (!authorized || !userRole || !MANAGER_ROLES.includes(userRole)) {
+      return;
+    }
+
+    const newQuoteId = searchParams.get('newQuote');
+    if (newQuoteId) {
+      setInitialPurchaseRequestId(newQuoteId);
+      openWizard();
+    }
+  }, [authorized, userRole, searchParams, openWizard]);
+
   const handleWizardSuccess = (quoteId: string) => {
     closeWizard();
+    setInitialPurchaseRequestId(undefined);
     reload();
     router.push(`/procurement/cotacoes/${quoteId}`);
+  };
+
+  const handleWizardCancel = () => {
+    closeWizard();
+    setInitialPurchaseRequestId(undefined);
+    if (searchParams.get('newQuote')) {
+      router.replace('/procurement/cotacoes');
+    }
   };
 
   const isManager = userRole != null && MANAGER_ROLES.includes(userRole);
@@ -111,7 +142,11 @@ export default function ProcurementQuotesPage() {
             <Heading size="md" mb={4} color={headingColor}>
               Nova cotação de compra
             </Heading>
-            <ProcurementQuoteWizard onSuccess={handleWizardSuccess} onCancel={closeWizard} />
+            <ProcurementQuoteWizard
+              onSuccess={handleWizardSuccess}
+              onCancel={handleWizardCancel}
+              initialPurchaseRequestId={initialPurchaseRequestId}
+            />
             <Divider my={6} />
           </Box>
         )}

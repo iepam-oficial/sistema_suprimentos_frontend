@@ -1,23 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import {
-  Box,
-  Button,
-  Divider,
-  Flex,
-  Heading,
-  useColorModeValue,
-  useDisclosure,
-  useMediaQuery,
-  useToast,
-  VStack,
-} from '@chakra-ui/react';
-import { Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useDisclosure, useToast } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import {
-  PurchaseRequestForm,
-  PurchaseRequestList,
+  PurchaseRequestFiltersDrawer,
+  PurchaseRequestListTable,
+  PurchaseRequestPageShell,
+  PurchaseRequestToolbar,
+  usePurchaseRequestFilters,
   usePurchaseRequests,
 } from '@/features/procurement';
 
@@ -26,14 +17,24 @@ const ALLOWED_ROLES = ['COORDINATOR', 'ADMIN'];
 export default function PurchaseRequestsPage() {
   const router = useRouter();
   const toast = useToast();
-  const [isMobile] = useMediaQuery('(max-width: 768px)');
-  const { isOpen: isFormOpen, onOpen: openForm, onClose: closeForm } = useDisclosure();
   const [authorized, setAuthorized] = useState(false);
-  const { items, loading, error, reload } = usePurchaseRequests();
+  const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
 
-  const bgColor = useColorModeValue('white', 'gray.700');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const headingColor = useColorModeValue('gray.800', 'white');
+  const {
+    search,
+    setSearch,
+    drawerFilters,
+    setDrawerFilters,
+    clearDrawerFilters,
+    filtersActive,
+    apiFilters,
+    filterItems,
+  } = usePurchaseRequestFilters();
+
+  const stableApiFilters = useMemo(() => apiFilters, [JSON.stringify(apiFilters)]);
+
+  const { items, loading, error } = usePurchaseRequests(stableApiFilters);
+  const displayedItems = useMemo(() => filterItems(items), [items, filterItems]);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
@@ -56,62 +57,42 @@ export default function PurchaseRequestsPage() {
     }
   }, [error, toast]);
 
-  const handleFormSuccess = () => {
-    closeForm();
-    reload();
-  };
+  const goToNew = () => router.push('/procurement/solicitacoes/nova');
 
   if (!authorized) {
     return null;
   }
 
   return (
-    <Box w="full" h="full">
-      <VStack
-        spacing={4}
-        align="stretch"
-        bg={bgColor}
-        p={{ base: 2, md: 6 }}
-        borderRadius="lg"
-        boxShadow="sm"
-        borderWidth="1px"
-        borderColor={borderColor}
-        h="full"
+    <>
+      <PurchaseRequestPageShell
+        toolbar={
+          <PurchaseRequestToolbar
+            search={search}
+            onSearchChange={setSearch}
+            filtersActive={filtersActive}
+            onOpenFilters={onFilterOpen}
+            onNewRequest={goToNew}
+          />
+        }
       >
-        {!isMobile && (
-          <>
-            <Flex justify="space-between" align="center" gap={3}>
-              <Heading size="lg" color={headingColor}>
-                Solicitações de Compra
-              </Heading>
-              {!isFormOpen && (
-                <Button leftIcon={<Plus size={18} />} colorScheme="blue" onClick={openForm}>
-                  Nova solicitação
-                </Button>
-              )}
-            </Flex>
-            <Divider />
-          </>
-        )}
+        <PurchaseRequestListTable
+          items={displayedItems}
+          loading={loading}
+          onCreate={goToNew}
+        />
+      </PurchaseRequestPageShell>
 
-        {isMobile && !isFormOpen && (
-          <Button leftIcon={<Plus size={18} />} colorScheme="blue" onClick={openForm} size="sm">
-            Nova solicitação
-          </Button>
-        )}
-
-        {isFormOpen && (
-          <Box>
-            <Heading size="md" mb={4} color={headingColor}>
-              Nova solicitação de compra
-            </Heading>
-            <PurchaseRequestForm onSuccess={handleFormSuccess} onCancel={closeForm} />
-            <Divider my={6} />
-          </Box>
-        )}
-
-        <PurchaseRequestList items={items} loading={loading} />
-      </VStack>
-    </Box>
+      <PurchaseRequestFiltersDrawer
+        isOpen={isFilterOpen}
+        onClose={onFilterClose}
+        filters={drawerFilters}
+        onChange={setDrawerFilters}
+        onClear={() => {
+          clearDrawerFilters();
+          onFilterClose();
+        }}
+      />
+    </>
   );
 }

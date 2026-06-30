@@ -38,6 +38,7 @@ import {
   Select,
 } from '@chakra-ui/react';
 import { PageHeader } from '@/components/PageHeader';
+import { LegacyQuoteDeprecationBanner } from '../components/LegacyQuoteDeprecationBanner';
 import { generateQuotePDF } from '../components/QuotePDF';
 import { formatBRL } from '@/utils/money';
 import {
@@ -300,6 +301,7 @@ export default function QuoteDetailsPage() {
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={8} align="stretch">
+        <LegacyQuoteDeprecationBanner />
         <PageHeader
           title={`Cotação #${quote.id}`}
           description="Detalhes da cotação de suprimentos"

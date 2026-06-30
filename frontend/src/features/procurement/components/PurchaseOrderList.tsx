@@ -23,7 +23,9 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { SearchIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import type { PurchaseOrderDTO } from '@ti-assistant/contracts';
+import { createGoodsReceipt } from '../api/goodsReceiptApi';
 import { sendPurchaseOrder } from '../api/purchaseOrderApi';
 import { purchaseOrderStatusColor, purchaseOrderStatusLabel } from '../types';
 
@@ -40,10 +42,12 @@ export function PurchaseOrderList({
   onReload,
   canManage = false,
 }: PurchaseOrderListProps) {
+  const router = useRouter();
   const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [startingReceiptId, setStartingReceiptId] = useState<string | null>(null);
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
   const textColor = useColorModeValue('gray.800', 'white');
@@ -88,6 +92,38 @@ export function PurchaseOrderList({
       });
     } finally {
       setSendingId(null);
+    }
+  };
+
+  const handleStartReceipt = async (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token) {
+      toast({ title: 'Sessão expirada', status: 'error', duration: 3000, isClosable: true });
+      return;
+    }
+
+    setStartingReceiptId(orderId);
+    try {
+      const receipt = await createGoodsReceipt(token, { purchase_order_id: orderId });
+      toast({
+        title: 'Recebimento iniciado',
+        description: `Código ${receipt.display_code}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      router.push(`/procurement/recebimentos/${receipt.id}`);
+    } catch (err) {
+      toast({
+        title: 'Erro ao iniciar recebimento',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setStartingReceiptId(null);
     }
   };
 
@@ -170,17 +206,30 @@ export function PurchaseOrderList({
                   </Td>
                   {canManage && (
                     <Td textAlign="right">
-                      {item.status === 'DRAFT' && (
-                        <Button
-                          size="xs"
-                          colorScheme="blue"
-                          isLoading={sendingId === item.id}
-                          loadingText="Enviando..."
-                          onClick={(e) => handleSend(e, item.id)}
-                        >
-                          Enviar
-                        </Button>
-                      )}
+                      <HStack justify="flex-end" spacing={2}>
+                        {item.status === 'DRAFT' && (
+                          <Button
+                            size="xs"
+                            colorScheme="blue"
+                            isLoading={sendingId === item.id}
+                            loadingText="Enviando..."
+                            onClick={(e) => handleSend(e, item.id)}
+                          >
+                            Enviar
+                          </Button>
+                        )}
+                        {item.status === 'ACCEPTED' && (
+                          <Button
+                            size="xs"
+                            colorScheme="green"
+                            isLoading={startingReceiptId === item.id}
+                            loadingText="Iniciando..."
+                            onClick={(e) => handleStartReceipt(e, item.id)}
+                          >
+                            Iniciar recebimento
+                          </Button>
+                        )}
+                      </HStack>
                     </Td>
                   )}
                 </Tr>

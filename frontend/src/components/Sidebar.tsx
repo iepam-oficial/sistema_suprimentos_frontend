@@ -27,11 +27,13 @@ import {
   CheckSquare,
   Scale,
   Receipt,
+  ListOrdered,
   LucideIcon,
 } from 'lucide-react';
 import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
 import { useUser, useFilters } from '@/contexts/GlobalContext';
 import { useLogout } from '@/hooks/useLogout';
+import { hasEmployeeSelfServiceAccess } from '@ti-assistant/contracts';
 import { canCreateSupportTicket } from '@/features/support-tickets/types';
 import { cn } from '@/components/support-desk/cn';
 
@@ -110,6 +112,7 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     if (href === '/support-tickets') return pathname.startsWith('/support-tickets');
     if (href === '/procurement/solicitacoes') return pathname.startsWith('/procurement/solicitacoes');
     if (href === '/procurement/aprovacoes-sc') return pathname.startsWith('/procurement/aprovacoes-sc');
+    if (href === '/procurement/fila-compras') return pathname.startsWith('/procurement/fila-compras');
     if (href === '/procurement/cotacoes') return pathname.startsWith('/procurement/cotacoes');
     if (href === '/procurement/pedidos') return pathname.startsWith('/procurement/pedidos');
     return pathname === href;
@@ -120,7 +123,8 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
       ? [{ icon: Home, label: 'Dashboard', href: '/dashboard' }]
       : []),
     ...(user &&
-    ['EMPLOYEE', 'ORGANIZER', 'SUPPORT', 'ADMIN', 'MANAGER', 'TECHNICIAN'].includes(user.role)
+    (hasEmployeeSelfServiceAccess(user.role) ||
+      ['SUPPORT', 'ADMIN', 'MANAGER'].includes(user.role))
       ? [{ icon: Headphones, label: 'Chamados', href: '/support-tickets' }]
       : []),
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
@@ -139,7 +143,7 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Package, label: 'Requisições', href: '/supply-requests/admin' }]
       : []),
-    ...(user && ['EMPLOYEE', 'ORGANIZER', 'TECHNICIAN'].includes(user.role)
+    ...(user && hasEmployeeSelfServiceAccess(user.role)
       ? [{ icon: ShoppingCart, label: 'Requisições', href: '/supply-requests' }]
       : []),
     ...(user && ['COORDINATOR', 'ADMIN'].includes(user.role)
@@ -147,6 +151,9 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
       : []),
     ...(user && ['DIRECTOR', 'ADMIN'].includes(user.role)
       ? [{ icon: CheckSquare, label: 'Aprovações SC', href: '/procurement/aprovacoes-sc' }]
+      : []),
+    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+      ? [{ icon: ListOrdered, label: 'Fila de Compras', href: '/procurement/fila-compras' }]
       : []),
     ...(user && ['MANAGER', 'DIRECTOR', 'ADMIN'].includes(user.role)
       ? [{ icon: Scale, label: 'Cotações de Compras', href: '/procurement/cotacoes' }]

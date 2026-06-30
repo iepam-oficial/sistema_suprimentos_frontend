@@ -21,6 +21,7 @@ export const ROLES_TICKETS_VIEW = [
   'ADMIN',
   'MANAGER',
   'TECHNICIAN',
+  'COORDINATOR',
 ] as const;
 
 export const ROLES_TICKETS_CREATE = [
@@ -29,6 +30,7 @@ export const ROLES_TICKETS_CREATE = [
   'SUPPORT',
   'ADMIN',
   'MANAGER',
+  'COORDINATOR',
 ] as const;
 
 export function canViewSupportTickets(role: string): boolean {

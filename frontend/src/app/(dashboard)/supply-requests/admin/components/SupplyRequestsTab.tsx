@@ -254,7 +254,7 @@ export function SupplyRequestsTab({
                             </HStack>
                         )}
                         {request.status === 'APPROVED' && !request.manager_delivery_confirmation && (
-                            <Button size="sm" colorScheme="blue" w="full" onClick={() => onConfirmDelivery(request, true)}>Confirmar Entrega</Button>
+                            <Button size="sm" colorScheme="blue" w="full" onClick={() => onConfirmDelivery(request, true)} data-testid="sr-manager-confirm">Confirmar Entrega</Button>
                         )}
                     </VStack>
                 </Box>
@@ -312,7 +312,7 @@ export function SupplyRequestsTab({
                                     </HStack>
                                 )}
                                 {request.status === 'APPROVED' && !request.manager_delivery_confirmation && (
-                                    <Button size="xs" colorScheme="blue" leftIcon={<CheckCircle size={12} />} onClick={() => onConfirmDelivery(request, true)}>Confirmar Entrega</Button>
+                                    <Button size="xs" colorScheme="blue" leftIcon={<CheckCircle size={12} />} onClick={() => onConfirmDelivery(request, true)} data-testid="sr-manager-confirm">Confirmar Entrega</Button>
                                 )}
                             </VStack>
                         </Td>

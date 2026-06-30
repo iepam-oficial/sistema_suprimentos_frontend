@@ -88,6 +88,7 @@ import { useCartContext } from '@/features/supply-requests/context/CartContext';
 import { useInventoryCache } from '@/features/inventory/context/InventoryCacheContext';
 import type { InventoryItem, InventoryAllocation } from '@/features/inventory/types';
 import { fetchLocalesByUserLocation } from '@/features/reference-data';
+import { hasEmployeeSelfServiceAccess } from '@ti-assistant/contracts';
 
 // Layout reutilizável para abas persistentes (copiado/adaptado do admin)
 function PersistentTabsLayout({ tabLabels, children, onTabChange, storageKey = 'persistentTabIndexColab' }: { tabLabels: string[], children: React.ReactNode[], onTabChange?: (() => void)[], storageKey?: string }) {
@@ -312,7 +313,7 @@ export default function SupplyRequestsPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user || !['EMPLOYEE', 'ORGANIZER', 'TECHNICIAN'].includes(user.role)) {
+    if (!user || !hasEmployeeSelfServiceAccess(user.role)) {
       router.push('/unauthorized');
       return;
     }

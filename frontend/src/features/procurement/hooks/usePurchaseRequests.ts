@@ -37,7 +37,16 @@ export function usePurchaseRequests(filters: PurchaseRequestListFilters = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.created_by_id, filters.page, filters.limit]);
+  }, [
+    filters.status,
+    filters.created_by_id,
+    filters.awaiting_quote,
+    filters.priority,
+    filters.created_from,
+    filters.created_to,
+    filters.page,
+    filters.limit,
+  ]);
 
   useEffect(() => {
     load();

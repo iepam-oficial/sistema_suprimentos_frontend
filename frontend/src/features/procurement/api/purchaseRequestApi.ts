@@ -1,18 +1,25 @@
 import type {
   ApprovePurchaseRequestInput,
+  CatalogSearchOptions,
   CatalogSearchResultDTO,
   CreatePurchaseRequestInput,
   ProcurementSettingsDTO,
   PurchaseRequestDTO,
+  PurchaseRequestPriority,
   PurchaseRequestStatus,
   RejectPurchaseRequestInput,
   UpdateProcurementSettingsInput,
   UpdatePurchaseRequestInput,
+  UpdatePurchaseRequestPriorityInput,
 } from '@ti-assistant/contracts';
 
 export interface PurchaseRequestListFilters {
   status?: PurchaseRequestStatus;
   created_by_id?: string;
+  awaiting_quote?: boolean;
+  priority?: PurchaseRequestPriority;
+  created_from?: string;
+  created_to?: string;
   page?: number;
   limit?: number;
 }
@@ -52,6 +59,10 @@ function buildListQuery(filters: PurchaseRequestListFilters = {}): string {
 
   if (filters.status) params.set('status', filters.status);
   if (filters.created_by_id) params.set('created_by_id', filters.created_by_id);
+  if (filters.awaiting_quote === true) params.set('awaiting_quote', 'true');
+  if (filters.priority) params.set('priority', filters.priority);
+  if (filters.created_from) params.set('created_from', filters.created_from);
+  if (filters.created_to) params.set('created_to', filters.created_to);
   if (filters.page !== undefined) params.set('page', String(filters.page));
   if (filters.limit !== undefined) params.set('limit', String(filters.limit));
 
@@ -162,11 +173,31 @@ export async function updateProcurementSettings(
   return handleResponse<ProcurementSettingsDTO>(response);
 }
 
+export async function updatePurchaseRequestPriority(
+  token: string,
+  id: string,
+  input: UpdatePurchaseRequestPriorityInput,
+): Promise<PurchaseRequestDTO> {
+  const response = await fetch(
+    `/api/purchase-requests/${encodeURIComponent(id)}/priority`,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders(token),
+      body: JSON.stringify(input),
+    },
+  );
+  return handleResponse<PurchaseRequestDTO>(response);
+}
+
 export async function searchCatalog(
   token: string,
-  query: string
+  query: string,
+  options: CatalogSearchOptions = {},
 ): Promise<CatalogSearchResultDTO[]> {
   const params = new URLSearchParams({ q: query });
+  if (options.scope === 'supply') {
+    params.set('scope', 'supply');
+  }
   const response = await fetch(`/api/procurement/catalog-search?${params.toString()}`, {
     headers: authHeaders(token),
   });

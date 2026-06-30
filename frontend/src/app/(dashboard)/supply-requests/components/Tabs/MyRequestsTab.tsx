@@ -330,6 +330,7 @@ export function MyRequestsTab({
                           _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }}
                           transition="all 0.3s ease"
                           w="full"
+                          data-testid="sr-requester-confirm"
                         >
                           Confirmar Recebimento
                         </Button>
@@ -415,6 +416,7 @@ export function MyRequestsTab({
                             bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined}
                             _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }}
                             transition="all 0.3s ease"
+                            data-testid="sr-requester-confirm"
                           >
                             {isMobile ? 'Confirmar' : 'Confirmar Recebimento'}
                           </Button>

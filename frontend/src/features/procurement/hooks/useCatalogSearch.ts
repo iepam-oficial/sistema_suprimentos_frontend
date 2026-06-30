@@ -14,8 +14,12 @@ function getToken(): string | null {
 async function fetchCatalogSearch(
   token: string,
   query: string,
+  scope: 'supply' | 'all' = 'all',
 ): Promise<CatalogSearchResultDTO[]> {
   const params = new URLSearchParams({ q: query });
+  if (scope === 'supply') {
+    params.set('scope', 'supply');
+  }
   const response = await fetch(`/api/procurement/catalog-search?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -29,9 +33,10 @@ async function fetchCatalogSearch(
 
 export function useCatalogSearch(
   query: string,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; scope?: 'supply' | 'all' },
 ) {
   const enabled = options?.enabled !== false;
+  const scope = options?.scope ?? 'all';
   const [results, setResults] = useState<CatalogSearchResultDTO[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +73,7 @@ export function useCatalogSearch(
           return;
         }
 
-        const data = await fetchCatalogSearch(token, trimmed);
+        const data = await fetchCatalogSearch(token, trimmed, scope);
         if (!cancelled) {
           setResults(data);
           setError(null);
@@ -93,7 +98,7 @@ export function useCatalogSearch(
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [query, enabled]);
+  }, [query, enabled, scope]);
 
   return { results, isLoading, error };
 }

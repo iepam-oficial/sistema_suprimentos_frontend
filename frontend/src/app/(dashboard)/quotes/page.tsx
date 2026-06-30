@@ -18,6 +18,7 @@ import {
 import { QuoteList } from './components/QuoteList';
 import { CreateQuoteButton } from './components/CreateQuoteButton';
 import { SmartQuotesTable } from './components/SmartQuotesTable';
+import { LegacyQuoteDeprecationBanner } from './components/LegacyQuoteDeprecationBanner';
 import { useQuotes } from '@/features/quotes';
 
 export default function QuotesPage() {
@@ -72,6 +73,8 @@ export default function QuotesPage() {
             <Divider />
           </>
         )}
+
+        <LegacyQuoteDeprecationBanner />
 
         <Box position="sticky" top="7vh" zIndex={21} bg={useColorModeValue('white', 'gray.700')} borderRadius="lg">
           <Tabs variant="enclosed" size={{ base: 'sm', md: 'md' }}>

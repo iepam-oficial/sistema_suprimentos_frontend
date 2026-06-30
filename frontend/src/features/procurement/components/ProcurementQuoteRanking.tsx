@@ -16,6 +16,7 @@ import {
   Textarea,
   Th,
   Thead,
+  Tooltip,
   Tr,
   useColorModeValue,
   useToast,
@@ -49,6 +50,33 @@ function scoreBar(score: number, colorScheme: string) {
 
 function supplierName(ranking: ProcurementQuoteRankingDTO): string {
   return ranking.invite?.supplier?.name ?? '—';
+}
+
+const RANKING_COLUMN_TOOLTIPS: Record<string, string> = {
+  Preço: 'Nota de 0 a 5: quanto menor o valor total da proposta, melhor a nota.',
+  Entrega: 'Nota de 0 a 5: quanto menor o prazo de entrega em dias, melhor a nota.',
+  Pagamento: 'Nota de 0 a 5: quanto maior o prazo de pagamento em dias, melhor a nota.',
+  Frete: 'Nota de 0 a 5: quanto menor o valor do frete, melhor a nota.',
+  Impostos: 'Nota de 0 a 5: quanto menor o valor dos impostos, melhor a nota.',
+  Total: 'Média dos cinco critérios — nota final usada para ordenar o ranking.',
+};
+
+function RankingColumnHeader({ label }: { label: string }) {
+  const tooltip = RANKING_COLUMN_TOOLTIPS[label];
+
+  if (!tooltip) {
+    return <Th>{label}</Th>;
+  }
+
+  return (
+    <Th>
+      <Tooltip label={tooltip} placement="top" hasArrow>
+        <Text as="span" cursor="help">
+          {label}
+        </Text>
+      </Tooltip>
+    </Th>
+  );
 }
 
 export function ProcurementQuoteRanking({
@@ -148,12 +176,12 @@ export function ProcurementQuoteRanking({
             <Tr>
               <Th>Pos.</Th>
               <Th>Fornecedor</Th>
-              <Th>Preço</Th>
-              <Th>Entrega</Th>
-              <Th>Pagamento</Th>
-              <Th>Frete</Th>
-              <Th>Impostos</Th>
-              <Th>Total</Th>
+              <RankingColumnHeader label="Preço" />
+              <RankingColumnHeader label="Entrega" />
+              <RankingColumnHeader label="Pagamento" />
+              <RankingColumnHeader label="Frete" />
+              <RankingColumnHeader label="Impostos" />
+              <RankingColumnHeader label="Total" />
             </Tr>
           </Thead>
           <Tbody>

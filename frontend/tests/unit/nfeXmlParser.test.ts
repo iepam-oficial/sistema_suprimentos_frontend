@@ -36,6 +36,13 @@ describe('parseNfeXml', () => {
     expect(result.nfe_series).toBe('1');
   });
 
+  it('extracts supplier name from emit block', () => {
+    const xml = readFileSync(fixturePath, 'utf-8');
+    const result = parseNfeXml(xml);
+
+    expect(result.supplier_name).toBe('Ferramentas ABC Ltda');
+  });
+
   it('accepts Buffer input', () => {
     const buffer = readFileSync(fixturePath);
     const result = parseNfeXml(buffer);

@@ -19,6 +19,24 @@ export interface ProcurementQuoteListResult {
   limit: number;
 }
 
+export type ProcurementQuoteEventType =
+  | 'EMAIL_SENT'
+  | 'EMAIL_OPENED'
+  | 'PORTAL_ACCESSED'
+  | 'PROPOSAL_SUBMITTED'
+  | 'INVITE_DECLINED'
+  | 'QUOTE_CLOSED'
+  | 'QUOTE_APPROVED';
+
+export interface ProcurementQuoteEventDTO {
+  id: string;
+  procurement_quote_id: string;
+  invite_id: string | null;
+  event_type: ProcurementQuoteEventType | string;
+  metadata: unknown;
+  created_at: string;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
@@ -72,6 +90,19 @@ export async function fetchProcurementQuoteById(
     headers: authHeaders(token),
   });
   return handleResponse<ProcurementQuoteDTO>(response);
+}
+
+export async function fetchProcurementQuoteEvents(
+  token: string,
+  quoteId: string
+): Promise<ProcurementQuoteEventDTO[]> {
+  const response = await fetch(
+    `/api/procurement-quotes/${encodeURIComponent(quoteId)}/events`,
+    {
+      headers: authHeaders(token),
+    }
+  );
+  return handleResponse<ProcurementQuoteEventDTO[]>(response);
 }
 
 export async function createProcurementQuote(

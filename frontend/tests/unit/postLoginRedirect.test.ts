@@ -7,6 +7,8 @@ describe('postLoginRedirect', () => {
   it('maps roles to default paths', () => {
     expect(getPostLoginPath('ADMIN')).toBe('/dashboard')
     expect(getPostLoginPath('MANAGER')).toBe('/dashboard')
+    expect(getPostLoginPath('COORDINATOR')).toBe('/procurement/solicitacoes')
+    expect(getPostLoginPath('DIRECTOR')).toBe('/procurement/aprovacoes-sc')
     expect(getPostLoginPath('EMPLOYEE')).toBe('/supply-requests')
     expect(getPostLoginPath('TECHNICIAN')).toBe('/supply-requests')
     expect(getPostLoginPath('ORGANIZER')).toBe('/supply-requests')
@@ -20,11 +22,23 @@ describe('postLoginRedirect', () => {
     expect(
       resolvePostLoginPath('EMPLOYEE', { from: '/dashboard' }),
     ).toBe('/supply-requests')
+    expect(
+      resolvePostLoginPath('COORDINATOR', { from: '/procurement/solicitacoes/abc' }),
+    ).toBe('/procurement/solicitacoes/abc')
+    expect(
+      resolvePostLoginPath('COORDINATOR', { from: '/supply-requests' }),
+    ).toBe('/supply-requests')
+    expect(
+      resolvePostLoginPath('COORDINATOR', { from: '/support-tickets/abc' }),
+    ).toBe('/support-tickets/abc')
   })
 
   it('ignores disallowed ?from= paths', () => {
     expect(
       resolvePostLoginPath('SUPPORT', { from: '/dashboard' }),
     ).toBe('/support-tickets')
+    expect(
+      resolvePostLoginPath('DIRECTOR', { from: '/dashboard' }),
+    ).toBe('/procurement/aprovacoes-sc')
   })
 })

@@ -8,6 +8,9 @@
         <serie>1</serie>
         <dhEmi>2026-06-23T10:00:00-03:00</dhEmi>
       </ide>
+      <emit>
+        <xNome>Ferramentas ABC Ltda</xNome>
+      </emit>
       <det nItem="1">
         <prod>
           <xProd>Parafuso sextavado M8</xProd>

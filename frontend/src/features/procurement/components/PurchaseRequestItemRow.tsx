@@ -2,7 +2,6 @@
 
 import {
   IconButton,
-  Input,
   NumberInput,
   NumberInputField,
   NumberInputStepper,
@@ -12,19 +11,14 @@ import {
   Tr,
 } from '@chakra-ui/react';
 import { Trash2 } from 'lucide-react';
-import { CatalogItemAutocomplete, type CatalogSelection } from './CatalogItemAutocomplete';
-
-export interface PurchaseRequestItemFormRow {
-  key: string;
-  description: string;
-  quantity: number;
-  unit: string;
-  supply_id?: string;
-  inventory_id?: string;
-}
+import type { UnitOfMeasureDTO } from '@ti-assistant/contracts';
+import { SupplyItemAutocomplete } from './purchase-request/SupplyItemAutocomplete';
+import { UnitOfMeasureSelect } from './purchase-request/UnitOfMeasureSelect';
+import type { PurchaseRequestItemFormRow } from './purchase-request/purchaseRequestWizardTypes';
 
 interface PurchaseRequestItemRowProps {
   row: PurchaseRequestItemFormRow;
+  units: UnitOfMeasureDTO[];
   onChange: (row: PurchaseRequestItemFormRow) => void;
   onRemove: () => void;
   canRemove: boolean;
@@ -33,42 +27,42 @@ interface PurchaseRequestItemRowProps {
 
 export function PurchaseRequestItemRow({
   row,
+  units,
   onChange,
   onRemove,
   canRemove,
   isDisabled = false,
 }: PurchaseRequestItemRowProps) {
-  const handleCatalogSelect = (selection: CatalogSelection) => {
-    onChange({
-      ...row,
-      description: selection.description,
-      unit: selection.unit ?? row.unit,
-      supply_id: selection.supply_id,
-      inventory_id: selection.inventory_id,
-    });
-  };
+  const unitLocked = Boolean(row.supply_id);
 
   return (
     <Tr>
-      <Td px={2} py={2}>
-        <CatalogItemAutocomplete
+      <Td px={3} py={3}>
+        <SupplyItemAutocomplete
           value={row.description}
           onChange={(description) =>
             onChange({
               ...row,
               description,
               supply_id: undefined,
-              inventory_id: undefined,
+              unit: row.supply_id ? '' : row.unit,
             })
           }
-          onSelect={handleCatalogSelect}
+          onSelect={(selection) =>
+            onChange({
+              ...row,
+              description: selection.description,
+              unit: selection.unit ?? '',
+              supply_id: selection.supply_id,
+            })
+          }
           isDisabled={isDisabled}
         />
       </Td>
-      <Td px={2} py={2} w="120px">
+      <Td px={3} py={3} w="120px">
         <NumberInput
           size="sm"
-          min={0.01}
+          min={1}
           step={1}
           value={row.quantity}
           isDisabled={isDisabled}
@@ -81,16 +75,15 @@ export function PurchaseRequestItemRow({
           </NumberInputStepper>
         </NumberInput>
       </Td>
-      <Td px={2} py={2} w="120px">
-        <Input
-          size="sm"
+      <Td px={3} py={3} w="180px">
+        <UnitOfMeasureSelect
+          units={units}
           value={row.unit}
-          placeholder="Unidade"
-          isDisabled={isDisabled}
-          onChange={(e) => onChange({ ...row, unit: e.target.value })}
+          onChange={(unit) => onChange({ ...row, unit })}
+          isDisabled={isDisabled || unitLocked}
         />
       </Td>
-      <Td px={2} py={2} w="60px">
+      <Td px={3} py={3} w="60px">
         <IconButton
           aria-label="Remover item"
           icon={<Trash2 size={16} />}
@@ -105,11 +98,5 @@ export function PurchaseRequestItemRow({
   );
 }
 
-export function createEmptyItemRow(): PurchaseRequestItemFormRow {
-  return {
-    key: crypto.randomUUID(),
-    description: '',
-    quantity: 1,
-    unit: '',
-  };
-}
+export type { PurchaseRequestItemFormRow } from './purchase-request/purchaseRequestWizardTypes';
+export { createEmptyItemRow } from './purchase-request/purchaseRequestWizardTypes';

@@ -29,6 +29,8 @@ import { sendProcurementQuote } from '../api/procurementQuoteApi';
 import {
   procurementQuoteStatusColor,
   procurementQuoteStatusLabel,
+  purchaseRequestPriorityColor,
+  purchaseRequestPriorityLabel,
 } from '../types';
 
 interface ProcurementQuoteListProps {
@@ -146,6 +148,7 @@ export function ProcurementQuoteList({
               <Tr>
                 <Th>Código</Th>
                 <Th>Status</Th>
+                <Th>Prioridade</Th>
                 <Th>Solicitação</Th>
                 <Th>Fornecedores</Th>
                 <Th>Prazo resposta</Th>
@@ -168,6 +171,15 @@ export function ProcurementQuoteList({
                     <Badge colorScheme={procurementQuoteStatusColor(item.status)}>
                       {procurementQuoteStatusLabel(item.status)}
                     </Badge>
+                  </Td>
+                  <Td>
+                    {item.purchase_request?.priority ? (
+                      <Badge colorScheme={purchaseRequestPriorityColor(item.purchase_request.priority)}>
+                        {purchaseRequestPriorityLabel(item.purchase_request.priority)}
+                      </Badge>
+                    ) : (
+                      '—'
+                    )}
                   </Td>
                   <Td color={textColor}>
                     {item.purchase_request?.display_code ?? '—'}

@@ -1,16 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
   Button,
   Center,
-  Divider,
-  Flex,
   FormControl,
   FormLabel,
-  Heading,
   HStack,
   Modal,
   ModalBody,
@@ -31,18 +28,23 @@ import {
   useColorModeValue,
   useDisclosure,
   useToast,
-  VStack,
 } from '@chakra-ui/react';
 import type { PurchaseRequestDTO } from '@ti-assistant/contracts';
+import { useRouter } from 'next/navigation';
 import {
   approvePurchaseRequest,
+  PurchaseRequestDetailModal,
+  PurchaseRequestFiltersDrawer,
+  PurchaseRequestPageShell,
+  PurchaseRequestToolbar,
   purchaseRequestPriorityColor,
   purchaseRequestPriorityLabel,
+  purchaseRequestStatusColor,
   purchaseRequestStatusLabel,
   rejectPurchaseRequest,
+  useDirectorApprovalFilters,
   usePurchaseRequests,
 } from '@/features/procurement';
-import { useRouter } from 'next/navigation';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
 
@@ -52,21 +54,49 @@ export default function PurchaseRequestApprovalsPage() {
   const router = useRouter();
   const toast = useToast();
   const [authorized, setAuthorized] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [token, setToken] = useState<string | null>(null);
   const [selected, setSelected] = useState<PurchaseRequestDTO | null>(null);
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<ActionType>('approve');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const { items, loading, error, reload } = usePurchaseRequests({
-    status: 'PENDING_APPROVAL',
-  });
+  const {
+    isOpen: isActionOpen,
+    onOpen: onActionOpen,
+    onClose: onActionClose,
+  } = useDisclosure();
+  const {
+    isOpen: isDetailOpen,
+    onOpen: onDetailOpen,
+    onClose: onDetailClose,
+  } = useDisclosure();
+  const {
+    isOpen: isFilterOpen,
+    onOpen: onFilterOpen,
+    onClose: onFilterClose,
+  } = useDisclosure();
 
-  const bgColor = useColorModeValue('white', 'gray.700');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const headingColor = useColorModeValue('gray.800', 'white');
-  const textColor = useColorModeValue('gray.700', 'gray.200');
+  const {
+    search,
+    setSearch,
+    drawerFilters,
+    setDrawerFilters,
+    clearDrawerFilters,
+    filtersActive,
+    apiFilters,
+    filterItems,
+  } = useDirectorApprovalFilters(currentUserId);
+
+  const stableApiFilters = useMemo(() => apiFilters, [JSON.stringify(apiFilters)]);
+
+  const { items, loading, error, reload } = usePurchaseRequests(stableApiFilters);
+  const displayedItems = useMemo(() => filterItems(items), [items, filterItems]);
+
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
+  const headerBg = useColorModeValue('gray.50', 'gray.700');
+  const textColor = useColorModeValue('gray.700', 'gray.200');
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
@@ -74,6 +104,8 @@ export default function PurchaseRequestApprovalsPage() {
       router.push('/unauthorized');
       return;
     }
+    setCurrentUserId(user.id ?? '');
+    setToken(localStorage.getItem('@ti-assistant:token'));
     setAuthorized(true);
   }, [router]);
 
@@ -94,10 +126,23 @@ export default function PurchaseRequestApprovalsPage() {
       setSelected(request);
       setActionType(type);
       setReason('');
-      onOpen();
+      onActionOpen();
     },
-    [onOpen],
+    [onActionOpen],
   );
+
+  const openDetailModal = useCallback(
+    (request: PurchaseRequestDTO) => {
+      setDetailRequestId(request.id);
+      onDetailOpen();
+    },
+    [onDetailOpen],
+  );
+
+  const handleDetailClose = useCallback(() => {
+    onDetailClose();
+    setDetailRequestId(null);
+  }, [onDetailClose]);
 
   const handleConfirm = async () => {
     if (!selected) return;
@@ -113,7 +158,6 @@ export default function PurchaseRequestApprovalsPage() {
       return;
     }
 
-    const token = localStorage.getItem('@ti-assistant:token');
     if (!token) {
       toast({
         title: 'Sessão expirada',
@@ -146,7 +190,7 @@ export default function PurchaseRequestApprovalsPage() {
         });
       }
 
-      onClose();
+      onActionClose();
       reload();
     } catch (err) {
       toast({
@@ -166,40 +210,37 @@ export default function PurchaseRequestApprovalsPage() {
   }
 
   return (
-    <Box w="full" h="full">
-      <VStack
-        spacing={4}
-        align="stretch"
-        bg={bgColor}
-        p={{ base: 2, md: 6 }}
-        borderRadius="lg"
-        boxShadow="sm"
-        borderWidth="1px"
-        borderColor={borderColor}
-        h="full"
+    <>
+      <PurchaseRequestPageShell
+        title="Aprovações de SC"
+        toolbar={
+          <PurchaseRequestToolbar
+            search={search}
+            onSearchChange={setSearch}
+            filtersActive={filtersActive}
+            onOpenFilters={onFilterOpen}
+            onNewRequest={() => {}}
+            showNewRequest={false}
+          />
+        }
       >
-        <Heading size="lg" color={headingColor}>
-          Aprovações de Solicitações de Compra
-        </Heading>
-        <Text color="gray.500" fontSize="sm">
-          Solicitações aguardando aprovação do diretor.
-        </Text>
-        <Divider />
-
         {loading ? (
-          <Center py={12}>
+          <Center flex="1" py={12}>
             <Spinner size="xl" />
           </Center>
-        ) : items.length === 0 ? (
-          <Center py={12}>
-            <Text color="gray.500">Nenhuma solicitação pendente de aprovação.</Text>
+        ) : displayedItems.length === 0 ? (
+          <Center flex="1" py={12}>
+            <Text color="gray.500" textAlign="center">
+              Nenhuma solicitação encontrada com os filtros atuais.
+            </Text>
           </Center>
         ) : (
-          <Box overflowX="auto">
+          <Box flex="1" minH={0} overflowX="auto" overflowY="auto">
             <Table size="sm">
-              <Thead>
+              <Thead position="sticky" top={0} zIndex={1} bg={headerBg}>
                 <Tr>
                   <Th>Código</Th>
+                  <Th>Status</Th>
                   <Th>Prioridade</Th>
                   <Th>Solicitante</Th>
                   <Th>Justificativa</Th>
@@ -209,10 +250,15 @@ export default function PurchaseRequestApprovalsPage() {
                 </Tr>
               </Thead>
               <Tbody>
-                {items.map((item) => (
+                {displayedItems.map((item) => (
                   <Tr key={item.id} _hover={{ bg: hoverBg }}>
                     <Td color={textColor} fontWeight="medium">
                       {item.display_code}
+                    </Td>
+                    <Td>
+                      <Badge colorScheme={purchaseRequestStatusColor(item.status)}>
+                        {purchaseRequestStatusLabel(item.status)}
+                      </Badge>
                     </Td>
                     <Td>
                       <Badge colorScheme={purchaseRequestPriorityColor(item.priority)}>
@@ -222,7 +268,7 @@ export default function PurchaseRequestApprovalsPage() {
                     <Td color={textColor}>
                       {'name' in item.created_by ? item.created_by.name : '—'}
                     </Td>
-                    <Td color={textColor} maxW="280px" isTruncated title={item.justification}>
+                    <Td color={textColor} maxW="240px" isTruncated title={item.justification}>
                       {item.justification}
                     </Td>
                     <Td color={textColor}>{item.items.length}</Td>
@@ -237,19 +283,32 @@ export default function PurchaseRequestApprovalsPage() {
                       <HStack justify="flex-end" spacing={2}>
                         <Button
                           size="sm"
-                          colorScheme="green"
-                          onClick={() => openActionModal(item, 'approve')}
-                        >
-                          Aprovar
-                        </Button>
-                        <Button
-                          size="sm"
-                          colorScheme="red"
                           variant="outline"
-                          onClick={() => openActionModal(item, 'reject')}
+                          onClick={() => openDetailModal(item)}
                         >
-                          Rejeitar
+                          Ver detalhes
                         </Button>
+                        {item.status === 'PENDING_APPROVAL' && (
+                          <>
+                            <Button
+                              size="sm"
+                              colorScheme="green"
+                              onClick={() => openActionModal(item, 'approve')}
+                              data-testid="pr-approve"
+                            >
+                              Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              colorScheme="red"
+                              variant="outline"
+                              onClick={() => openActionModal(item, 'reject')}
+                              data-testid="pr-reject"
+                            >
+                              Rejeitar
+                            </Button>
+                          </>
+                        )}
                       </HStack>
                     </Td>
                   </Tr>
@@ -258,9 +317,27 @@ export default function PurchaseRequestApprovalsPage() {
             </Table>
           </Box>
         )}
-      </VStack>
+      </PurchaseRequestPageShell>
 
-      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+      <PurchaseRequestFiltersDrawer
+        isOpen={isFilterOpen}
+        onClose={onFilterClose}
+        filters={drawerFilters}
+        onChange={setDrawerFilters}
+        onClear={() => {
+          clearDrawerFilters();
+          onFilterClose();
+        }}
+      />
+
+      <PurchaseRequestDetailModal
+        isOpen={isDetailOpen}
+        onClose={handleDetailClose}
+        purchaseRequestId={detailRequestId}
+        token={token}
+      />
+
+      <Modal isOpen={isActionOpen} onClose={onActionClose} isCentered>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
@@ -269,12 +346,12 @@ export default function PurchaseRequestApprovalsPage() {
           <ModalCloseButton />
           <ModalBody>
             {selected && (
-              <VStack align="stretch" spacing={3}>
-                <Text fontSize="sm">
+              <Box>
+                <Text fontSize="sm" mb={3}>
                   <strong>{selected.display_code}</strong> —{' '}
                   {purchaseRequestStatusLabel(selected.status)}
                 </Text>
-                <Text fontSize="sm" color="gray.600">
+                <Text fontSize="sm" color="gray.600" mb={3}>
                   {selected.justification}
                 </Text>
                 <FormControl isRequired={actionType === 'reject'}>
@@ -292,11 +369,11 @@ export default function PurchaseRequestApprovalsPage() {
                     rows={4}
                   />
                 </FormControl>
-              </VStack>
+              </Box>
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose} isDisabled={submitting}>
+            <Button variant="ghost" mr={3} onClick={onActionClose} isDisabled={submitting}>
               Cancelar
             </Button>
             <Button
@@ -310,6 +387,6 @@ export default function PurchaseRequestApprovalsPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </Box>
+    </>
   );
 }

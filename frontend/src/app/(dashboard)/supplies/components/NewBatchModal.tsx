@@ -21,17 +21,18 @@ import {
   NumberDecrementStepper,
   VStack,
   Textarea,
-  List,
   ListItem,
   Text,
+  useColorModeValue,
 } from '@chakra-ui/react';
 import { Paperclip } from 'lucide-react';
+import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
 import { createBatch, fetchSuppliers, searchSupplies } from '@/features/catalog/api/catalogApi';
 import { uploadSupplyBatchInvoice } from '@/features/catalog/api/supplyBatchInvoiceApi';
 import type { CreateSupplyBatchInput, SupplierDTO, SupplyDTO } from '@/features/catalog/types';
 import type { SupplyBatchInvoiceFileType } from '@ti-assistant/contracts';
 import { formatBRL } from '@/utils/money';
-import { formatCurrencyBR, parseCurrencyBR, sanitizeCurrencyInput } from '../utils/suppliesUtils';
+import { formatCurrencyBR, parseCurrencyBR, sanitizeCurrencyInput } from '@/utils/currencyInput';
 
 const inferInvoiceFileType = (file: File): SupplyBatchInvoiceFileType | null => {
   const name = file.name.toLowerCase();
@@ -87,8 +88,11 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
   const [pendingInvoiceFileType, setPendingInvoiceFileType] =
     useState<SupplyBatchInvoiceFileType | null>(null);
   const inputFileRef = useRef<HTMLInputElement | null>(null);
+  const supplyInputRef = useRef<HTMLInputElement | null>(null);
+  const supplyListRef = useRef<HTMLUListElement | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toast = useToast();
+  const suggestionHoverBg = useColorModeValue('gray.100', 'gray.600');
 
   const resetForm = useCallback(() => {
     setFormData(initialForm);
@@ -165,6 +169,19 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
       }
     };
   }, [supplyQuery, isOpen, selectedSupply]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (supplyInputRef.current?.contains(target) || supplyListRef.current?.contains(target)) {
+        return;
+      }
+      setShowSuggestions(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSupplySelect = (supply: SupplyDTO) => {
     if (searchTimeoutRef.current) {
@@ -280,9 +297,10 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4} align="stretch">
-              <FormControl isRequired position="relative">
+              <FormControl isRequired>
                 <FormLabel>Suprimento</FormLabel>
                 <Input
+                  ref={supplyInputRef}
                   value={supplyQuery}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -294,49 +312,43 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
                       setFormData((prev) => ({ ...prev, supply_id: '' }));
                     }
                   }}
-                  onBlur={() => {
-                    window.setTimeout(() => setShowSuggestions(false), 150);
+                  onFocus={() => {
+                    if (supplySuggestions.length > 0) {
+                      setShowSuggestions(true);
+                    }
                   }}
                   placeholder="Buscar suprimento..."
                   autoComplete="off"
                 />
-                {showSuggestions && !selectedSupply && supplySuggestions.length > 0 && (
-                  <List
-                    position="absolute"
-                    zIndex={10}
-                    w="full"
-                    bg="white"
-                    _dark={{ bg: 'gray.700' }}
-                    borderWidth="1px"
-                    borderRadius="md"
-                    mt={1}
-                    maxH="200px"
-                    overflowY="auto"
-                    boxShadow="md"
-                  >
-                    {supplySuggestions.map((supply) => (
-                      <ListItem
-                        key={supply.id}
-                        px={3}
-                        py={2}
-                        cursor="pointer"
-                        _hover={{ bg: 'gray.100', _dark: { bg: 'gray.600' } }}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleSupplySelect(supply)}
-                      >
-                        <Text fontWeight="medium">{supply.name}</Text>
-                        {supply.description && (
-                          <Text fontSize="sm" color="gray.500">
-                            {supply.description}
-                          </Text>
-                        )}
-                        <Text fontSize="xs" color="gray.400">
-                          Disponível: {supply.available_quantity} {supply.unit?.symbol ?? ''}
+                <AnchoredDropdownList
+                  anchorRef={supplyInputRef}
+                  listRef={supplyListRef}
+                  isOpen={showSuggestions && !selectedSupply && supplySuggestions.length > 0}
+                >
+                  {supplySuggestions.map((supply) => (
+                    <ListItem
+                      key={supply.id}
+                      px={3}
+                      py={2}
+                      cursor="pointer"
+                      _hover={{ bg: suggestionHoverBg }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSupplySelect(supply);
+                      }}
+                    >
+                      <Text fontWeight="medium">{supply.name}</Text>
+                      {supply.description && (
+                        <Text fontSize="sm" color="gray.500">
+                          {supply.description}
                         </Text>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
+                      )}
+                      <Text fontSize="xs" color="gray.400">
+                        Disponível: {supply.available_quantity} {supply.unit?.symbol ?? ''}
+                      </Text>
+                    </ListItem>
+                  ))}
+                </AnchoredDropdownList>
                 {selectedSupply && (
                   <Text fontSize="sm" color="green.500" mt={1}>
                     Selecionado: {selectedSupply.name}

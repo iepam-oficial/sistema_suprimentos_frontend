@@ -62,6 +62,10 @@ function baseInput(overrides: Partial<DocumentComparisonInput> = {}): DocumentCo
       },
     ],
     invoiceSupplierName: 'Ferramentas ABC Ltda',
+    physicalLines: [
+      { description: 'Parafuso sextavado M8', quantity_received: 10 },
+      { description: 'Chave de fenda isolada', quantity_received: 5 },
+    ],
     ...overrides,
   };
 }
@@ -237,5 +241,46 @@ describe('compareDocuments', () => {
     expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'SC', field: 'product' })).toBe(true);
     const productDisc = result.find((d) => d.layer === 'SC' && d.field === 'product');
     expect(productDisc?.actual_value).toBe('Produto não solicitado');
+  });
+
+  it('flags HIGH quantity mismatch on PHYSICAL layer', () => {
+    const input = baseInput({
+      physicalLines: [{ description: 'Parafuso sextavado M8', quantity_received: 8 }],
+    });
+
+    const result = compareDocuments(input);
+
+    expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'PHYSICAL', field: 'quantity' })).toBe(
+      true,
+    );
+    const qtyDisc = result.find((d) => d.layer === 'PHYSICAL' && d.field === 'quantity');
+    expect(qtyDisc?.expected_value).toBe('8');
+    expect(qtyDisc?.actual_value).toBe('10');
+  });
+
+  it('flags CRITICAL unknown product on PHYSICAL layer', () => {
+    const input = baseInput({
+      physicalLines: [{ description: 'Produto não na NF', quantity_received: 1 }],
+    });
+
+    const result = compareDocuments(input);
+
+    expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'PHYSICAL', field: 'product' })).toBe(
+      true,
+    );
+  });
+
+  it('returns only PHYSICAL divergence when NF matches PO but physical qty differs', () => {
+    const input = baseInput({
+      physicalLines: [{ description: 'Parafuso sextavado M8', quantity_received: 8 }],
+    });
+
+    const result = compareDocuments(input);
+
+    expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'PHYSICAL', field: 'quantity' })).toBe(
+      true,
+    );
+    expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'PO', field: 'quantity' })).toBe(false);
+    expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'SC', field: 'quantity' })).toBe(false);
   });
 });

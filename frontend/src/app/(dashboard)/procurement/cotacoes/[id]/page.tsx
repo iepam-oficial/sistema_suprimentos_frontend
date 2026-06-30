@@ -9,6 +9,7 @@ import {
   Divider,
   Heading,
   HStack,
+  IconButton,
   Spinner,
   Table,
   Tbody,
@@ -18,10 +19,11 @@ import {
   Thead,
   Tr,
   useColorModeValue,
+  useDisclosure,
   useToast,
   VStack,
 } from '@chakra-ui/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Clock, FileText } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import type { ProcurementQuoteDTO } from '@ti-assistant/contracts';
 import {
@@ -30,6 +32,9 @@ import {
   ProcurementQuoteRanking,
   procurementQuoteStatusColor,
   procurementQuoteStatusLabel,
+  ProposalPdfPreviewDrawer,
+  QuoteOriginSection,
+  QuoteTimelineDrawer,
   sendProcurementQuote,
 } from '@/features/procurement';
 
@@ -59,6 +64,21 @@ export default function ProcurementQuoteDetailPage() {
   const [quote, setQuote] = useState<ProcurementQuoteDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{
+    supplierName: string;
+    pdfUrl: string;
+  } | null>(null);
+
+  const {
+    isOpen: isTimelineOpen,
+    onOpen: onTimelineOpen,
+    onClose: onTimelineClose,
+  } = useDisclosure();
+  const {
+    isOpen: isPdfOpen,
+    onOpen: onPdfOpen,
+    onClose: onPdfClose,
+  } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -161,6 +181,16 @@ export default function ProcurementQuoteDetailPage() {
     }
   };
 
+  const handleOpenPdf = (supplierName: string, pdfUrl: string) => {
+    setPdfPreview({ supplierName, pdfUrl });
+    onPdfOpen();
+  };
+
+  const handlePdfClose = () => {
+    onPdfClose();
+    setPdfPreview(null);
+  };
+
   if (!authorized) {
     return null;
   }
@@ -216,6 +246,14 @@ export default function ProcurementQuoteDetailPage() {
           </HStack>
 
           <HStack>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Clock size={16} />}
+              onClick={onTimelineOpen}
+            >
+              Linha do tempo
+            </Button>
             {isManager && quote.status === 'DRAFT' && (
               <Button
                 colorScheme="blue"
@@ -242,9 +280,9 @@ export default function ProcurementQuoteDetailPage() {
         </HStack>
 
         <Box>
-          <Text fontSize="sm" color={mutedColor}>
-            Solicitação: {quote.purchase_request?.display_code ?? '—'}
-          </Text>
+          {quote.purchase_request && (
+            <QuoteOriginSection purchaseRequest={quote.purchase_request} />
+          )}
           {quote.notes && (
             <Text fontSize="sm" color={textColor} mt={1}>
               Observações: {quote.notes}
@@ -270,28 +308,50 @@ export default function ProcurementQuoteDetailPage() {
                   <Th>Status</Th>
                   <Th>Proposta</Th>
                   <Th>Valor total</Th>
+                  <Th>PDF</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {(quote.invites ?? []).map((invite) => (
-                  <Tr key={invite.id}>
-                    <Td color={textColor}>{invite.supplier?.name ?? '—'}</Td>
-                    <Td>
-                      <Badge>{inviteStatusLabel(invite.status)}</Badge>
-                    </Td>
-                    <Td color={textColor}>
-                      {invite.proposal ? 'Enviada' : '—'}
-                    </Td>
-                    <Td color={textColor}>
-                      {invite.proposal
-                        ? invite.proposal.total_value.toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          })
-                        : '—'}
-                    </Td>
-                  </Tr>
-                ))}
+                {(quote.invites ?? []).map((invite) => {
+                  const pdfUrl = invite.proposal?.proposal_pdf_url;
+
+                  return (
+                    <Tr key={invite.id}>
+                      <Td color={textColor}>{invite.supplier?.name ?? '—'}</Td>
+                      <Td>
+                        <Badge>{inviteStatusLabel(invite.status)}</Badge>
+                      </Td>
+                      <Td color={textColor}>
+                        {invite.proposal ? 'Enviada' : '—'}
+                      </Td>
+                      <Td color={textColor}>
+                        {invite.proposal
+                          ? invite.proposal.total_value.toLocaleString('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            })
+                          : '—'}
+                      </Td>
+                      <Td>
+                        {pdfUrl ? (
+                          <IconButton
+                            aria-label="Ver PDF da proposta"
+                            icon={<FileText size={16} />}
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleOpenPdf(invite.supplier?.name ?? 'Fornecedor', pdfUrl)
+                            }
+                          />
+                        ) : (
+                          <Text fontSize="sm" color={mutedColor}>
+                            —
+                          </Text>
+                        )}
+                      </Td>
+                    </Tr>
+                  );
+                })}
               </Tbody>
             </Table>
           </Box>
@@ -310,6 +370,20 @@ export default function ProcurementQuoteDetailPage() {
           />
         </Box>
       </VStack>
+
+      <QuoteTimelineDrawer
+        isOpen={isTimelineOpen}
+        onClose={onTimelineClose}
+        quoteId={quoteId}
+        invites={quote.invites ?? []}
+      />
+
+      <ProposalPdfPreviewDrawer
+        isOpen={isPdfOpen}
+        onClose={handlePdfClose}
+        supplierName={pdfPreview?.supplierName ?? ''}
+        pdfUrl={pdfPreview?.pdfUrl ?? null}
+      />
     </Box>
   );
 }

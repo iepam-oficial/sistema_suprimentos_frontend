@@ -4,13 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Input,
-  List,
   ListItem,
   Spinner,
   Text,
   useColorModeValue,
 } from '@chakra-ui/react';
 import type { CatalogSearchResultDTO } from '@ti-assistant/contracts';
+import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
 import { useCatalogSearch } from '../hooks/useCatalogSearch';
 
 export interface CatalogSelection {
@@ -36,17 +36,18 @@ export function CatalogItemAutocomplete({
   isDisabled = false,
 }: CatalogItemAutocompleteProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const { results, isLoading } = useCatalogSearch(value, { enabled: !isDisabled });
-  const listBg = useColorModeValue('white', 'gray.700');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
   const hoverBg = useColorModeValue('gray.50', 'gray.600');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
+      const target = event.target as Node;
+      if (inputRef.current?.contains(target) || listRef.current?.contains(target)) {
+        return;
       }
+      setShowSuggestions(false);
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -73,8 +74,9 @@ export function CatalogItemAutocomplete({
     showSuggestions && value.trim().length >= 2 && (isLoading || results.length > 0);
 
   return (
-    <Box ref={containerRef} position="relative" w="full">
+    <Box w="full">
       <Input
+        ref={inputRef}
         size="sm"
         value={value}
         placeholder={placeholder}
@@ -86,59 +88,47 @@ export function CatalogItemAutocomplete({
         onFocus={() => setShowSuggestions(true)}
       />
 
-      {shouldShowList && (
-        <List
-          position="absolute"
-          top="100%"
-          left={0}
-          right={0}
-          zIndex={10}
-          mt={1}
-          maxH="200px"
-          overflowY="auto"
-          bg={listBg}
-          borderWidth="1px"
-          borderColor={borderColor}
-          borderRadius="md"
-          boxShadow="md"
-        >
-          {isLoading ? (
-            <ListItem px={3} py={2}>
-              <Spinner size="sm" mr={2} />
-              <Text as="span" fontSize="sm">
-                Buscando...
+      <AnchoredDropdownList
+        anchorRef={inputRef}
+        listRef={listRef}
+        isOpen={shouldShowList}
+      >
+        {isLoading ? (
+          <ListItem px={3} py={2}>
+            <Spinner size="sm" mr={2} />
+            <Text as="span" fontSize="sm">
+              Buscando...
+            </Text>
+          </ListItem>
+        ) : (
+          results.map((item) => (
+            <ListItem
+              key={`${item.type}-${item.id}`}
+              px={3}
+              py={2}
+              cursor="pointer"
+              _hover={{ bg: hoverBg }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelect(item);
+              }}
+            >
+              <Text fontSize="sm" fontWeight="medium">
+                {item.label}
+              </Text>
+              {item.description && (
+                <Text fontSize="xs" color="gray.500" noOfLines={1}>
+                  {item.description}
+                </Text>
+              )}
+              <Text fontSize="xs" color="gray.400">
+                {item.type === 'SUPPLY' ? 'Suprimento' : 'Inventário'}
+                {item.unit ? ` · ${item.unit}` : ''}
               </Text>
             </ListItem>
-          ) : (
-            results.map((item) => (
-              <ListItem
-                key={`${item.type}-${item.id}`}
-                px={3}
-                py={2}
-                cursor="pointer"
-                _hover={{ bg: hoverBg }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSelect(item);
-                }}
-              >
-                <Text fontSize="sm" fontWeight="medium">
-                  {item.label}
-                </Text>
-                {item.description && (
-                  <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                    {item.description}
-                  </Text>
-                )}
-                <Text fontSize="xs" color="gray.400">
-                  {item.type === 'SUPPLY' ? 'Suprimento' : 'Inventário'}
-                  {item.unit ? ` · ${item.unit}` : ''}
-                </Text>
-              </ListItem>
-            ))
-          )}
-        </List>
-      )}
+          ))
+        )}
+      </AnchoredDropdownList>
     </Box>
   );
 }

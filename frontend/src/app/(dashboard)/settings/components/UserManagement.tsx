@@ -241,10 +241,12 @@ export default function UserManagement() {
     const roles = {
       ADMIN: 'Administrador',
       MANAGER: 'Gerente',
+      COORDINATOR: 'Coordenador',
+      DIRECTOR: 'Diretor',
       EMPLOYEE: 'Funcionário',
       SUPPORT: 'Suporte',
       TECHNICIAN: 'Técnico',
-      ORGANIZER: 'Organizador'
+      ORGANIZER: 'Organizador',
     };
     return roles[role as keyof typeof roles] || role;
   };
@@ -362,6 +364,8 @@ export default function UserManagement() {
                 <Select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
                   <option value="ADMIN">Administrador</option>
                   <option value="MANAGER">Gerente</option>
+                  <option value="COORDINATOR">Coordenador</option>
+                  <option value="DIRECTOR">Diretor</option>
                   <option value="EMPLOYEE">Funcionário</option>
                   <option value="SUPPORT">Suporte</option>
                   <option value="TECHNICIAN">Técnico</option>
@@ -485,6 +489,8 @@ export default function UserManagement() {
             <Select value={role} onChange={(e) => setRole(e.target.value)}>
               <option value="ADMIN">Administrador</option>
               <option value="MANAGER">Gerente</option>
+              <option value="COORDINATOR">Coordenador</option>
+              <option value="DIRECTOR">Diretor</option>
               <option value="EMPLOYEE">Funcionário</option>
               <option value="SUPPORT">Suporte</option>
               <option value="TECHNICIAN">Técnico</option>
