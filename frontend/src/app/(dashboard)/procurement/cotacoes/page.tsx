@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -19,7 +19,9 @@ import {
   ProcurementQuoteList,
   ProcurementQuoteWizard,
   useProcurementQuotes,
+  usePurchaseRequests,
 } from '@/features/procurement';
+import { resolveInitialPurchaseRequestId } from '@/features/procurement/utils/quoteWizardEligibility';
 
 const ALLOWED_ROLES = ['MANAGER', 'DIRECTOR', 'ADMIN'];
 const MANAGER_ROLES = ['MANAGER', 'ADMIN'];
@@ -42,6 +44,11 @@ function ProcurementQuotesPageContent() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [initialPurchaseRequestId, setInitialPurchaseRequestId] = useState<string | undefined>();
   const { items, loading, error, reload } = useProcurementQuotes();
+  const {
+    items: openScItems,
+    loading: openScLoading,
+    error: openScError,
+  } = usePurchaseRequests({ awaiting_quote: true, limit: 100 });
 
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -75,11 +82,54 @@ function ProcurementQuotesPageContent() {
     }
 
     const newQuoteId = searchParams.get('newQuote');
-    if (newQuoteId) {
-      setInitialPurchaseRequestId(newQuoteId);
-      openWizard();
+    if (!newQuoteId) {
+      return;
     }
-  }, [authorized, userRole, searchParams, openWizard]);
+
+    if (openScLoading) {
+      return;
+    }
+
+    if (openScError) {
+      toast({
+        title: 'Não foi possível validar a SC',
+        description: openScError,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      router.replace('/procurement/cotacoes');
+      return;
+    }
+
+    const resolved = resolveInitialPurchaseRequestId(newQuoteId, openScItems);
+    if (resolved.invalid || !resolved.id) {
+      toast({
+        title: 'SC não disponível para cotação',
+        description:
+          'A solicitação informada não está em aberto aguardando cotação. Ela pode já ter cotação, não estar aprovada ou não existir.',
+        status: 'warning',
+        duration: 6000,
+        isClosable: true,
+      });
+      router.replace('/procurement/cotacoes');
+      return;
+    }
+
+    setInitialPurchaseRequestId(resolved.id);
+    openWizard();
+    router.replace('/procurement/cotacoes');
+  }, [
+    authorized,
+    userRole,
+    searchParams,
+    openWizard,
+    openScLoading,
+    openScError,
+    openScItems,
+    toast,
+    router,
+  ]);
 
   const handleWizardSuccess = (quoteId: string) => {
     closeWizard();
@@ -88,15 +138,17 @@ function ProcurementQuotesPageContent() {
     router.push(`/procurement/cotacoes/${quoteId}`);
   };
 
-  const handleWizardCancel = () => {
+  const handleWizardCancel = useCallback(() => {
     closeWizard();
     setInitialPurchaseRequestId(undefined);
     if (searchParams.get('newQuote')) {
       router.replace('/procurement/cotacoes');
     }
-  };
+  }, [closeWizard, searchParams, router]);
 
   const isManager = userRole != null && MANAGER_ROLES.includes(userRole);
+  const canCreateQuote =
+    isManager && !openScLoading && !openScError && openScItems.length > 0;
 
   if (!authorized) {
     return null;
@@ -122,7 +174,17 @@ function ProcurementQuotesPageContent() {
                 Cotações de Compras
               </Heading>
               {!isWizardOpen && isManager && (
-                <Button leftIcon={<Plus size={18} />} colorScheme="blue" onClick={openWizard}>
+                <Button
+                  leftIcon={<Plus size={18} />}
+                  colorScheme="blue"
+                  onClick={openWizard}
+                  isDisabled={!canCreateQuote}
+                  title={
+                    canCreateQuote
+                      ? undefined
+                      : 'Nenhuma SC em aberto aguardando cotação'
+                  }
+                >
                   Nova cotação
                 </Button>
               )}
@@ -132,7 +194,16 @@ function ProcurementQuotesPageContent() {
         )}
 
         {isMobile && !isWizardOpen && isManager && (
-          <Button leftIcon={<Plus size={18} />} colorScheme="blue" onClick={openWizard} size="sm">
+          <Button
+            leftIcon={<Plus size={18} />}
+            colorScheme="blue"
+            onClick={openWizard}
+            size="sm"
+            isDisabled={!canCreateQuote}
+            title={
+              canCreateQuote ? undefined : 'Nenhuma SC em aberto aguardando cotação'
+            }
+          >
             Nova cotação
           </Button>
         )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -23,6 +23,7 @@ import { fetchSuppliers } from '@/features/catalog/api/catalogApi';
 import { createProcurementQuote, sendProcurementQuote } from '../api/procurementQuoteApi';
 import { fetchPurchaseRequests } from '../api/purchaseRequestApi';
 import { purchaseRequestPriorityColor, purchaseRequestPriorityLabel } from '../types';
+import { resolveInitialPurchaseRequestId } from '../utils/quoteWizardEligibility';
 
 const MIN_SUPPLIERS = 3;
 const STEPS = ['Solicitação', 'Fornecedores', 'Confirmar'];
@@ -39,13 +40,16 @@ export function ProcurementQuoteWizard({
   initialPurchaseRequestId,
 }: ProcurementQuoteWizardProps) {
   const toast = useToast();
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+
   const [step, setStep] = useState(0);
-  const [approvedRequests, setApprovedRequests] = useState<PurchaseRequestDTO[]>([]);
+  const [openRequests, setOpenRequests] = useState<PurchaseRequestDTO[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [purchaseRequestId, setPurchaseRequestId] = useState(initialPurchaseRequestId ?? '');
+  const [purchaseRequestId, setPurchaseRequestId] = useState('');
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [sendAfterCreate, setSendAfterCreate] = useState(true);
@@ -56,8 +60,8 @@ export function ProcurementQuoteWizard({
   const summaryBg = useColorModeValue('gray.50', 'gray.700');
 
   const selectedRequest = useMemo(
-    () => approvedRequests.find((r) => r.id === purchaseRequestId),
-    [approvedRequests, purchaseRequestId]
+    () => openRequests.find((r) => r.id === purchaseRequestId),
+    [openRequests, purchaseRequestId]
   );
 
   const selectedSuppliers = useMemo(
@@ -66,30 +70,43 @@ export function ProcurementQuoteWizard({
   );
 
   useEffect(() => {
-    if (initialPurchaseRequestId) {
-      setPurchaseRequestId(initialPurchaseRequestId);
-    }
-  }, [initialPurchaseRequestId]);
-
-  useEffect(() => {
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) {
       setLoadingData(false);
       return;
     }
 
+    let cancelled = false;
+
     Promise.all([
-      fetchPurchaseRequests(token, { status: 'APPROVED', limit: 100 }),
+      fetchPurchaseRequests(token, { awaiting_quote: true, limit: 100 }),
       fetchSuppliers(token),
     ])
       .then(([requestsResult, suppliersList]) => {
-        setApprovedRequests(requestsResult.items);
+        if (cancelled) return;
+
+        const eligible = requestsResult.items;
+        setOpenRequests(eligible);
         setSuppliers(Array.isArray(suppliersList) ? suppliersList : []);
-        if (initialPurchaseRequestId) {
-          setPurchaseRequestId(initialPurchaseRequestId);
+
+        const resolved = resolveInitialPurchaseRequestId(initialPurchaseRequestId, eligible);
+        if (resolved.invalid) {
+          setPurchaseRequestId('');
+          toast({
+            title: 'SC não disponível para cotação',
+            description:
+              'A solicitação informada não está em aberto aguardando cotação. Ela pode já ter cotação, não estar aprovada ou não existir.',
+            status: 'warning',
+            duration: 6000,
+            isClosable: true,
+          });
+          onCancelRef.current();
+          return;
         }
+        setPurchaseRequestId(resolved.id ?? '');
       })
       .catch((err) => {
+        if (cancelled) return;
         toast({
           title: 'Erro ao carregar dados',
           description: err instanceof Error ? err.message : 'Tente novamente.',
@@ -98,7 +115,13 @@ export function ProcurementQuoteWizard({
           isClosable: true,
         });
       })
-      .finally(() => setLoadingData(false));
+      .finally(() => {
+        if (!cancelled) setLoadingData(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [toast, initialPurchaseRequestId]);
 
   const toggleSupplier = (supplierId: string) => {
@@ -200,13 +223,14 @@ export function ProcurementQuoteWizard({
       {step === 0 && (
         <VStack align="stretch" spacing={4}>
           <FormControl isRequired>
-            <FormLabel>Solicitação de compra aprovada</FormLabel>
+            <FormLabel>SC em aberto aguardando cotação</FormLabel>
             <Select
-              placeholder="Selecione uma SC aprovada"
+              placeholder="Selecione uma SC em aberto"
               value={purchaseRequestId}
               onChange={(e) => setPurchaseRequestId(e.target.value)}
+              isDisabled={openRequests.length === 0}
             >
-              {approvedRequests.map((request) => (
+              {openRequests.map((request) => (
                 <option key={request.id} value={request.id}>
                   {request.display_code} — {request.justification.slice(0, 60)}
                   {request.justification.length > 60 ? '…' : ''}
@@ -214,17 +238,25 @@ export function ProcurementQuoteWizard({
               ))}
             </Select>
             <FormHelperText>
-              {approvedRequests.length === 0
-                ? 'Nenhuma solicitação aprovada disponível.'
-                : 'Apenas solicitações com status Aprovada podem gerar cotação.'}
+              {openRequests.length === 0
+                ? 'Nenhuma SC em aberto aguardando cotação. Só entram solicitações aprovadas que ainda não possuem nenhuma cotação.'
+                : 'Somente SC aprovadas e ainda sem cotação (em aberto / aguardando cotação).'}
             </FormHelperText>
           </FormControl>
 
           {selectedRequest && (
             <Box p={3} bg={summaryBg} borderRadius="md">
-              <Text fontSize="sm" fontWeight="medium">
-                {selectedRequest.display_code}
-              </Text>
+              <HStack spacing={2} mb={1}>
+                <Text fontSize="sm" fontWeight="medium">
+                  {selectedRequest.display_code}
+                </Text>
+                <Badge colorScheme="green">Aprovada — aguardando cotação</Badge>
+                {selectedRequest.priority && (
+                  <Badge colorScheme={purchaseRequestPriorityColor(selectedRequest.priority)}>
+                    {purchaseRequestPriorityLabel(selectedRequest.priority)}
+                  </Badge>
+                )}
+              </HStack>
               <Text fontSize="sm" color={mutedColor} mt={1}>
                 {selectedRequest.justification}
               </Text>
@@ -279,8 +311,9 @@ export function ProcurementQuoteWizard({
           <Box>
             <HStack spacing={2} mb={1}>
               <Text fontSize="sm" fontWeight="medium">
-                Solicitação
+                SC em aberto
               </Text>
+              <Badge colorScheme="green">Aprovada — aguardando cotação</Badge>
               {selectedRequest?.priority && (
                 <Badge colorScheme={purchaseRequestPriorityColor(selectedRequest.priority)}>
                   {purchaseRequestPriorityLabel(selectedRequest.priority)}
