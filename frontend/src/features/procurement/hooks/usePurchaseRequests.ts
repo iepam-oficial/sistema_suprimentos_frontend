@@ -12,30 +12,50 @@ function getToken(): string | null {
   return localStorage.getItem('@ti-assistant:token');
 }
 
+export type ListReloadOptions = {
+  silent?: boolean;
+};
+
 export function usePurchaseRequests(filters: PurchaseRequestListFilters = {}) {
   const [items, setItems] = useState<PurchaseRequestDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: ListReloadOptions) => {
+    const silent = options?.silent === true;
     const token = getToken();
     if (!token) {
-      setError('Token não encontrado');
-      setLoading(false);
+      if (!silent) {
+        setError('Token não encontrado');
+        setLoading(false);
+      }
       return;
     }
 
     try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchPurchaseRequests(token, filters);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      const data = await fetchPurchaseRequests(
+        token,
+        filters,
+        silent ? { polling: true } : undefined,
+      );
       setItems(data.items);
       setTotal(data.total);
+      if (silent) {
+        setError(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao buscar solicitações de compra');
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'Erro ao buscar solicitações de compra');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [
     filters.status,
@@ -49,14 +69,18 @@ export function usePurchaseRequests(filters: PurchaseRequestListFilters = {}) {
   ]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
+
+  const reload = useCallback(() => load(), [load]);
+  const refreshSilent = useCallback(() => load({ silent: true }), [load]);
 
   return {
     items,
     total,
     loading,
     error,
-    reload: load,
+    reload,
+    refreshSilent,
   };
 }

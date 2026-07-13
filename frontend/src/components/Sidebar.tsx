@@ -35,6 +35,12 @@ import { useUser, useFilters } from '@/contexts/GlobalContext';
 import { useLogout } from '@/hooks/useLogout';
 import { hasEmployeeSelfServiceAccess } from '@ti-assistant/contracts';
 import { canCreateSupportTicket } from '@/features/support-tickets/types';
+import { useProcurementMenuBadges } from '@/features/procurement';
+import { formatBadgeCount } from '@/features/procurement/utils/menuBadgeFormat';
+import {
+  MENU_BADGE_PATH_BY_ROUTE,
+  type MenuBadgeRouteKey,
+} from '@/features/procurement/utils/menuBadgeRoutes';
 import { cn } from '@/components/support-desk/cn';
 
 const SIDEBAR_WIDTH = 256;
@@ -63,12 +69,14 @@ function SidebarNavLink({
   isActive,
   onClick,
   size = 'md',
+  badgeLabel,
 }: {
   icon: LucideIcon;
   label: string;
   isActive: boolean;
   onClick: () => void;
   size?: 'sm' | 'md';
+  badgeLabel?: string;
 }) {
   return (
     <button
@@ -85,7 +93,15 @@ function SidebarNavLink({
       <span className="flex w-6 shrink-0 justify-center">
         <Icon size={size === 'sm' ? 16 : 18} />
       </span>
-      <span className="ml-2 truncate text-left">{label}</span>
+      <span className="ml-2 min-w-0 flex-1 truncate text-left">{label}</span>
+      {badgeLabel ? (
+        <span
+          className="ml-2 inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white"
+          aria-label={`${badgeLabel} atualizações`}
+        >
+          {badgeLabel}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -95,7 +111,22 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
   const pathname = usePathname() || '';
   const { user } = useUser();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isComprasOpen, setIsComprasOpen] = useState(false);
   const { logout: handleLogout } = useLogout();
+  const { getCount } = useProcurementMenuBadges();
+
+  const badgeForHref = (href: string): string => {
+    const entry = Object.entries(MENU_BADGE_PATH_BY_ROUTE).find(([, path]) => path === href);
+    if (!entry) return '';
+    return formatBadgeCount(getCount(entry[0] as MenuBadgeRouteKey));
+  };
+
+  const comprasBadgeLabel = (() => {
+    if (isComprasOpen) return '';
+    const sum =
+      getCount('fila-compras') + getCount('cotacoes') + getCount('pedidos');
+    return formatBadgeCount(sum);
+  })();
 
   const handleNavigation = (href: string) => {
     router.push(href);
@@ -152,15 +183,7 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     ...(user && ['DIRECTOR', 'ADMIN'].includes(user.role)
       ? [{ icon: CheckSquare, label: 'Aprovações SC', href: '/procurement/aprovacoes-sc' }]
       : []),
-    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
-      ? [{ icon: ListOrdered, label: 'Fila de Compras', href: '/procurement/fila-compras' }]
-      : []),
-    ...(user && ['MANAGER', 'DIRECTOR', 'ADMIN'].includes(user.role)
-      ? [{ icon: Scale, label: 'Cotações de Compras', href: '/procurement/cotacoes' }]
-      : []),
-    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
-      ? [{ icon: Receipt, label: 'Pedidos de Compra', href: '/procurement/pedidos' }]
-      : []),
+
     { icon: FileText, label: 'Cotações', href: '/quotes' },
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Timer, label: 'Gastos Extras', href: '/extra-expenses' }]
@@ -186,6 +209,23 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     ...(!isEmployee ? [{ label: 'Planos de Conta', href: '/chart-of-accounts' }] : []),
     ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
   ];
+
+  const comprasItems = [
+    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+      ? [{ icon: ListOrdered, label: 'Fila de Compras', href: '/procurement/fila-compras' }]
+      : []),
+    ...(user && ['MANAGER', 'DIRECTOR', 'ADMIN'].includes(user.role)
+      ? [{ icon: Scale, label: 'Cotações de Compras', href: '/procurement/cotacoes' }]
+      : []),
+    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+      ? [{ icon: Receipt, label: 'Pedidos de Compra', href: '/procurement/pedidos' }]
+      : []),
+  ];
+
+  const comprasActive =
+    pathname.startsWith('/procurement/fila-compras') ||
+    pathname.startsWith('/procurement/cotacoes') ||
+    pathname.startsWith('/procurement/pedidos');
 
   const settingsActive =
     pathname.startsWith('/settings') || pathname === '/chart-of-accounts';
@@ -229,6 +269,7 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
                   : isMenuItemActive(item.href)
               }
               onClick={() => handleNavigation(item.href)}
+              badgeLabel={badgeForHref(item.href) || undefined}
             />
             {item.href === '/support-tickets' && showTicketsSubmenu && (
               <div className="mb-1 mt-1 space-y-0.5 pl-9">
@@ -250,6 +291,59 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
             )}
           </div>
         ))}
+
+        {comprasItems.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setIsComprasOpen(!isComprasOpen)}
+              className={cn(
+                'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                comprasActive
+                  ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
+                  : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50',
+              )}
+            >
+              <span className="flex items-center">
+                <span className="flex w-6 justify-center">
+                  <ShoppingCart className="h-[18px] w-[18px]" />
+                </span>
+                <span className="ml-2">Compras</span>
+              </span>
+              <span className="flex items-center gap-2">
+                {comprasBadgeLabel ? (
+                  <span
+                    className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white"
+                    aria-label={`${comprasBadgeLabel} atualizações`}
+                  >
+                    {comprasBadgeLabel}
+                  </span>
+                ) : null}
+                {isComprasOpen ? (
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0" />
+                )}
+              </span>
+            </button>
+
+            {isComprasOpen && (
+              <div className="mt-1 space-y-0.5 pl-4">
+                {comprasItems.map((item) => (
+                  <SidebarNavLink
+                    key={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    size="sm"
+                    isActive={isMenuItemActive(item.href)}
+                    onClick={() => handleNavigation(item.href)}
+                    badgeLabel={badgeForHref(item.href) || undefined}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         <button
           type="button"

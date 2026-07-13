@@ -19,7 +19,12 @@ import { ArrowLeft } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import type { GoodsReceiptDTO } from '@ti-assistant/contracts';
 import { GoodsReceiptStatus } from '@ti-assistant/contracts';
-import { fetchGoodsReceiptById, GoodsReceiptWizard } from '@/features/procurement';
+import {
+  fetchGoodsReceiptById,
+  GoodsReceiptWizard,
+  usePollingRefresh,
+  useMarkMenuBadgeSeen,
+} from '@/features/procurement';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
 
@@ -65,29 +70,46 @@ export default function GoodsReceiptPage() {
   const headingColor = useColorModeValue('gray.800', 'white');
   const mutedColor = useColorModeValue('gray.600', 'gray.400');
 
-  const loadReceipt = useCallback(async () => {
+  const loadReceipt = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
       return;
     }
 
     try {
-      setLoading(true);
-      const data = await fetchGoodsReceiptById(token, receiptId);
+      if (!silent) {
+        setLoading(true);
+      }
+      const data = await fetchGoodsReceiptById(
+        token,
+        receiptId,
+        silent ? { polling: true } : undefined,
+      );
       setReceipt(data);
     } catch (err) {
-      toast({
-        title: 'Erro ao carregar recebimento',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
+      if (!silent) {
+        toast({
+          title: 'Erro ao carregar recebimento',
+          description: err instanceof Error ? err.message : 'Tente novamente.',
+          status: 'error',
+          duration: 4000,
+          isClosable: true,
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [receiptId, toast]);
+
+  const refreshSilent = useCallback(() => {
+    void loadReceipt({ silent: true });
+  }, [loadReceipt]);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
@@ -101,9 +123,16 @@ export default function GoodsReceiptPage() {
 
   useEffect(() => {
     if (authorized) {
-      loadReceipt();
+      void loadReceipt();
     }
   }, [authorized, loadReceipt]);
+
+  usePollingRefresh({
+    enabled: authorized,
+    onTick: refreshSilent,
+  });
+
+  useMarkMenuBadgeSeen('pedidos', authorized);
 
   if (!authorized) {
     return null;

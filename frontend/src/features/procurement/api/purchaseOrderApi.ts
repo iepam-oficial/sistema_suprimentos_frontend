@@ -47,10 +47,15 @@ function buildListQuery(filters: PurchaseOrderListFilters = {}): string {
 
 export async function fetchPurchaseOrders(
   token: string,
-  filters: PurchaseOrderListFilters = {}
+  filters: PurchaseOrderListFilters = {},
+  options?: { polling?: boolean }
 ): Promise<PurchaseOrderListResult> {
+  const headers: HeadersInit = {
+    ...authHeaders(token),
+    ...(options?.polling === true ? { 'X-Polling': '1' } : {}),
+  };
   const response = await fetch(`/api/purchase-orders${buildListQuery(filters)}`, {
-    headers: authHeaders(token),
+    headers,
   });
   return handleResponse<PurchaseOrderListResult>(response);
 }

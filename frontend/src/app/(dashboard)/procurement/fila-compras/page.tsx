@@ -7,7 +7,9 @@ import type { PurchaseRequestDTO, PurchaseRequestPriority } from '@ti-assistant/
 import {
   PurchaseRequestPageShell,
   PurchaseRequestQueueList,
+  usePollingRefresh,
   usePurchaseRequests,
+  useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
@@ -32,12 +34,19 @@ export default function PurchaseRequestQueuePage() {
   const toast = useToast();
   const [authorized, setAuthorized] = useState(false);
 
-  const { items, loading, error } = usePurchaseRequests({
+  const { items, loading, error, refreshSilent } = usePurchaseRequests({
     awaiting_quote: true,
     limit: 100,
   });
 
   const sortedItems = useMemo(() => sortQueueItems(items), [items]);
+
+  usePollingRefresh({
+    enabled: authorized,
+    onTick: refreshSilent,
+  });
+
+  useMarkMenuBadgeSeen('fila-compras', authorized);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');

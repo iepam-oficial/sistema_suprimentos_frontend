@@ -18,8 +18,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ProcurementQuoteList,
   ProcurementQuoteWizard,
+  usePollingRefresh,
   useProcurementQuotes,
   usePurchaseRequests,
+  useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 import { resolveInitialPurchaseRequestId } from '@/features/procurement/utils/quoteWizardEligibility';
 
@@ -43,12 +45,23 @@ function ProcurementQuotesPageContent() {
   const [authorized, setAuthorized] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [initialPurchaseRequestId, setInitialPurchaseRequestId] = useState<string | undefined>();
-  const { items, loading, error, reload } = useProcurementQuotes();
+  const { items, loading, error, reload, refreshSilent } = useProcurementQuotes();
   const {
     items: openScItems,
     loading: openScLoading,
     error: openScError,
+    refreshSilent: refreshOpenScSilent,
   } = usePurchaseRequests({ awaiting_quote: true, limit: 100 });
+
+  usePollingRefresh({
+    enabled: authorized && !isWizardOpen,
+    onTick: () => {
+      void refreshSilent();
+      void refreshOpenScSilent();
+    },
+  });
+
+  useMarkMenuBadgeSeen('cotacoes', authorized);
 
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');

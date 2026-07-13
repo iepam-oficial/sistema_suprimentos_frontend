@@ -46,6 +46,12 @@ async function proxyRequest(
       Authorization: `Bearer ${token}`,
     };
 
+    const xPolling =
+      request.headers.get('X-Polling') ?? request.headers.get('x-polling');
+    if (xPolling) {
+      headers['X-Polling'] = xPolling;
+    }
+
     const init: RequestInit = { method, headers };
 
     if (options.forwardBody && method !== 'GET') {

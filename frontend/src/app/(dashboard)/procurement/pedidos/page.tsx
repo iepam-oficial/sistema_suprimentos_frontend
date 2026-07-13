@@ -18,7 +18,9 @@ import { useRouter } from 'next/navigation';
 import {
   GeneratePurchaseOrderModal,
   PurchaseOrderList,
+  usePollingRefresh,
   usePurchaseOrders,
+  useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
@@ -29,7 +31,14 @@ export default function ProcurementPurchaseOrdersPage() {
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const { isOpen: isModalOpen, onOpen: openModal, onClose: closeModal } = useDisclosure();
   const [authorized, setAuthorized] = useState(false);
-  const { items, loading, error, reload } = usePurchaseOrders();
+  const { items, loading, error, reload, refreshSilent } = usePurchaseOrders();
+
+  usePollingRefresh({
+    enabled: authorized && !isModalOpen,
+    onTick: refreshSilent,
+  });
+
+  useMarkMenuBadgeSeen('pedidos', authorized);
 
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');

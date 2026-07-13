@@ -46,10 +46,15 @@ export async function createGoodsReceipt(
 
 export async function fetchGoodsReceiptById(
   token: string,
-  id: string
+  id: string,
+  options?: { polling?: boolean }
 ): Promise<GoodsReceiptDTO> {
+  const headers: HeadersInit = {
+    ...authHeaders(token),
+    ...(options?.polling === true ? { 'X-Polling': '1' } : {}),
+  };
   const response = await fetch(`/api/goods-receipts/${encodeURIComponent(id)}`, {
-    headers: authHeaders(token),
+    headers,
   });
   return handleResponse<GoodsReceiptDTO>(response);
 }

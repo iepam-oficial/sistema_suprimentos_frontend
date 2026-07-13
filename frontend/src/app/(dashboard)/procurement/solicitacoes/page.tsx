@@ -8,8 +8,10 @@ import {
   PurchaseRequestListTable,
   PurchaseRequestPageShell,
   PurchaseRequestToolbar,
+  usePollingRefresh,
   usePurchaseRequestFilters,
   usePurchaseRequests,
+  useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
 const ALLOWED_ROLES = ['COORDINATOR', 'ADMIN'];
@@ -33,8 +35,15 @@ export default function PurchaseRequestsPage() {
 
   const stableApiFilters = useMemo(() => apiFilters, [JSON.stringify(apiFilters)]);
 
-  const { items, loading, error } = usePurchaseRequests(stableApiFilters);
+  const { items, loading, error, refreshSilent } = usePurchaseRequests(stableApiFilters);
   const displayedItems = useMemo(() => filterItems(items), [items, filterItems]);
+
+  usePollingRefresh({
+    enabled: authorized && !isFilterOpen,
+    onTick: refreshSilent,
+  });
+
+  useMarkMenuBadgeSeen('solicitacoes', authorized);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');

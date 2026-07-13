@@ -74,10 +74,15 @@ function buildListQuery(filters: ProcurementQuoteListFilters = {}): string {
 
 export async function fetchProcurementQuotes(
   token: string,
-  filters: ProcurementQuoteListFilters = {}
+  filters: ProcurementQuoteListFilters = {},
+  options?: { polling?: boolean }
 ): Promise<ProcurementQuoteListResult> {
+  const headers: HeadersInit = {
+    ...authHeaders(token),
+    ...(options?.polling === true ? { 'X-Polling': '1' } : {}),
+  };
   const response = await fetch(`/api/procurement-quotes${buildListQuery(filters)}`, {
-    headers: authHeaders(token),
+    headers,
   });
   return handleResponse<ProcurementQuoteListResult>(response);
 }

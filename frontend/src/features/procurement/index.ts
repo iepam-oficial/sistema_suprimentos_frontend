@@ -17,6 +17,12 @@ export { usePurchaseRequestWizard } from './hooks/usePurchaseRequestWizard';
 export { useUnitOfMeasures } from './hooks/useUnitOfMeasures';
 export { useProcurementQuotes } from './hooks/useProcurementQuotes';
 export { usePurchaseOrders } from './hooks/usePurchaseOrders';
+export { usePollingRefresh } from './hooks/usePollingRefresh';
+export { useMarkMenuBadgeSeen } from './hooks/useMarkMenuBadgeSeen';
+export {
+  ProcurementMenuBadgesProvider,
+  useProcurementMenuBadges,
+} from './context/ProcurementMenuBadgesContext';
 
 export {
   approvePurchaseRequest,

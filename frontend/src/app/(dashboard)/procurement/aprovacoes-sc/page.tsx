@@ -43,7 +43,9 @@ import {
   purchaseRequestStatusLabel,
   rejectPurchaseRequest,
   useDirectorApprovalFilters,
+  usePollingRefresh,
   usePurchaseRequests,
+  useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
@@ -91,8 +93,15 @@ export default function PurchaseRequestApprovalsPage() {
 
   const stableApiFilters = useMemo(() => apiFilters, [JSON.stringify(apiFilters)]);
 
-  const { items, loading, error, reload } = usePurchaseRequests(stableApiFilters);
+  const { items, loading, error, reload, refreshSilent } = usePurchaseRequests(stableApiFilters);
   const displayedItems = useMemo(() => filterItems(items), [items, filterItems]);
+
+  usePollingRefresh({
+    enabled: authorized && !isActionOpen && !isDetailOpen && !isFilterOpen,
+    onTick: refreshSilent,
+  });
+
+  useMarkMenuBadgeSeen('aprovacoes-sc', authorized);
 
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
   const headerBg = useColorModeValue('gray.50', 'gray.700');
