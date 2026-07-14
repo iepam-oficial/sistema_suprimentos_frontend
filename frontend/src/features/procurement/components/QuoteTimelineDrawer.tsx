@@ -26,6 +26,7 @@ import {
   fetchProcurementQuoteEvents,
   type ProcurementQuoteEventDTO,
 } from '../api/procurementQuoteApi';
+import { usePollingRefresh } from '../hooks/usePollingRefresh';
 import { buildSupplierTimelineEvents } from '../lib/quoteTimeline';
 
 interface QuoteTimelineDrawerProps {
@@ -33,6 +34,7 @@ interface QuoteTimelineDrawerProps {
   onClose: () => void;
   quoteId: string;
   invites: ProcurementQuoteInviteDTO[];
+  pollingEnabled?: boolean;
 }
 
 const EVENT_LABELS: Record<string, string> = {
@@ -112,6 +114,7 @@ export function QuoteTimelineDrawer({
   onClose,
   quoteId,
   invites,
+  pollingEnabled = true,
 }: QuoteTimelineDrawerProps) {
   const toast = useToast();
   const [events, setEvents] = useState<ProcurementQuoteEventDTO[]>([]);
@@ -124,32 +127,46 @@ export function QuoteTimelineDrawer({
   const borderColor = useColorModeValue('gray.100', 'gray.600');
   const formLabelColor = useColorModeValue('gray.800', 'white');
 
-  const loadEvents = useCallback(async () => {
+  const loadEvents = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) return;
 
     try {
-      setLoading(true);
-      const data = await fetchProcurementQuoteEvents(token, quoteId);
+      if (!silent) setLoading(true);
+      const data = await fetchProcurementQuoteEvents(
+        token,
+        quoteId,
+        silent ? { polling: true } : undefined,
+      );
       setEvents(data);
     } catch (err) {
-      toast({
-        title: 'Erro ao carregar timeline',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
+      if (!silent) {
+        toast({
+          title: 'Erro ao carregar timeline',
+          description: err instanceof Error ? err.message : 'Tente novamente.',
+          status: 'error',
+          duration: 4000,
+          isClosable: true,
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [quoteId, toast]);
 
   useEffect(() => {
     if (isOpen) {
-      loadEvents();
+      void loadEvents();
     }
   }, [isOpen, loadEvents]);
+
+  usePollingRefresh({
+    enabled: isOpen && pollingEnabled,
+    onTick: () => {
+      void loadEvents({ silent: true });
+    },
+  });
 
   useEffect(() => {
     if (invites.length > 0 && !selectedInviteId) {
