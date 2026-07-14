@@ -8,11 +8,13 @@ export const initializeFormData = (initialData?: Supply) => {
       name: initialData.name || '',
       description: initialData.description || '',
       minimum_quantity: initialData.minimum_quantity || 0,
-      unit_id: initialData.unit?.id || '',
-      category_id: initialData.category?.id || '',
+      unit_id: initialData.unit?.id || initialData.unit_id || '',
+      category_id: initialData.category?.id || initialData.category_id || '',
       subcategory_id: initialData.subcategory_id ?? '',
       image_url: initialData.image_url || '',
       chart_of_account_id: initialData.chart_of_account_id || '',
+      ncm_id: initialData.ncm_id || '',
+      cest_id: initialData.cest_id || '',
     };
   }
   return {
@@ -24,6 +26,8 @@ export const initializeFormData = (initialData?: Supply) => {
     subcategory_id: '',
     image_url: '',
     chart_of_account_id: '',
+    ncm_id: '',
+    cest_id: '',
   };
 };
 

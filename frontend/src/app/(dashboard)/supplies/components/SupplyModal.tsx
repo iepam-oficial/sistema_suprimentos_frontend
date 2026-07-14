@@ -27,7 +27,9 @@ import { initializeFormData } from '../utils/suppliesUtils';
 import { uploadImage } from '@/features/images/api/imageApi';
 import { fetchUnits } from '@/utils/apiUtils';
 import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
+import { fetchFiscalCests, fetchFiscalNcms } from '@/features/financeiro/api/fiscalCatalogApi';
 import type { ChartOfAccount } from '@/features/financeiro/types';
+import type { FiscalCestDTO, FiscalNcmDTO } from '@ti-assistant/contracts';
 import { handleImageChange } from '@/utils/imageUtils';
 import { Image as ImageIcon } from 'lucide-react';
 import { ImageSourceDialog } from './ImageSourceDialog';
@@ -47,6 +49,8 @@ interface SupplyModalProps {
 export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData }: SupplyModalProps) {
     const [units, setUnits] = useState<{ id: string; name: string; symbol: string }[]>([]);
     const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([]);
+    const [fiscalNcms, setFiscalNcms] = useState<FiscalNcmDTO[]>([]);
+    const [fiscalCests, setFiscalCests] = useState<FiscalCestDTO[]>([]);
     const [formData, setFormData] = useState<{ [key: string]: string | number }>(initializeFormData(initialData));
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string>('');
@@ -91,12 +95,16 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [unitsData, chartOfAccountsData] = await Promise.all([
+                const [unitsData, chartOfAccountsData, ncmsData, cestsData] = await Promise.all([
                     fetchUnits(),
                     fetchChartOfAccounts('ATIVO'),
+                    fetchFiscalNcms({ active: true }),
+                    fetchFiscalCests({ active: true }),
                 ]);
                 setUnits(unitsData);
                 setChartOfAccounts(chartOfAccountsData);
+                setFiscalNcms(ncmsData);
+                setFiscalCests(cestsData);
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
                 toast({
@@ -127,6 +135,17 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
             return;
         }
 
+        if (!initialData && !formData.ncm_id) {
+            toast({
+                title: 'Campo obrigatório',
+                description: 'NCM é obrigatório para novos suprimentos',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+
         try {
             let imageUrl = String(formData.image_url || '');
 
@@ -145,6 +164,8 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
                 subcategory_id: formData.subcategory_id ? String(formData.subcategory_id) : undefined,
                 image_url: imageUrl || undefined,
                 chart_of_account_id: String(formData.chart_of_account_id),
+                ncm_id: String(formData.ncm_id || ''),
+                cest_id: formData.cest_id ? String(formData.cest_id) : null,
             };
 
             onSubmit(payload);
@@ -271,6 +292,47 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
                                     {chartOfAccounts.map((account) => (
                                         <option key={account.id} value={account.id}>
                                             {account.codigo} - {account.nome}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <FormControl isRequired={!initialData} gridColumn={{ base: 'auto', md: '2' }}>
+                                <FormLabel>NCM</FormLabel>
+                                <Select
+                                    value={String(formData.ncm_id || '')}
+                                    onChange={(e) => setFormData({ ...formData, ncm_id: e.target.value })}
+                                    placeholder="Selecione o NCM"
+                                >
+                                    {fiscalNcms.map((ncm) => (
+                                        <option key={ncm.id} value={ncm.id}>
+                                            {ncm.code} — {ncm.description}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+
+                            <FormControl gridColumn={{ base: 'auto', md: '1' }}>
+                                <FormLabel>CEST (opcional)</FormLabel>
+                                <Select
+                                    value={String(formData.cest_id || '')}
+                                    onChange={(e) => {
+                                        const cestId = e.target.value;
+                                        const selected = fiscalCests.find((c) => c.id === cestId);
+                                        setFormData((prev) => ({
+                                            ...prev,
+                                            cest_id: cestId,
+                                            ncm_id:
+                                                !prev.ncm_id && selected?.default_ncm_id
+                                                    ? selected.default_ncm_id
+                                                    : prev.ncm_id,
+                                        }));
+                                    }}
+                                    placeholder="Selecione o CEST"
+                                >
+                                    {fiscalCests.map((cest) => (
+                                        <option key={cest.id} value={cest.id}>
+                                            {cest.code} — {cest.description}
                                         </option>
                                     ))}
                                 </Select>
