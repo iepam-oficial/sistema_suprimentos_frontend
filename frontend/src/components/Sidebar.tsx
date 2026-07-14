@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import NextImage from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Menu as MenuIcon,
@@ -302,19 +301,22 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
 
   return (
     <aside className="flex h-full w-full flex-col border-r border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-700">
-        <div className="flex min-w-0 flex-1 items-center">
-          <div className="relative h-10 w-10 shrink-0">
-            <NextImage
-              src="/logo%20IEPAM%20.png"
-              alt="IEPAM"
-              fill
-              sizes="40px"
-              style={{ objectFit: 'contain' }}
-              priority
-            />
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 dark:border-slate-700">
+        {user ? (
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-900/50 dark:text-primary-200">
+              {getInitials(user.name)}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{user.name}</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                {ROLE_LABELS[user.role] ?? user.role}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="min-w-0 flex-1" />
+        )}
         {isMobile && (
           <button
             type="button"
@@ -487,19 +489,6 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
       </nav>
 
       <div className="shrink-0 border-t border-slate-100 p-4 dark:border-slate-700">
-        {user && (
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-900/50 dark:text-primary-200">
-              {getInitials(user.name)}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{user.name}</p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {ROLE_LABELS[user.role] ?? user.role}
-              </p>
-            </div>
-          </div>
-        )}
         <button
           type="button"
           onClick={handleLogout}
