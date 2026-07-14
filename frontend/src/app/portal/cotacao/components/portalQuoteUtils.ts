@@ -15,6 +15,7 @@ export const STATUS_LABELS: Record<QuoteInviteStatus, string> = {
   ACCEPTED: 'Participação confirmada',
   DECLINED: 'Recusado',
   RESPONDED: 'Proposta enviada',
+  CORRECTION_REQUESTED: 'Correção solicitada',
   EXPIRED: 'Expirado',
 };
 
@@ -23,6 +24,7 @@ export const STATUS_COLORS: Record<QuoteInviteStatus, string> = {
   ACCEPTED: 'blue',
   DECLINED: 'red',
   RESPONDED: 'green',
+  CORRECTION_REQUESTED: 'orange',
   EXPIRED: 'gray',
 };
 
@@ -59,6 +61,7 @@ export function sumProposalItemsTotal(
 
 export function getWorkflowStepIndex(status: QuoteInviteStatus): number {
   if (status === 'PENDING' || status === 'EXPIRED') return 0;
-  if (status === 'ACCEPTED' || status === 'DECLINED') return 1;
+  if (status === 'ACCEPTED' || status === 'DECLINED' || status === 'CORRECTION_REQUESTED')
+    return 1;
   return 2;
 }

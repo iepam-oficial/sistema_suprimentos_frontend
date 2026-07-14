@@ -8,6 +8,7 @@ import {
 import { E2eApiClient } from '../helpers/apiClient';
 import { loginAs, logout, fixturePath } from '../helpers/auth';
 import { clickByText, findByTestId, clickByTestId } from '../helpers/driver';
+import { markAllProposalsReviewOk } from '../helpers/proposalReview';
 import { fillGoodsReceiptPhysicalLine, fillPurchaseRequestItemsStep, advancePurchaseRequestToReview, selectChartAccount } from '../helpers/purchaseRequestForm';
 import { step } from '../helpers/step';
 import { waitForText, waitForUrlContains } from '../helpers/wait';
@@ -192,9 +193,10 @@ export async function runProcurementHappyPath(
     await submitAllPortalProposals(driver, tokens.slice(0, 3));
   });
 
-  await step('Cotação: encerrar e aprovar', async () => {
+  await step('Cotação: revisar propostas, encerrar e aprovar', async () => {
     await loginAs(driver, 'MANAGER');
     await driver.get(`${getBaseUrl()}/procurement/cotacoes/${quoteId}`);
+    await markAllProposalsReviewOk(driver, 3);
     await clickByText(driver, 'Encerrar e calcular ranking');
     await waitForText(driver, 'Ranking de propostas');
     await logout(driver);

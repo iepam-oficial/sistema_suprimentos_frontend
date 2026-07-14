@@ -1,8 +1,11 @@
 import type {
   ApproveProcurementQuoteInput,
+  CloseProcurementQuoteInput,
   CreateProcurementQuoteInput,
   ProcurementQuoteDTO,
+  ProcurementQuoteProposalReviewDTO,
   ProcurementQuoteStatus,
+  RequestProposalCorrectionInput,
 } from '@ti-assistant/contracts';
 
 export interface ProcurementQuoteListFilters {
@@ -47,6 +50,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
     );
   }
   return response.json();
+}
+
+async function assertOk(response: Response): Promise<void> {
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errData as { error?: string; message?: string }).error ??
+        (errData as { message?: string }).message ??
+        'Erro na requisição de cotações de compra'
+    );
+  }
 }
 
 function authHeaders(token: string): HeadersInit {
@@ -143,15 +157,115 @@ export async function sendProcurementQuote(
   return handleResponse<ProcurementQuoteDTO>(response);
 }
 
+/**
+ * Fornecedor pendente retornado no corpo do erro 409 de {@link closeProcurementQuote}.
+ */
+export interface CloseQuotePendingSupplier {
+  invite_id: string;
+  supplier_name: string;
+  reason: string;
+}
+
+/**
+ * Lançado por {@link closeProcurementQuote} quando o backend responde 409
+ * (existem propostas sem "Revisão OK"). Expõe a lista `pending_suppliers`
+ * extraída do JSON de erro para que a UI ofereça confirmação explícita e
+ * reenvie o close com `confirm_exclude_pending: true`.
+ */
+export class CloseQuotePendingReviewError extends Error {
+  readonly pending_suppliers: CloseQuotePendingSupplier[];
+
+  constructor(message: string, pendingSuppliers: CloseQuotePendingSupplier[]) {
+    super(message);
+    this.name = 'CloseQuotePendingReviewError';
+    this.pending_suppliers = pendingSuppliers;
+  }
+}
+
+/**
+ * Encerra a cotação e calcula o ranking.
+ *
+ * Em caso de 409 (propostas sem "Revisão OK" e `confirm_exclude_pending`
+ * ausente/false), lança {@link CloseQuotePendingReviewError} contendo
+ * `pending_suppliers`. O chamador deve capturar esse erro, exibir o modal de
+ * confirmação e reenviar com `{ confirm_exclude_pending: true }`.
+ */
 export async function closeProcurementQuote(
   token: string,
-  id: string
+  id: string,
+  body?: CloseProcurementQuoteInput
 ): Promise<ProcurementQuoteDTO> {
   const response = await fetch(`/api/procurement-quotes/${encodeURIComponent(id)}/close`, {
     method: 'POST',
-    headers: authHeaders(token),
+    headers: body ? jsonHeaders(token) : authHeaders(token),
+    body: body ? JSON.stringify(body) : undefined,
   });
+
+  if (response.status === 409) {
+    const errData = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+      pending_suppliers?: CloseQuotePendingSupplier[];
+    };
+    throw new CloseQuotePendingReviewError(
+      errData.error ?? errData.message ?? 'Existem propostas sem revisão OK',
+      errData.pending_suppliers ?? []
+    );
+  }
+
   return handleResponse<ProcurementQuoteDTO>(response);
+}
+
+export async function markProposalReviewOk(
+  token: string,
+  quoteId: string,
+  inviteId: string
+): Promise<void> {
+  const response = await fetch(
+    `/api/procurement-quotes/${encodeURIComponent(quoteId)}/invites/${encodeURIComponent(
+      inviteId
+    )}/review-ok`,
+    {
+      method: 'POST',
+      headers: authHeaders(token),
+    }
+  );
+  await assertOk(response);
+}
+
+export async function requestProposalCorrection(
+  token: string,
+  quoteId: string,
+  inviteId: string,
+  payload: RequestProposalCorrectionInput
+): Promise<void> {
+  const response = await fetch(
+    `/api/procurement-quotes/${encodeURIComponent(quoteId)}/invites/${encodeURIComponent(
+      inviteId
+    )}/request-correction`,
+    {
+      method: 'POST',
+      headers: jsonHeaders(token),
+      body: JSON.stringify(payload),
+    }
+  );
+  await assertOk(response);
+}
+
+export async function fetchProposalReviews(
+  token: string,
+  quoteId: string,
+  inviteId: string
+): Promise<ProcurementQuoteProposalReviewDTO[]> {
+  const response = await fetch(
+    `/api/procurement-quotes/${encodeURIComponent(quoteId)}/invites/${encodeURIComponent(
+      inviteId
+    )}/reviews`,
+    {
+      headers: authHeaders(token),
+    }
+  );
+  return handleResponse<ProcurementQuoteProposalReviewDTO[]>(response);
 }
 
 export async function approveProcurementQuote(

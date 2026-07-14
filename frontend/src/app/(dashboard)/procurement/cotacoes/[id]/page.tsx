@@ -23,19 +23,31 @@ import {
   useToast,
   VStack,
 } from '@chakra-ui/react';
-import { ArrowLeft, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, Clock, FileText, History } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import type { ProcurementQuoteDTO } from '@ti-assistant/contracts';
+import type {
+  ProcurementQuoteDTO,
+  ProcurementQuoteInviteDTO,
+} from '@ti-assistant/contracts';
+import { ProposalReviewStatus, QuoteInviteStatus } from '@ti-assistant/contracts';
 import {
   closeProcurementQuote,
+  CloseQuoteConfirmModal,
+  CloseQuotePendingReviewError,
+  type CloseQuotePendingSupplier,
   fetchProcurementQuoteById,
+  getReviewBadge,
+  markProposalReviewOk,
   ProcurementQuoteRanking,
   procurementQuoteStatusColor,
   procurementQuoteStatusLabel,
+  ProposalCorrectionModal,
   ProposalPdfPreviewDrawer,
+  ProposalReviewHistoryDrawer,
   QuoteOriginSection,
   QuoteTimelineDrawer,
   sendProcurementQuote,
+  usePollingRefresh,
 } from '@/features/procurement';
 
 const VIEW_ROLES = ['MANAGER', 'DIRECTOR', 'ADMIN'];
@@ -68,6 +80,16 @@ export default function ProcurementQuoteDetailPage() {
     supplierName: string;
     pdfUrl: string;
   } | null>(null);
+  const [reviewingInviteId, setReviewingInviteId] = useState<string | null>(null);
+  const [correctionInvite, setCorrectionInvite] =
+    useState<ProcurementQuoteInviteDTO | null>(null);
+  const [historyInvite, setHistoryInvite] = useState<{
+    inviteId: string;
+    supplierName: string;
+  } | null>(null);
+  const [pendingSuppliers, setPendingSuppliers] = useState<
+    CloseQuotePendingSupplier[]
+  >([]);
 
   const {
     isOpen: isTimelineOpen,
@@ -79,6 +101,21 @@ export default function ProcurementQuoteDetailPage() {
     onOpen: onPdfOpen,
     onClose: onPdfClose,
   } = useDisclosure();
+  const {
+    isOpen: isCorrectionOpen,
+    onOpen: onCorrectionOpen,
+    onClose: onCorrectionClose,
+  } = useDisclosure();
+  const {
+    isOpen: isHistoryOpen,
+    onOpen: onHistoryOpen,
+    onClose: onHistoryClose,
+  } = useDisclosure();
+  const {
+    isOpen: isCloseConfirmOpen,
+    onOpen: onCloseConfirmOpen,
+    onClose: onCloseConfirmClose,
+  } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -86,27 +123,40 @@ export default function ProcurementQuoteDetailPage() {
   const textColor = useColorModeValue('gray.700', 'gray.200');
   const mutedColor = useColorModeValue('gray.500', 'gray.400');
 
-  const loadQuote = useCallback(async () => {
+  const loadQuote = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
       return;
     }
 
     try {
-      setLoading(true);
-      const data = await fetchProcurementQuoteById(token, quoteId);
+      if (!silent) {
+        setLoading(true);
+      }
+      const data = await fetchProcurementQuoteById(
+        token,
+        quoteId,
+        silent ? { polling: true } : undefined,
+      );
       setQuote(data);
     } catch (err) {
-      toast({
-        title: 'Erro ao carregar cotação',
-        description: err instanceof Error ? err.message : 'Tente novamente.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
+      if (!silent) {
+        toast({
+          title: 'Erro ao carregar cotação',
+          description: err instanceof Error ? err.message : 'Tente novamente.',
+          status: 'error',
+          duration: 4000,
+          isClosable: true,
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [quoteId, toast]);
 
@@ -122,9 +172,19 @@ export default function ProcurementQuoteDetailPage() {
 
   useEffect(() => {
     if (authorized) {
-      loadQuote();
+      void loadQuote();
     }
   }, [authorized, loadQuote]);
+
+  const blockingOverlayOpen =
+    isPdfOpen || isCorrectionOpen || isHistoryOpen || isCloseConfirmOpen;
+
+  usePollingRefresh({
+    enabled: authorized && !blockingOverlayOpen && !actionLoading,
+    onTick: () => {
+      void loadQuote({ silent: true });
+    },
+  });
 
   const handleSend = async () => {
     const token = localStorage.getItem('@ti-assistant:token');
@@ -169,6 +229,11 @@ export default function ProcurementQuoteDetailPage() {
       });
       loadQuote();
     } catch (err) {
+      if (err instanceof CloseQuotePendingReviewError) {
+        setPendingSuppliers(err.pending_suppliers);
+        onCloseConfirmOpen();
+        return;
+      }
       toast({
         title: 'Erro ao encerrar',
         description: err instanceof Error ? err.message : 'Tente novamente.',
@@ -179,6 +244,62 @@ export default function ProcurementQuoteDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleReviewOk = async (invite: ProcurementQuoteInviteDTO) => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token) return;
+
+    setReviewingInviteId(invite.id);
+    try {
+      await markProposalReviewOk(token, quoteId, invite.id);
+      toast({
+        title: 'Revisão registrada',
+        description: 'A proposta foi marcada como Revisão OK.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      await loadQuote();
+    } catch (err) {
+      toast({
+        title: 'Erro ao registrar revisão',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+    } finally {
+      setReviewingInviteId(null);
+    }
+  };
+
+  const handleOpenCorrection = (invite: ProcurementQuoteInviteDTO) => {
+    setCorrectionInvite(invite);
+    onCorrectionOpen();
+  };
+
+  const handleCorrectionClose = () => {
+    onCorrectionClose();
+    setCorrectionInvite(null);
+  };
+
+  const handleOpenHistory = (invite: ProcurementQuoteInviteDTO) => {
+    setHistoryInvite({
+      inviteId: invite.id,
+      supplierName: invite.supplier?.name ?? 'Fornecedor',
+    });
+    onHistoryOpen();
+  };
+
+  const handleHistoryClose = () => {
+    onHistoryClose();
+    setHistoryInvite(null);
+  };
+
+  const handleCloseConfirmSuccess = () => {
+    setPendingSuppliers([]);
+    loadQuote();
   };
 
   const handleOpenPdf = (supplierName: string, pdfUrl: string) => {
@@ -306,20 +427,43 @@ export default function ProcurementQuoteDetailPage() {
                 <Tr>
                   <Th>Fornecedor</Th>
                   <Th>Status</Th>
+                  <Th>Revisão</Th>
                   <Th>Proposta</Th>
                   <Th>Valor total</Th>
                   <Th>PDF</Th>
+                  {isManager && <Th>Ações</Th>}
                 </Tr>
               </Thead>
               <Tbody>
                 {(quote.invites ?? []).map((invite) => {
                   const pdfUrl = invite.proposal?.proposal_pdf_url;
+                  const hasProposal = !!invite.proposal;
+                  const reviewBadge = getReviewBadge(
+                    invite.proposal_review_status,
+                    invite.status,
+                    hasProposal
+                  );
+                  const canReview =
+                    hasProposal &&
+                    invite.proposal_review_status ===
+                      ProposalReviewStatus.PENDING_REVIEW &&
+                    invite.status === QuoteInviteStatus.RESPONDED &&
+                    quote.status === 'SENT';
+                  const hasHistory =
+                    hasProposal ||
+                    invite.proposal_review_status != null ||
+                    invite.status === QuoteInviteStatus.CORRECTION_REQUESTED;
 
                   return (
                     <Tr key={invite.id}>
                       <Td color={textColor}>{invite.supplier?.name ?? '—'}</Td>
                       <Td>
                         <Badge>{inviteStatusLabel(invite.status)}</Badge>
+                      </Td>
+                      <Td>
+                        <Badge colorScheme={reviewBadge.colorScheme}>
+                          {reviewBadge.label}
+                        </Badge>
                       </Td>
                       <Td color={textColor}>
                         {invite.proposal ? 'Enviada' : '—'}
@@ -349,6 +493,48 @@ export default function ProcurementQuoteDetailPage() {
                           </Text>
                         )}
                       </Td>
+                      {isManager && (
+                        <Td>
+                          <HStack spacing={2} flexWrap="wrap">
+                            {canReview && (
+                              <>
+                                <Button
+                                  size="xs"
+                                  colorScheme="green"
+                                  onClick={() => handleReviewOk(invite)}
+                                  isLoading={reviewingInviteId === invite.id}
+                                  loadingText="Salvando..."
+                                >
+                                  Revisão OK
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  colorScheme="orange"
+                                  variant="outline"
+                                  onClick={() => handleOpenCorrection(invite)}
+                                >
+                                  Solicitar correção
+                                </Button>
+                              </>
+                            )}
+                            {hasHistory && (
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                leftIcon={<History size={14} />}
+                                onClick={() => handleOpenHistory(invite)}
+                              >
+                                Histórico
+                              </Button>
+                            )}
+                            {!canReview && !hasHistory && (
+                              <Text fontSize="sm" color={mutedColor}>
+                                —
+                              </Text>
+                            )}
+                          </HStack>
+                        </Td>
+                      )}
                     </Tr>
                   );
                 })}
@@ -376,6 +562,7 @@ export default function ProcurementQuoteDetailPage() {
         onClose={onTimelineClose}
         quoteId={quoteId}
         invites={quote.invites ?? []}
+        pollingEnabled={!blockingOverlayOpen && !actionLoading}
       />
 
       <ProposalPdfPreviewDrawer
@@ -383,6 +570,34 @@ export default function ProcurementQuoteDetailPage() {
         onClose={handlePdfClose}
         supplierName={pdfPreview?.supplierName ?? ''}
         pdfUrl={pdfPreview?.pdfUrl ?? null}
+      />
+
+      {correctionInvite && (
+        <ProposalCorrectionModal
+          quoteId={quoteId}
+          inviteId={correctionInvite.id}
+          proposal={correctionInvite.proposal}
+          supplierName={correctionInvite.supplier?.name}
+          isOpen={isCorrectionOpen}
+          onClose={handleCorrectionClose}
+          onSuccess={loadQuote}
+        />
+      )}
+
+      <ProposalReviewHistoryDrawer
+        quoteId={quoteId}
+        inviteId={historyInvite?.inviteId ?? null}
+        supplierName={historyInvite?.supplierName}
+        isOpen={isHistoryOpen}
+        onClose={handleHistoryClose}
+      />
+
+      <CloseQuoteConfirmModal
+        quoteId={quoteId}
+        pendingSuppliers={pendingSuppliers}
+        isOpen={isCloseConfirmOpen}
+        onClose={onCloseConfirmClose}
+        onSuccess={handleCloseConfirmSuccess}
       />
     </Box>
   );

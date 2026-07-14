@@ -40,13 +40,20 @@ export type { PurchaseRequestListFilters } from './api/purchaseRequestApi';
 export {
   approveProcurementQuote,
   closeProcurementQuote,
+  CloseQuotePendingReviewError,
   createProcurementQuote,
   fetchProcurementQuoteById,
   fetchProcurementQuoteEvents,
+  fetchProposalReviews,
   fetchProcurementQuotes,
+  markProposalReviewOk,
+  requestProposalCorrection,
   sendProcurementQuote,
 } from './api/procurementQuoteApi';
-export type { ProcurementQuoteEventDTO } from './api/procurementQuoteApi';
+export type {
+  CloseQuotePendingSupplier,
+  ProcurementQuoteEventDTO,
+} from './api/procurementQuoteApi';
 
 export {
   createPurchaseOrder,
@@ -90,6 +97,16 @@ export { QuoteEventTimeline } from './components/QuoteEventTimeline';
 export { QuoteOriginSection } from './components/QuoteOriginSection';
 export { QuoteTimelineDrawer } from './components/QuoteTimelineDrawer';
 export { ProposalPdfPreviewDrawer } from './components/ProposalPdfPreviewDrawer';
+export { ProposalCorrectionModal } from './components/ProposalCorrectionModal';
+export { ProposalReviewHistoryDrawer } from './components/ProposalReviewHistoryDrawer';
+export { CloseQuoteConfirmModal } from './components/CloseQuoteConfirmModal';
+export {
+  getReviewBadge,
+  getReviewBadgeLabel,
+  getReviewActionLabel,
+  getReviewActionColorScheme,
+} from './lib/proposalReviewLabels';
+export type { ReviewBadgeDescriptor } from './lib/proposalReviewLabels';
 export { buildSupplierTimelineEvents } from './lib/quoteTimeline';
 export { ProcurementQuoteWizard } from './components/ProcurementQuoteWizard';
 export { PurchaseOrderList } from './components/PurchaseOrderList';

@@ -19,6 +19,7 @@ import {
 import { Upload } from 'lucide-react';
 import { CurrencyInput } from '@/components/CurrencyInput';
 import { useGlassTokens } from '@/components/layout';
+import { formatBRL } from './portalQuoteUtils';
 
 interface PortalQuoteProposalFormProps {
   aiAvailable: boolean;
@@ -29,7 +30,6 @@ interface PortalQuoteProposalFormProps {
   paymentDays: number;
   freight: number;
   taxes: number;
-  onTotalValueChange: (value: number) => void;
   onDeliveryDaysChange: (value: number) => void;
   onPaymentDaysChange: (value: number) => void;
   onFreightChange: (value: number) => void;
@@ -46,7 +46,6 @@ export function PortalQuoteProposalForm({
   paymentDays,
   freight,
   taxes,
-  onTotalValueChange,
   onDeliveryDaysChange,
   onPaymentDaysChange,
   onFreightChange,
@@ -107,8 +106,10 @@ export function PortalQuoteProposalForm({
       <HStack spacing={3} align="flex-start" flexWrap="wrap">
         <FormControl flex="1" minW="120px" size="sm">
           <FormLabel fontSize="xs">Valor total</FormLabel>
-          <CurrencyInput value={totalValue} onChange={onTotalValueChange} />
-          <FormHelperText fontSize="xs">Calculado automaticamente a partir dos itens.</FormHelperText>
+          <Text fontSize="md" fontWeight="bold" color={headingColor} lineHeight="32px">
+            {formatBRL(totalValue)}
+          </Text>
+          <FormHelperText fontSize="xs">Não é editável — altere os itens abaixo</FormHelperText>
         </FormControl>
         <FormControl flex="1" minW="100px" size="sm">
           <FormLabel fontSize="xs">Entrega (dias)</FormLabel>

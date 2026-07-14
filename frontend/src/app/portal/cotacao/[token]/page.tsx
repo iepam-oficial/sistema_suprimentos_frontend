@@ -29,6 +29,7 @@ import {
   declinePortalQuoteInvite,
   extractPortalQuotePdf,
   fetchPortalQuoteInvite,
+  revisePortalQuoteProposal,
   submitPortalQuoteProposal,
 } from '@/features/procurement/api/portalQuoteApi';
 import { mulMoney } from '@/utils/money';
@@ -49,6 +50,7 @@ import {
   PortalQuoteSummary,
   sumProposalItemsTotal,
 } from '../components';
+import { PortalQuoteCorrectionBanner } from '../components/PortalQuoteCorrectionBanner';
 
 export default function PortalCotacaoPage() {
   const params = useParams();
@@ -81,7 +83,23 @@ export default function PortalCotacaoPage() {
       setNotFound(false);
       const data = await fetchPortalQuoteInvite(token);
       setContext(data);
-      setProposalItems(buildInitialItems(data));
+      if (data.status === 'CORRECTION_REQUESTED' && data.proposal) {
+        const proposal = data.proposal;
+        const items = proposal.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+        }));
+        setDeliveryDays(proposal.delivery_days);
+        setPaymentDays(proposal.payment_days);
+        setFreight(proposal.freight);
+        setTaxes(proposal.taxes);
+        setProposalItems(items);
+        setTotalValue(sumProposalItemsTotal(items));
+      } else {
+        setProposalItems(buildInitialItems(data));
+      }
       setHasAiSuggestions(false);
     } catch (err) {
       if (err instanceof Error && err.message.includes('inválido')) {
@@ -193,7 +211,6 @@ export default function PortalCotacaoPage() {
       setExtractLoading(true);
       const suggestions = await extractPortalQuotePdf(token, file);
 
-      if (suggestions.total_value != null) setTotalValue(suggestions.total_value);
       if (suggestions.delivery_days != null) setDeliveryDays(suggestions.delivery_days);
       if (suggestions.payment_days != null) setPaymentDays(suggestions.payment_days);
       if (suggestions.freight != null) setFreight(suggestions.freight);
@@ -201,6 +218,7 @@ export default function PortalCotacaoPage() {
 
       if (suggestions.items && suggestions.items.length > 0) {
         setProposalItems(suggestions.items);
+        setTotalValue(sumProposalItemsTotal(suggestions.items));
       }
 
       const hasFields =
@@ -315,6 +333,48 @@ export default function PortalCotacaoPage() {
     }
   };
 
+  const handleReviseProposal = async () => {
+    try {
+      setActionLoading(true);
+      const proposal = await revisePortalQuoteProposal(
+        token,
+        {
+          total_value: totalValue,
+          delivery_days: deliveryDays,
+          payment_days: paymentDays,
+          freight,
+          taxes,
+          items: proposalItems,
+        },
+        selectedProposalPdf ?? undefined,
+      );
+
+      setContext((prev) =>
+        prev ? { ...prev, status: 'RESPONDED', proposal, correction_request: null } : prev,
+      );
+      setHasAiSuggestions(false);
+      setSelectedProposalPdf(null);
+
+      toast({
+        title: 'Proposta reenviada',
+        description: 'Sua proposta corrigida foi registrada e aguarda revisão.',
+        status: 'success',
+        duration: 4000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: 'Erro ao reenviar proposta',
+        description: err instanceof Error ? err.message : 'Tente novamente.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Center flex="1" minH={0}>
@@ -344,12 +404,55 @@ export default function PortalCotacaoPage() {
 
   const canAcceptOrDecline = context.status === 'PENDING';
   const canSubmitProposal = context.status === 'ACCEPTED' && !context.proposal;
+  const canReviseProposal = context.status === 'CORRECTION_REQUESTED' && !!context.proposal;
   const aiAvailable = context.ai_extraction_available;
   const isFinalState =
     context.status === 'DECLINED' ||
     context.status === 'EXPIRED' ||
     context.status === 'RESPONDED' ||
-    !!context.proposal;
+    (!!context.proposal && !canReviseProposal);
+
+  const renderProposalTabs = () => (
+    <Tabs
+      variant="enclosed"
+      colorScheme="blue"
+      size="sm"
+      index={proposalTab}
+      onChange={setProposalTab}
+      display="flex"
+      flexDirection="column"
+      flex="1"
+      minH={0}
+    >
+      <TabList flexShrink={0}>
+        <Tab>Itens solicitados</Tab>
+        <Tab>Minha proposta</Tab>
+      </TabList>
+      <TabPanels flex="1" minH={0} overflow="hidden">
+        <TabPanel p={2} h="full" overflow="auto">
+          <PortalQuoteItemsTable items={context.items} />
+        </TabPanel>
+        <TabPanel p={2} h="full" overflow="auto">
+          <PortalQuoteProposalForm
+            aiAvailable={aiAvailable}
+            hasAiSuggestions={hasAiSuggestions}
+            extractLoading={extractLoading}
+            totalValue={totalValue}
+            deliveryDays={deliveryDays}
+            paymentDays={paymentDays}
+            freight={freight}
+            taxes={taxes}
+            onDeliveryDaysChange={setDeliveryDays}
+            onPaymentDaysChange={setPaymentDays}
+            onFreightChange={setFreight}
+            onTaxesChange={setTaxes}
+            onPdfSelect={handlePdfSelect}
+          />
+          <PortalQuoteProposalItemsTable items={proposalItems} onUpdateItem={updateItem} />
+        </TabPanel>
+      </TabPanels>
+    </Tabs>
+  );
 
   const renderMainContent = () => {
     if (context.status === 'EXPIRED') {
@@ -368,53 +471,23 @@ export default function PortalCotacaoPage() {
       );
     }
 
+    if (canReviseProposal) {
+      return (
+        <VStack align="stretch" spacing={3} flex="1" minH={0} h="full">
+          {context.correction_request && (
+            <PortalQuoteCorrectionBanner correctionRequest={context.correction_request} />
+          )}
+          {renderProposalTabs()}
+        </VStack>
+      );
+    }
+
     if ((context.status === 'RESPONDED' || context.proposal) && context.proposal) {
       return <PortalQuoteSubmittedView proposal={context.proposal} />;
     }
 
     if (canSubmitProposal) {
-      return (
-        <Tabs
-          variant="enclosed"
-          colorScheme="blue"
-          size="sm"
-          index={proposalTab}
-          onChange={setProposalTab}
-          display="flex"
-          flexDirection="column"
-          flex="1"
-          minH={0}
-        >
-          <TabList flexShrink={0}>
-            <Tab>Itens solicitados</Tab>
-            <Tab>Minha proposta</Tab>
-          </TabList>
-          <TabPanels flex="1" minH={0} overflow="hidden">
-            <TabPanel p={2} h="full" overflow="auto">
-              <PortalQuoteItemsTable items={context.items} />
-            </TabPanel>
-            <TabPanel p={2} h="full" overflow="auto">
-              <PortalQuoteProposalForm
-                aiAvailable={aiAvailable}
-                hasAiSuggestions={hasAiSuggestions}
-                extractLoading={extractLoading}
-                totalValue={totalValue}
-                deliveryDays={deliveryDays}
-                paymentDays={paymentDays}
-                freight={freight}
-                taxes={taxes}
-                onTotalValueChange={setTotalValue}
-                onDeliveryDaysChange={setDeliveryDays}
-                onPaymentDaysChange={setPaymentDays}
-                onFreightChange={setFreight}
-                onTaxesChange={setTaxes}
-                onPdfSelect={handlePdfSelect}
-              />
-              <PortalQuoteProposalItemsTable items={proposalItems} onUpdateItem={updateItem} />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      );
+      return renderProposalTabs();
     }
 
     if (canAcceptOrDecline) {
@@ -496,6 +569,22 @@ export default function PortalCotacaoPage() {
             loadingText="Enviando..."
           >
             Enviar proposta
+          </Button>
+        </PortalActionBar>
+      );
+    }
+
+    if (canReviseProposal) {
+      return (
+        <PortalActionBar>
+          <Button
+            size="sm"
+            colorScheme="orange"
+            onClick={handleReviseProposal}
+            isLoading={actionLoading}
+            loadingText="Reenviando..."
+          >
+            Reenviar proposta corrigida
           </Button>
         </PortalActionBar>
       );

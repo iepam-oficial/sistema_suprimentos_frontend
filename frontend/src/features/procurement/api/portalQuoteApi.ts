@@ -73,6 +73,31 @@ export async function submitPortalQuoteProposal(
   return handleResponse<ProcurementQuoteProposalDTO>(response);
 }
 
+export async function revisePortalQuoteProposal(
+  token: string,
+  input: SubmitProcurementProposalInput,
+  file?: File,
+): Promise<ProcurementQuoteProposalDTO> {
+  if (file) {
+    const formData = new FormData();
+    formData.append('payload', JSON.stringify(input));
+    formData.append('file', file);
+
+    const response = await fetch(`${tokenPath(token)}/proposal`, {
+      method: 'PUT',
+      body: formData,
+    });
+    return handleResponse<ProcurementQuoteProposalDTO>(response);
+  }
+
+  const response = await fetch(`${tokenPath(token)}/proposal`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<ProcurementQuoteProposalDTO>(response);
+}
+
 export async function extractPortalQuotePdf(
   token: string,
   file: File
