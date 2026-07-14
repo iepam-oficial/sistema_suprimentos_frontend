@@ -111,8 +111,11 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
   const router = useRouter();
   const pathname = usePathname() || '';
   const { user } = useUser();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isEstoqueOpen, setIsEstoqueOpen] = useState(false);
+  const [isOperacoesOpen, setIsOperacoesOpen] = useState(false);
   const [isComprasOpen, setIsComprasOpen] = useState(false);
+  const [isFinanceiroOpen, setIsFinanceiroOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { logout: handleLogout } = useLogout();
   const { getCount } = useProcurementMenuBadges();
 
@@ -235,6 +238,9 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
       : []),
   ];
 
+  const estoqueActive = estoqueItems.some((item) => isMenuItemActive(item.href));
+  const operacoesActive = operacoesItems.some((item) => isMenuItemActive(item.href));
+  const financeiroActive = financeiroItems.some((item) => isMenuItemActive(item.href));
   const comprasActive =
     pathname.startsWith('/procurement/solicitacoes') ||
     pathname.startsWith('/procurement/aprovacoes-sc') ||
@@ -244,6 +250,55 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
 
   const settingsActive =
     pathname.startsWith('/settings') || pathname === '/chart-of-accounts';
+
+  const renderGroupToggle = ({
+    label,
+    icon: Icon,
+    isOpen,
+    isActive,
+    onToggle,
+    badgeLabel,
+  }: {
+    label: string;
+    icon: LucideIcon;
+    isOpen: boolean;
+    isActive: boolean;
+    onToggle: () => void;
+    badgeLabel?: string;
+  }) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+        isActive
+          ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
+          : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50',
+      )}
+    >
+      <span className="flex items-center">
+        <span className="flex w-6 justify-center">
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <span className="ml-2">{label}</span>
+      </span>
+      <span className="flex items-center gap-2">
+        {badgeLabel ? (
+          <span
+            className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white"
+            aria-label={`${badgeLabel} atualizações`}
+          >
+            {badgeLabel}
+          </span>
+        ) : null}
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 shrink-0" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0" />
+        )}
+      </span>
+    </button>
+  );
 
   return (
     <aside className="flex h-full w-full flex-col border-r border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -274,74 +329,96 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4 scrollbar-thin">
         {menuItems.map((item) => (
-          <div key={item.href}>
-            <SidebarNavLink
-              icon={item.icon}
-              label={item.label}
-              isActive={
-                item.href === '/support-tickets'
-                  ? pathname.startsWith('/support-tickets')
-                  : isMenuItemActive(item.href)
-              }
-              onClick={() => handleNavigation(item.href)}
-              badgeLabel={badgeForHref(item.href) || undefined}
-            />
-            {item.href === '/support-tickets' && showTicketsSubmenu && (
-              <div className="mb-1 mt-1 space-y-0.5 pl-9">
-                  <SidebarNavLink
-                    icon={LayoutGrid}
-                    label="Painel"
-                    size="sm"
-                    isActive={pathname === '/support-tickets'}
-                    onClick={() => handleNavigation('/support-tickets')}
-                  />
-                  <SidebarNavLink
-                    icon={PlusCircle}
-                    label="Novo chamado"
-                    size="sm"
-                    isActive={pathname === '/support-tickets/new'}
-                    onClick={() => handleNavigation('/support-tickets/new')}
-                  />
-                </div>
-            )}
-          </div>
+          <SidebarNavLink
+            key={item.href}
+            icon={item.icon}
+            label={item.label}
+            isActive={isMenuItemActive(item.href)}
+            onClick={() => handleNavigation(item.href)}
+          />
         ))}
+
+        {estoqueItems.length > 0 && (
+          <>
+            {renderGroupToggle({
+              label: 'Estoque',
+              icon: Package,
+              isOpen: isEstoqueOpen,
+              isActive: estoqueActive,
+              onToggle: () => setIsEstoqueOpen(!isEstoqueOpen),
+            })}
+            {isEstoqueOpen && (
+              <div className="mt-1 space-y-0.5 pl-4">
+                {estoqueItems.map((item) => (
+                  <SidebarNavLink
+                    key={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    size="sm"
+                    isActive={isMenuItemActive(item.href)}
+                    onClick={() => handleNavigation(item.href)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {operacoesItems.length > 0 && (
+          <>
+            {renderGroupToggle({
+              label: 'Operações',
+              icon: Wrench,
+              isOpen: isOperacoesOpen,
+              isActive: operacoesActive,
+              onToggle: () => setIsOperacoesOpen(!isOperacoesOpen),
+            })}
+            {isOperacoesOpen && (
+              <div className="mt-1 space-y-0.5 pl-4">
+                {operacoesItems.map((item) => (
+                  <div key={item.href}>
+                    <SidebarNavLink
+                      icon={item.icon}
+                      label={item.label}
+                      size="sm"
+                      isActive={isMenuItemActive(item.href)}
+                      onClick={() => handleNavigation(item.href)}
+                    />
+                    {item.href === '/support-tickets' && showTicketsSubmenu && (
+                      <div className="mb-1 mt-1 space-y-0.5 pl-5">
+                        <SidebarNavLink
+                          icon={LayoutGrid}
+                          label="Painel"
+                          size="sm"
+                          isActive={pathname === '/support-tickets'}
+                          onClick={() => handleNavigation('/support-tickets')}
+                        />
+                        <SidebarNavLink
+                          icon={PlusCircle}
+                          label="Novo chamado"
+                          size="sm"
+                          isActive={pathname === '/support-tickets/new'}
+                          onClick={() => handleNavigation('/support-tickets/new')}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         {comprasItems.length > 0 && (
           <>
-            <button
-              type="button"
-              onClick={() => setIsComprasOpen(!isComprasOpen)}
-              className={cn(
-                'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                comprasActive
-                  ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
-                  : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50',
-              )}
-            >
-              <span className="flex items-center">
-                <span className="flex w-6 justify-center">
-                  <ShoppingCart className="h-[18px] w-[18px]" />
-                </span>
-                <span className="ml-2">Compras</span>
-              </span>
-              <span className="flex items-center gap-2">
-                {comprasBadgeLabel ? (
-                  <span
-                    className="inline-flex h-[1.125rem] min-w-[1.125rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white"
-                    aria-label={`${comprasBadgeLabel} atualizações`}
-                  >
-                    {comprasBadgeLabel}
-                  </span>
-                ) : null}
-                {isComprasOpen ? (
-                  <ChevronDown className="h-4 w-4 shrink-0" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0" />
-                )}
-              </span>
-            </button>
-
+            {renderGroupToggle({
+              label: 'Compras',
+              icon: ShoppingCart,
+              isOpen: isComprasOpen,
+              isActive: comprasActive,
+              onToggle: () => setIsComprasOpen(!isComprasOpen),
+              badgeLabel: comprasBadgeLabel || undefined,
+            })}
             {isComprasOpen && (
               <div className="mt-1 space-y-0.5 pl-4">
                 {comprasItems.map((item) => (
@@ -360,29 +437,39 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
           </>
         )}
 
-        <button
-          type="button"
-          onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          className={cn(
-            'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-            settingsActive
-              ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-200'
-              : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50',
-          )}
-        >
-          <span className="flex items-center">
-            <span className="flex w-6 justify-center">
-              <Settings className="h-[18px] w-[18px]" />
-            </span>
-            <span className="ml-2">Configurações</span>
-          </span>
-          {isSettingsOpen ? (
-            <ChevronDown className="h-4 w-4 shrink-0" />
-          ) : (
-            <ChevronRight className="h-4 w-4 shrink-0" />
-          )}
-        </button>
+        {financeiroItems.length > 0 && (
+          <>
+            {renderGroupToggle({
+              label: 'Financeiro',
+              icon: BarChart,
+              isOpen: isFinanceiroOpen,
+              isActive: financeiroActive,
+              onToggle: () => setIsFinanceiroOpen(!isFinanceiroOpen),
+            })}
+            {isFinanceiroOpen && (
+              <div className="mt-1 space-y-0.5 pl-4">
+                {financeiroItems.map((item) => (
+                  <SidebarNavLink
+                    key={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    size="sm"
+                    isActive={isMenuItemActive(item.href)}
+                    onClick={() => handleNavigation(item.href)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
+        {renderGroupToggle({
+          label: 'Configurações',
+          icon: Settings,
+          isOpen: isSettingsOpen,
+          isActive: settingsActive,
+          onToggle: () => setIsSettingsOpen(!isSettingsOpen),
+        })}
         {isSettingsOpen && (
           <div className="mt-1 max-h-[200px] space-y-0.5 overflow-y-auto pl-4 scrollbar-thin">
             {settingsItems.map((item) => (
