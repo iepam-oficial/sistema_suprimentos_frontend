@@ -15,7 +15,10 @@ import { useUser } from '@/contexts/GlobalContext';
 import { fetchPurchaseRequests } from '../api/purchaseRequestApi';
 import { fetchProcurementQuotes } from '../api/procurementQuoteApi';
 import { fetchPurchaseOrders } from '../api/purchaseOrderApi';
-import { startPollingRefresh } from '../utils/pollingRefresh';
+import {
+  PROCUREMENT_POLL_INTERVAL_MS,
+  startPollingRefresh,
+} from '../utils/pollingRefresh';
 import {
   clearAllBaselines,
   readBaseline,
@@ -34,7 +37,6 @@ import {
   type MenuBadgeRouteKey,
 } from '../utils/menuBadgeRoutes';
 
-const POLL_INTERVAL_MS = 5000;
 const LIST_LIMIT = 100;
 
 type Counts = Partial<Record<MenuBadgeRouteKey, number>>;
@@ -202,7 +204,7 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
     void tick();
     const dispose = startPollingRefresh({
       enabled: true,
-      intervalMs: POLL_INTERVAL_MS,
+      intervalMs: PROCUREMENT_POLL_INTERVAL_MS,
       onTick: () => {
         void tick();
       },

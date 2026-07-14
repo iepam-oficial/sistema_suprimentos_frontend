@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { startPollingRefresh } from '../utils/pollingRefresh';
+import {
+  PROCUREMENT_POLL_INTERVAL_MS,
+  startPollingRefresh,
+} from '../utils/pollingRefresh';
 
 export type UsePollingRefreshOptions = {
   enabled: boolean;
   intervalMs?: number;
   onTick: () => void;
 };
-
-const DEFAULT_INTERVAL_MS = 5000;
 
 /**
  * Calls onTick on a fixed interval while enabled.
@@ -18,7 +19,7 @@ const DEFAULT_INTERVAL_MS = 5000;
  */
 export function usePollingRefresh({
   enabled,
-  intervalMs = DEFAULT_INTERVAL_MS,
+  intervalMs = PROCUREMENT_POLL_INTERVAL_MS,
   onTick,
 }: UsePollingRefreshOptions): void {
   const onTickRef = useRef(onTick);

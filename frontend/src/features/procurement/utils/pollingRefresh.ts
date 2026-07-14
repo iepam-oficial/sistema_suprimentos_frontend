@@ -1,3 +1,5 @@
+export const PROCUREMENT_POLL_INTERVAL_MS = 5000;
+
 export type StartPollingRefreshOptions = {
   enabled: boolean;
   intervalMs: number;
