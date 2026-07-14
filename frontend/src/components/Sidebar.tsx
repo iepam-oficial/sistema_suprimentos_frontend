@@ -155,6 +155,22 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Home, label: 'Dashboard', href: '/dashboard' }]
       : []),
+  ];
+
+  const estoqueItems: { icon: LucideIcon; label: string; href: string }[] = [
+    ...(user?.role === 'MANAGER' ? [{ icon: Package, label: 'Inventário', href: '/inventory' }] : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+      ? [{ icon: Package, label: 'Suprimentos', href: '/supplies' }]
+      : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+      ? [{ icon: Package, label: 'Requisições', href: '/supply-requests/admin' }]
+      : []),
+    ...(user && hasEmployeeSelfServiceAccess(user.role)
+      ? [{ icon: ShoppingCart, label: 'Requisições', href: '/supply-requests' }]
+      : []),
+  ];
+
+  const operacoesItems: { icon: LucideIcon; label: string; href: string }[] = [
     ...(user &&
     (hasEmployeeSelfServiceAccess(user.role) ||
       ['SUPPORT', 'ADMIN', 'MANAGER'].includes(user.role))
@@ -169,23 +185,13 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     ...(user?.role === 'TECHNICIAN'
       ? [{ icon: Settings, label: 'Manutenção', href: '/maintenance-schedules' }]
       : []),
-    ...(user?.role === 'MANAGER' ? [{ icon: Package, label: 'Inventário', href: '/inventory' }] : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
-      ? [{ icon: Package, label: 'Suprimentos', href: '/supplies' }]
+    { icon: Calendar, label: 'Eventos', href: '/events' },
+    ...(user && ['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role)
+      ? [{ icon: Bell, label: 'Alertas', href: '/alerts' }]
       : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
-      ? [{ icon: Package, label: 'Requisições', href: '/supply-requests/admin' }]
-      : []),
-    ...(user && hasEmployeeSelfServiceAccess(user.role)
-      ? [{ icon: ShoppingCart, label: 'Requisições', href: '/supply-requests' }]
-      : []),
-    ...(user && ['COORDINATOR', 'ADMIN'].includes(user.role)
-      ? [{ icon: ClipboardList, label: 'Solicitações de Compra', href: '/procurement/solicitacoes' }]
-      : []),
-    ...(user && ['DIRECTOR', 'ADMIN'].includes(user.role)
-      ? [{ icon: CheckSquare, label: 'Aprovações SC', href: '/procurement/aprovacoes-sc' }]
-      : []),
+  ];
 
+  const financeiroItems: { icon: LucideIcon; label: string; href: string }[] = [
     { icon: FileText, label: 'Cotações', href: '/quotes' },
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Timer, label: 'Gastos Extras', href: '/extra-expenses' }]
@@ -193,10 +199,6 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: TrendingDown, label: 'Taxas de Depreciação', href: '/depreciation-rates' }]
       : []),
-    ...(user && ['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role)
-      ? [{ icon: Bell, label: 'Alertas', href: '/alerts' }]
-      : []),
-    { icon: Calendar, label: 'Eventos', href: '/events' },
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: BarChart, label: 'Relatórios', href: '/reports' }]
       : []),
@@ -216,6 +218,12 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
   ];
 
   const comprasItems = [
+    ...(user && ['COORDINATOR', 'ADMIN'].includes(user.role)
+      ? [{ icon: ClipboardList, label: 'Solicitações de Compra', href: '/procurement/solicitacoes' }]
+      : []),
+    ...(user && ['DIRECTOR', 'ADMIN'].includes(user.role)
+      ? [{ icon: CheckSquare, label: 'Aprovações SC', href: '/procurement/aprovacoes-sc' }]
+      : []),
     ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
       ? [{ icon: ListOrdered, label: 'Fila de Compras', href: '/procurement/fila-compras' }]
       : []),
@@ -228,6 +236,8 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
   ];
 
   const comprasActive =
+    pathname.startsWith('/procurement/solicitacoes') ||
+    pathname.startsWith('/procurement/aprovacoes-sc') ||
     pathname.startsWith('/procurement/fila-compras') ||
     pathname.startsWith('/procurement/cotacoes') ||
     pathname.startsWith('/procurement/pedidos');
