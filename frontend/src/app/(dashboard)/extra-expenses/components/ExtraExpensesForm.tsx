@@ -186,8 +186,9 @@ export default function ExtraExpensesForm({ isOpen, onClose, editingExpense }: E
         console.log('Tipo da imagem:', selectedImage.type);
         
         try {
-          finalReceiptUrl = await uploadImage(selectedImage);
-          console.log('Upload bem-sucedido:', finalReceiptUrl);
+          const uploaded = await uploadImage(selectedImage);
+          finalReceiptUrl = uploaded.key;
+          console.log('Upload bem-sucedido:', uploaded.key);
         } catch (uploadError: any) {
           console.error('Erro no upload da imagem:', uploadError);
           toast({

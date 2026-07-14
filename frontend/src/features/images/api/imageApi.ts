@@ -2,7 +2,7 @@ import type { ImageUploadResponseDTO } from '@ti-assistant/contracts';
 
 export type { ImageUploadResponseDTO };
 
-export const uploadImage = async (file: File): Promise<string> => {
+export const uploadImage = async (file: File): Promise<ImageUploadResponseDTO> => {
   const token =
     typeof window !== 'undefined' ? localStorage.getItem('@ti-assistant:token') : null;
 
@@ -31,9 +31,9 @@ export const uploadImage = async (file: File): Promise<string> => {
     throw new Error(data.message || 'Erro ao enviar imagem');
   }
 
-  if (!data.url) {
+  if (!data.key || !data.url) {
     throw new Error('Resposta inválida do servidor de imagens');
   }
 
-  return data.url;
+  return { key: data.key, url: data.url };
 };

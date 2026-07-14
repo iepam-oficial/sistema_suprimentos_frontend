@@ -413,7 +413,8 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
             let imageUrl = formData.image_url;
 
             if (selectedImage) {
-                imageUrl = await uploadImage(selectedImage);
+                const uploaded = await uploadImage(selectedImage);
+                imageUrl = uploaded.key;
             }
 
             const dataToSend: any = {

@@ -131,7 +131,9 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
             let imageUrl = String(formData.image_url || '');
 
             if (selectedImage) {
-                imageUrl = await uploadImage(selectedImage);
+                const uploaded = await uploadImage(selectedImage);
+                imageUrl = uploaded.key;
+                setPreviewUrl(uploaded.url);
             }
 
             const payload: CreateSupplyInput = {

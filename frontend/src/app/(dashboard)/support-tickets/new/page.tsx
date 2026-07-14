@@ -113,7 +113,8 @@ export default function NewSupportTicketPage() {
           return;
         }
         try {
-          imageUrl = await uploadImage(selectedImage);
+          const uploaded = await uploadImage(selectedImage);
+          imageUrl = uploaded.key;
         } catch (uploadError: unknown) {
           toast.error(
             uploadError instanceof Error
