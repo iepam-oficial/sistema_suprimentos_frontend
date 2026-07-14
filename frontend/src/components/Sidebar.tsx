@@ -28,6 +28,7 @@ import {
   Scale,
   Receipt,
   ListOrdered,
+  TrendingDown,
   LucideIcon,
 } from 'lucide-react';
 import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
@@ -146,6 +147,7 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     if (href === '/procurement/fila-compras') return pathname.startsWith('/procurement/fila-compras');
     if (href === '/procurement/cotacoes') return pathname.startsWith('/procurement/cotacoes');
     if (href === '/procurement/pedidos') return pathname.startsWith('/procurement/pedidos');
+    if (href === '/depreciation-rates') return pathname.startsWith('/depreciation-rates');
     return pathname === href;
   };
 
@@ -187,6 +189,9 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     { icon: FileText, label: 'Cotações', href: '/quotes' },
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Timer, label: 'Gastos Extras', href: '/extra-expenses' }]
+      : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+      ? [{ icon: TrendingDown, label: 'Taxas de Depreciação', href: '/depreciation-rates' }]
       : []),
     ...(user && ['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role)
       ? [{ icon: Bell, label: 'Alertas', href: '/alerts' }]
