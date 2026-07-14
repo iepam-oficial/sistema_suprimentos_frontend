@@ -89,22 +89,32 @@ export async function fetchProcurementQuotes(
 
 export async function fetchProcurementQuoteById(
   token: string,
-  id: string
+  id: string,
+  options?: { polling?: boolean }
 ): Promise<ProcurementQuoteDTO> {
+  const headers: HeadersInit = {
+    ...authHeaders(token),
+    ...(options?.polling === true ? { 'X-Polling': '1' } : {}),
+  };
   const response = await fetch(`/api/procurement-quotes/${encodeURIComponent(id)}`, {
-    headers: authHeaders(token),
+    headers,
   });
   return handleResponse<ProcurementQuoteDTO>(response);
 }
 
 export async function fetchProcurementQuoteEvents(
   token: string,
-  quoteId: string
+  quoteId: string,
+  options?: { polling?: boolean }
 ): Promise<ProcurementQuoteEventDTO[]> {
+  const headers: HeadersInit = {
+    ...authHeaders(token),
+    ...(options?.polling === true ? { 'X-Polling': '1' } : {}),
+  };
   const response = await fetch(
     `/api/procurement-quotes/${encodeURIComponent(quoteId)}/events`,
     {
-      headers: authHeaders(token),
+      headers,
     }
   );
   return handleResponse<ProcurementQuoteEventDTO[]>(response);
