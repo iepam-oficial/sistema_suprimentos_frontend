@@ -19,29 +19,11 @@ import {
 } from "@chakra-ui/react";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-
-interface AllocationRequest {
-  id: string;
-  inventory: {
-    id: string;
-    name: string;
-    description: string;
-    model: string;
-    serial_number: string;
-  };
-  destination: string;
-  destination_name?: string;
-  destination_id?: string;
-  notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED';
-  created_at: string;
-  return_date: string;
-  requester_delivery_confirmation: boolean;
-  manager_delivery_confirmation: boolean;
-}
+import type { InventoryAllocation } from '@/features/inventory/types';
+import { fetchAllocations } from '@/features/inventory/api/inventoryApi';
 
 export default function MyAllocationsPage() {
-  const [allocations, setAllocations] = useState<AllocationRequest[]>([]);
+  const [allocations, setAllocations] = useState<InventoryAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
   const router = useRouter();
@@ -55,17 +37,7 @@ export default function MyAllocationsPage() {
         return;
       }
 
-      const response = await fetch('/api/inventory-allocations', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar alocações');
-      }
-
-      const data = await response.json();
+      const data = await fetchAllocations(token);
       setAllocations(data);
     } catch (error) {
       toast({

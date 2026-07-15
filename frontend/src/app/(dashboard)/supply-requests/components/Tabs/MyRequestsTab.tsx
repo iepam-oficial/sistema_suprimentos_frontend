@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card,
   CardBody,
@@ -8,7 +8,9 @@ import {
   Badge,
   Button,
   useColorMode,
+  useColorModeValue,
   useMediaQuery,
+  useToast,
   InputGroup,
   InputLeftElement,
   Input,
@@ -23,20 +25,138 @@ import {
   Td,
   Image,
 } from '@chakra-ui/react';
+import type { DemandSupplyApprovalDTO, SupplyRequestDTO } from '@ti-assistant/contracts';
 import { SearchIcon, CheckCircle, X } from 'lucide-react';
 import { SupplyRequest } from '../../types';
 import { useFilters } from '@/contexts/GlobalContext';
+import {
+  confirmApprovalBatchRequester,
+  fetchPendingConfirmations,
+} from '@/features/supply-requests/api/demandSupplyApi';
 
 interface MyRequestsTabProps {
   requests: SupplyRequest[];
-  onRequesterConfirmation: (requestId: string, confirmation: boolean, token: string, isCustom: boolean) => void;
-  onCancelRequest: (requestId: string, token: string, isCustom: boolean) => void;
+  onRequesterConfirmation: (requestId: string, confirmation: boolean, token: string) => void;
+  onCancelRequest: (requestId: string, token: string) => void;
+  onBatchConfirmed?: () => void | Promise<void>;
 }
 
-export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelRequest }: MyRequestsTabProps) {
+function getItemName(item: SupplyRequestDTO): string {
+  return item.supply?.name ?? '-';
+}
+
+function getApprovalItems(approval: DemandSupplyApprovalDTO): SupplyRequestDTO[] {
+  return approval.items ?? [];
+}
+
+function formatBatchItemsSummary(approval: DemandSupplyApprovalDTO): string {
+  const items = getApprovalItems(approval);
+  const count = items.length;
+  const itemLabel = count === 1 ? 'item aprovado' : 'itens aprovados';
+  return `${count} ${itemLabel}`;
+}
+
+function formatBatchItemsList(approval: DemandSupplyApprovalDTO): string {
+  return getApprovalItems(approval)
+    .map((item) => `${getItemName(item)} (${item.quantity})`)
+    .join(', ');
+}
+
+export function MyRequestsTab({
+  requests,
+  onRequesterConfirmation,
+  onCancelRequest,
+  onBatchConfirmed,
+}: MyRequestsTabProps) {
   const { colorMode } = useColorMode();
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const { searchQuery, setSearchQuery, statusFilter, setStatusFilter } = useFilters();
+  const toast = useToast();
+  const textColor = useColorModeValue('gray.800', 'white');
+  const mutedColor = useColorModeValue('gray.500', 'gray.400');
+  const sectionBorder = useColorModeValue('gray.200', 'gray.600');
+  const sectionBg = useColorModeValue('white', 'rgba(45, 55, 72, 0.5)');
+  const entryBorder = useColorModeValue('gray.100', 'rgba(255,255,255,0.08)');
+
+  const [pendingBatches, setPendingBatches] = useState<DemandSupplyApprovalDTO[]>([]);
+  const [isLoadingPending, setIsLoadingPending] = useState(true);
+  const [confirmingBatchId, setConfirmingBatchId] = useState<string | null>(null);
+
+  const visiblePendingBatches = useMemo(
+    () =>
+      pendingBatches.filter((approval) => getApprovalItems(approval).length > 0),
+    [pendingBatches],
+  );
+
+  const loadPendingConfirmations = useCallback(async () => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token) {
+      setPendingBatches([]);
+      return;
+    }
+
+    setIsLoadingPending(true);
+    try {
+      const batches = await fetchPendingConfirmations(token);
+      setPendingBatches(batches);
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Erro ao carregar confirmações pendentes',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoadingPending(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    void loadPendingConfirmations();
+  }, [loadPendingConfirmations]);
+
+  const handleBatchConfirmation = async (approvalId: string) => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token) {
+      toast({
+        title: 'Erro',
+        description: 'Token não encontrado',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setConfirmingBatchId(approvalId);
+    try {
+      await confirmApprovalBatchRequester(token, approvalId, true);
+      toast({
+        title: 'Sucesso',
+        description: 'Recebimento confirmado com sucesso',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      await loadPendingConfirmations();
+      await onBatchConfirmed?.();
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description:
+          error instanceof Error ? error.message : 'Erro ao confirmar recebimento',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setConfirmingBatchId(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -93,6 +213,66 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
             </Select>
           </HStack>
         )}
+        {!isLoadingPending && visiblePendingBatches.length > 0 && (
+          <Box
+            mb={6}
+            borderWidth="1px"
+            borderColor={sectionBorder}
+            borderRadius="md"
+            bg={sectionBg}
+            p={4}
+          >
+            <Text
+              fontSize="xs"
+              fontWeight="semibold"
+              textTransform="uppercase"
+              letterSpacing="wider"
+              color={mutedColor}
+              mb={3}
+            >
+              Confirmações pendentes
+            </Text>
+            <VStack spacing={3} align="stretch">
+              {visiblePendingBatches.map((approval) => (
+                <Box
+                  key={approval.id}
+                  p={3}
+                  borderWidth="1px"
+                  borderColor={entryBorder}
+                  borderRadius="md"
+                >
+                  <HStack
+                    justify="space-between"
+                    align={isMobile ? 'stretch' : 'center'}
+                    flexDirection={isMobile ? 'column' : 'row'}
+                    spacing={3}
+                  >
+                    <VStack align="start" spacing={1} flex="1">
+                      <Text fontSize="sm" fontWeight="semibold" color={textColor}>
+                        Lote {approval.report_id} — {formatBatchItemsSummary(approval)}
+                      </Text>
+                      <Text fontSize="sm" color={mutedColor}>
+                        {formatBatchItemsList(approval)}
+                      </Text>
+                    </VStack>
+                    <Button
+                      size="sm"
+                      colorScheme="blue"
+                      leftIcon={<CheckCircle size={16} />}
+                      onClick={() => handleBatchConfirmation(approval.id)}
+                      isLoading={confirmingBatchId === approval.id}
+                      isDisabled={confirmingBatchId !== null && confirmingBatchId !== approval.id}
+                      alignSelf={isMobile ? 'stretch' : 'flex-end'}
+                      flexShrink={0}
+                    >
+                      Confirmar recebimento
+                    </Button>
+                  </HStack>
+                </Box>
+              ))}
+            </VStack>
+          </Box>
+        )}
         {requests.length === 0 ? (
           <VStack align="center" justify="center" py={8}>
             <Image src="/Task-complete.svg" alt="Nenhuma requisição encontrada" maxW="300px" mb={4} />
@@ -107,10 +287,10 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
                     <HStack justify="space-between" align="start">
                       <VStack align="start" spacing={1} flex="1">
                         <Text fontWeight="bold" fontSize="md" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
-                          {request.is_custom ? request.item_name : request.supply?.name}
+                          {request.supply?.name}
                         </Text>
                         <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                          {request.quantity} {request.is_custom ? request.unit?.symbol || request.unit?.name : request.supply?.unit?.symbol || request.supply?.unit?.name}
+                          {request.quantity} {request.supply?.unit?.symbol || request.supply?.unit?.name}
                         </Text>
                       </VStack>
                       <Badge colorScheme={getStatusColor(request.status)} size="sm">
@@ -144,12 +324,13 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
                           size="sm"
                           colorScheme="blue"
                           leftIcon={<CheckCircle size={16} />}
-                          onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                          onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '')}
                           isDisabled={request.requester_confirmation}
                           bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined}
                           _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }}
                           transition="all 0.3s ease"
                           w="full"
+                          data-testid="sr-requester-confirm"
                         >
                           Confirmar Recebimento
                         </Button>
@@ -160,7 +341,7 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
                           colorScheme="red"
                           variant="outline"
                           leftIcon={<X size={16} />}
-                          onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                          onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '')}
                           bg={colorMode === 'dark' ? 'rgba(220, 38, 38, 0.1)' : undefined}
                           _hover={{ bg: colorMode === 'dark' ? 'rgba(220, 38, 38, 0.2)' : undefined, transform: 'translateY(-1px)' }}
                           transition="all 0.3s ease"
@@ -193,11 +374,11 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
                   <Tr key={request.id}>
                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'}>
                       <VStack align="start" spacing={1}>
-                        <Text fontWeight="medium">{request.is_custom ? request.item_name : request.supply?.name}</Text>
+                        <Text fontWeight="medium">{request.supply?.name}</Text>
                       </VStack>
                     </Td>
                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', md: 'table-cell' }}>
-                      {request.quantity} {request.is_custom ? request.unit?.symbol || request.unit?.name : request.supply?.unit?.symbol || request.supply?.unit?.name}
+                      {request.quantity} {request.supply?.unit?.symbol || request.supply?.unit?.name}
                     </Td>
                     <Td>
                       <Badge colorScheme={getStatusColor(request.status)} size={{ base: 'sm', md: 'md' }}>
@@ -230,11 +411,12 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
                             size={{ base: 'xs', md: 'sm' }}
                             colorScheme="blue"
                             leftIcon={<CheckCircle size={isMobile ? 14 : 16} />}
-                            onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                            onClick={() => onRequesterConfirmation(request.id, true, localStorage.getItem('@ti-assistant:token') || '')}
                             isDisabled={request.requester_confirmation}
                             bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined}
                             _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }}
                             transition="all 0.3s ease"
+                            data-testid="sr-requester-confirm"
                           >
                             {isMobile ? 'Confirmar' : 'Confirmar Recebimento'}
                           </Button>
@@ -245,7 +427,7 @@ export function MyRequestsTab({ requests, onRequesterConfirmation, onCancelReque
                             colorScheme="red"
                             variant="outline"
                             leftIcon={<X size={isMobile ? 14 : 16} />}
-                            onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '', request.is_custom || false)}
+                            onClick={() => onCancelRequest(request.id, localStorage.getItem('@ti-assistant:token') || '')}
                             bg={colorMode === 'dark' ? 'rgba(220, 38, 38, 0.1)' : undefined}
                             _hover={{ bg: colorMode === 'dark' ? 'rgba(220, 38, 38, 0.2)' : undefined, transform: 'translateY(-1px)' }}
                             transition="all 0.3s ease"

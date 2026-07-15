@@ -21,12 +21,30 @@ import {
     Box,
     Image,
     ButtonGroup,
-    Checkbox,
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
-import { uploadImage, handleImageChange } from '@/utils/imageUtils'
+import { uploadImage } from '@/features/images/api/imageApi'
+import { handleImageChange } from '@/utils/imageUtils'
 import formatCurrency from '../utils/formatCurrency'
-import { fetchChartOfAccounts, ChartOfAccount } from '@/utils/apiUtils'
+import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
+import type { ChartOfAccount } from '@/features/financeiro/types';
+import {
+    fetchLocations,
+    fetchCategories,
+    fetchLocales,
+    fetchSubcategoriesByCategory,
+    type CategoryDTO,
+    type LocationDTO,
+    type LocaleDTO,
+    type SubcategoryDTO,
+} from '@/features/reference-data';
+import { lookupDepreciationRate } from '@/features/inventory/api/depreciationRateApi';
+import type { DepreciationRateDTO } from '@ti-assistant/contracts';
+import {
+    DepreciationConfigFields,
+    type AppliedSnapshots,
+    type DepreciationFieldValues,
+} from './DepreciationConfigFields';
 
 interface InventoryModalProps {
     isOpen: boolean
@@ -57,6 +75,10 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         residual_value: '',
         service_life: '',
         chart_of_account_id: '',
+        ncm: '',
+        cest: '',
+        annual_rate: '',
+        override_reason: '',
     })
 
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -65,17 +87,54 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
     const [categories, setCategories] = useState<{ id: string; label: string }[]>([])
     const [subcategories, setSubcategories] = useState<{ id: string; label: string }[]>([])
     const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
-    const [locales, setLocales] = useState<{ id: string; name: string; location_id: string }[]>([])
+    const [locales, setLocales] = useState<LocaleDTO[]>([])
     const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([])
     const [errors, setErrors] = useState<Record<string, string>>({})
     const toast = useToast()
     const [isDepreciable, setIsDepreciable] = useState(false);
+    const [lookedUpRate, setLookedUpRate] = useState<DepreciationRateDTO | null>(null);
+    const [lookupNotFound, setLookupNotFound] = useState(false);
+    const [isLookingUp, setIsLookingUp] = useState(false);
+    const [applyDepreciationRateId, setApplyDepreciationRateId] = useState<string | null>(null);
+    const [appliedSnapshots, setAppliedSnapshots] = useState<AppliedSnapshots | null>(null);
+
+    const resetDepreciationSession = () => {
+        setLookedUpRate(null);
+        setLookupNotFound(false);
+        setIsLookingUp(false);
+        setApplyDepreciationRateId(null);
+        setAppliedSnapshots(null);
+    };
+
+    const itemIsDepreciable = (data: any) =>
+        Boolean(
+            data?.ncm ||
+                data?.cest ||
+                (data?.annual_rate != null && Number(data.annual_rate) > 0) ||
+                (data?.service_life != null && Number(data.service_life) > 0) ||
+                (data?.residual_value != null && Number(data.residual_value) > 0) ||
+                data?.depreciation_rate_id
+        );
+
+    const snapshotsFromItem = (data: any): AppliedSnapshots | null => {
+        if (
+            data?.rule_annual_rate == null &&
+            data?.rule_service_life == null &&
+            data?.rule_chart_of_account_id == null
+        ) {
+            return null;
+        }
+        return {
+            rule_annual_rate: data.rule_annual_rate != null ? Number(data.rule_annual_rate) : null,
+            rule_service_life: data.rule_service_life != null ? Number(data.rule_service_life) : null,
+            rule_chart_of_account_id: data.rule_chart_of_account_id ?? null,
+        };
+    };
 
     useEffect(() => {
         if (isOpen) {
             fetchFormData();
             if (isEdit && initialData) {
-                console.log('DADOS DO ITEM PARA EDIÇÃO:', initialData);
                 setFormData({
                     item: initialData.item || '',
                     name: initialData.name || '',
@@ -95,17 +154,19 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                     image_url: initialData.image_url || '',
                     residual_value: initialData.residual_value !== undefined ? String(initialData.residual_value) : '',
                     service_life: initialData.service_life !== undefined ? String(initialData.service_life) : '',
-                    chart_of_account_id: initialData.chartOfAccount?.id || '',
+                    chart_of_account_id: initialData.chartOfAccount?.id || initialData.chart_of_account_id || '',
+                    ncm: initialData.ncm || '',
+                    cest: initialData.cest || '',
+                    annual_rate: initialData.annual_rate != null ? String(initialData.annual_rate) : '',
+                    override_reason: initialData.override_reason || '',
                 });
-                console.log('DADOS DO formData:', formData)
-                
-                // Carregar subcategorias se houver categoria selecionada
+
                 if (initialData.category?.id) {
                     loadSubcategoriesForCategory(initialData.category.id);
                 }
-                setIsDepreciable(
-                    initialData.residual_value !== undefined && initialData.residual_value !== null && Number(initialData.residual_value) > 0
-                );
+                setIsDepreciable(itemIsDepreciable(initialData));
+                resetDepreciationSession();
+                setAppliedSnapshots(snapshotsFromItem(initialData));
             } else {
                 setFormData({
                     item: '',
@@ -127,8 +188,13 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                     residual_value: '',
                     service_life: '',
                     chart_of_account_id: '',
+                    ncm: '',
+                    cest: '',
+                    annual_rate: '',
+                    override_reason: '',
                 });
                 setIsDepreciable(false);
+                resetDepreciationSession();
             }
         }
     }, [isOpen, isEdit, initialData]);
@@ -136,29 +202,26 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
     const fetchFormData = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
+            if (!token) throw new Error('Token não encontrado')
+
             const headers = {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
 
-            const [locationsRes, categoriesRes, suppliersRes, localesRes] = await Promise.all([
-                fetch('/api/locations', { headers }),
-                fetch('/api/categories', { headers }),
+            const [locationsData, categoriesData, suppliersRes, localesData] = await Promise.all([
+                fetchLocations(token),
+                fetchCategories(token),
                 fetch('/api/suppliers', { headers }),
-                fetch('/api/locales', { headers }),
+                fetchLocales(token),
             ])
 
-            const [locationsData, categoriesData, suppliersData, localesData] = await Promise.all([
-                locationsRes.json(),
-                categoriesRes.json(),
-                suppliersRes.json(),
-                localesRes.json(),
-            ])
+            const suppliersData = await suppliersRes.json()
 
-            setLocations(Array.isArray(locationsData) ? locationsData : [])
-            setCategories(Array.isArray(categoriesData) ? categoriesData : [])
+            setLocations(locationsData)
+            setCategories(categoriesData)
             setSuppliers(Array.isArray(suppliersData) ? suppliersData : [])
-            setLocales(Array.isArray(localesData) ? localesData : [])
+            setLocales(localesData)
 
             // Buscar planos de contas (apenas ATIVO para inventário)
             try {
@@ -189,14 +252,9 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         if (categoryId) {
             try {
                 const token = localStorage.getItem('@ti-assistant:token')
-                const response = await fetch(`/api/subcategories/category/${categoryId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                })
-                const data = await response.json()
-                setSubcategories(Array.isArray(data) ? data : [])
+                if (!token) return
+                const data = await fetchSubcategoriesByCategory(token, categoryId)
+                setSubcategories(data)
             } catch (error) {
                 setSubcategories([])
             }
@@ -209,14 +267,9 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         if (categoryId) {
             try {
                 const token = localStorage.getItem('@ti-assistant:token')
-                const response = await fetch(`/api/subcategories/category/${categoryId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                })
-                const data = await response.json()
-                setSubcategories(Array.isArray(data) ? data : [])
+                if (!token) return
+                const data = await fetchSubcategoriesByCategory(token, categoryId)
+                setSubcategories(data)
             } catch (error) {
                 setSubcategories([])
             }
@@ -224,6 +277,98 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
             setSubcategories([])
         }
     }
+
+    const handleDepreciableChange = (checked: boolean) => {
+        setIsDepreciable(checked);
+        if (!checked) {
+            resetDepreciationSession();
+        }
+    };
+
+    const handleDepreciationFieldChange = (field: keyof DepreciationFieldValues, value: string) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleLookupDepreciationRate = async () => {
+        const ncm = formData.ncm.trim();
+        if (!ncm) {
+            toast({
+                title: 'NCM obrigatório',
+                description: 'Informe o NCM para buscar a taxa de depreciação.',
+                status: 'warning',
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+
+        setIsLookingUp(true);
+        setLookedUpRate(null);
+        setLookupNotFound(false);
+
+        try {
+            const token = localStorage.getItem('@ti-assistant:token');
+            if (!token) throw new Error('Token não encontrado');
+
+            const cest = formData.cest.trim() || undefined;
+            const onDate = formData.acquisition_date || undefined;
+            const rate = await lookupDepreciationRate(token, ncm, cest, onDate);
+
+            if (!rate) {
+                setLookupNotFound(true);
+                toast({
+                    title: 'Regra não encontrada',
+                    description: 'Nenhuma regra ativa para este NCM/CEST. Preencha os campos manualmente.',
+                    status: 'info',
+                    duration: 4000,
+                    isClosable: true,
+                });
+                return;
+            }
+
+            setLookedUpRate(rate);
+        } catch (error) {
+            toast({
+                title: 'Erro ao buscar taxa',
+                description: error instanceof Error ? error.message : 'Não foi possível buscar a regra.',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+        } finally {
+            setIsLookingUp(false);
+        }
+    };
+
+    const handleApplyDepreciationRate = () => {
+        if (!lookedUpRate) return;
+
+        setFormData((prev) => ({
+            ...prev,
+            ncm: lookedUpRate.ncm,
+            cest: lookedUpRate.cest ?? prev.cest,
+            service_life: String(lookedUpRate.service_life_years),
+            annual_rate: String(lookedUpRate.annual_rate),
+            chart_of_account_id: lookedUpRate.chart_of_account_id,
+            override_reason: '',
+        }));
+        setApplyDepreciationRateId(lookedUpRate.id);
+        setAppliedSnapshots({
+            rule_annual_rate: lookedUpRate.annual_rate,
+            rule_service_life: lookedUpRate.service_life_years,
+            rule_chart_of_account_id: lookedUpRate.chart_of_account_id,
+        });
+        setLookedUpRate(null);
+        setLookupNotFound(false);
+
+        toast({
+            title: 'Regra aplicada',
+            description: 'Campos preenchidos com a taxa encontrada. Você ainda pode editá-los.',
+            status: 'success',
+            duration: 3000,
+            isClosable: true,
+        });
+    };
 
     const validateForm = () => {
         const newErrors: Record<string, string> = {}
@@ -268,7 +413,8 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
             let imageUrl = formData.image_url;
 
             if (selectedImage) {
-                imageUrl = await uploadImage(selectedImage);
+                const uploaded = await uploadImage(selectedImage);
+                imageUrl = uploaded.key;
             }
 
             const dataToSend: any = {
@@ -281,10 +427,26 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
             };
             if (isDepreciable) {
                 dataToSend.residual_value = formData.residual_value ? parseFloat(formData.residual_value) : 0;
-                dataToSend.service_life = formData.service_life ? parseInt(formData.service_life) : 1;
+                dataToSend.service_life = formData.service_life ? parseInt(formData.service_life, 10) : 1;
+                dataToSend.ncm = formData.ncm.trim() || null;
+                dataToSend.cest = formData.cest.trim() || null;
+                if (formData.annual_rate) {
+                    dataToSend.annual_rate = parseFloat(formData.annual_rate);
+                }
+                if (applyDepreciationRateId) {
+                    dataToSend.apply_depreciation_rate_id = applyDepreciationRateId;
+                }
+                if (formData.override_reason.trim()) {
+                    dataToSend.override_reason = formData.override_reason.trim();
+                }
             } else {
                 delete dataToSend.residual_value;
                 delete dataToSend.service_life;
+                delete dataToSend.ncm;
+                delete dataToSend.cest;
+                delete dataToSend.annual_rate;
+                delete dataToSend.apply_depreciation_rate_id;
+                delete dataToSend.override_reason;
             }
             onSubmit(dataToSend)
         } catch (error) {
@@ -591,38 +753,26 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                                 </FormControl>
                             </Stack>
                         </SimpleGrid>
-                        <Box mt={4} mb={2}>
-                            <Checkbox
-                                isChecked={isDepreciable}
-                                onChange={(e) => setIsDepreciable(e.target.checked)}
-                            >
-                                É depreciável?
-                            </Checkbox>
-                        </Box>
-                        {isDepreciable && (
-                            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={4}>
-                                <FormControl>
-                                    <FormLabel>Valor Residual</FormLabel>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={formData.residual_value}
-                                        onChange={(e) => setFormData({ ...formData, residual_value: e.target.value })}
-                                        placeholder="0"
-                                    />
-                                </FormControl>
-                                <FormControl>
-                                    <FormLabel>Vida Útil (anos)</FormLabel>
-                                    <Input
-                                        type="number"
-                                        min={1}
-                                        value={formData.service_life}
-                                        onChange={(e) => setFormData({ ...formData, service_life: e.target.value })}
-                                        placeholder="1"
-                                    />
-                                </FormControl>
-                            </SimpleGrid>
-                        )}
+                        <DepreciationConfigFields
+                            isDepreciable={isDepreciable}
+                            onDepreciableChange={handleDepreciableChange}
+                            values={{
+                                ncm: formData.ncm,
+                                cest: formData.cest,
+                                residual_value: formData.residual_value,
+                                service_life: formData.service_life,
+                                annual_rate: formData.annual_rate,
+                                chart_of_account_id: formData.chart_of_account_id,
+                                override_reason: formData.override_reason,
+                            }}
+                            onChange={handleDepreciationFieldChange}
+                            lookedUpRate={lookedUpRate}
+                            lookupNotFound={lookupNotFound}
+                            isLookingUp={isLookingUp}
+                            appliedSnapshots={appliedSnapshots}
+                            onLookup={handleLookupDepreciationRate}
+                            onApplyRate={handleApplyDepreciationRate}
+                        />
                         <ButtonGroup w="full" mt={8} display="flex" justifyContent="flex-end">
                             <Button variant="outline" onClick={onClose} mr={2}>
                                 Cancelar

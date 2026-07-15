@@ -11,8 +11,8 @@ import {
   useColorMode,
   VStack,
 } from '@chakra-ui/react';
-import { REPORT_CATALOG } from '@/lib/reports/catalog';
-import { ExecutiveSummaryPayload, FilterOptions, ReportPayload, ReportSlug } from '@/lib/reports/types';
+import { REPORT_CATALOG } from '@/features/reports/catalog';
+import { ExecutiveSummaryPayload, FilterOptions, ReportPayload, ReportSlug } from '@/features/reports/types';
 import { ReportFiltersBar, ReportFiltersState } from './ReportFilters';
 import { ReportViewer } from './ReportViewer';
 

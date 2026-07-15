@@ -1,0 +1,20 @@
+{
+  "name": "@ti-assistant/contracts",
+  "version": "1.0.0",
+  "description": "Contratos compartilhados entre frontend e backend",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "dinero.js": "^2.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "dist"
+  ]
+}

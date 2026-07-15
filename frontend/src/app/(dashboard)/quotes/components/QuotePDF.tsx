@@ -3,21 +3,15 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatBRL, mulMoney } from '@/utils/money';
+import { getSupplierName, type QuoteDTO } from '@/features/quotes';
 
 interface QuotePDFProps {
-  quote: {
-    id: string;
-    supplier: string;
-    supplier_contact: string | null;
-    status: string;
-    notes: string | null;
-    total_value: number;
-    created_at: string;
-    items: Array<{
-      product_name: string;
-      quantity: number;
-      unit_price: number;
-    }>;
+  quote: Pick<
+    QuoteDTO,
+    'id' | 'supplier_contact' | 'status' | 'notes' | 'total_value' | 'created_at' | 'items'
+  > & {
+    supplier?: QuoteDTO['supplier'];
+    supplier_id?: string;
   };
 }
 
@@ -33,7 +27,7 @@ export function generateQuotePDF({ quote }: QuotePDFProps) {
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
   doc.text(`Número da Cotação: ${quote.id}`, 20, 40);
-  doc.text(`Fornecedor: ${quote.supplier}`, 20, 50);
+  doc.text(`Fornecedor: ${getSupplierName(quote)}`, 20, 50);
   if (quote.supplier_contact) {
     doc.text(`Contato: ${quote.supplier_contact}`, 20, 60);
   }

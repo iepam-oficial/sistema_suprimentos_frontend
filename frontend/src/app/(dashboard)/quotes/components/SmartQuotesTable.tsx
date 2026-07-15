@@ -8,89 +8,35 @@ import {
   Td,
   Text,
   useColorModeValue,
-  Badge,
   Button,
-  HStack,
   useToast,
 } from '@chakra-ui/react';
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatBRL } from '@/utils/money';
-
-interface SmartQuote {
-  id: string;
-  supplier: string;
-  total_value: number;
-  items: {
-    product_name: string;
-    quantity: number;
-    unit_price: number;
-  }[];
-  created_at: string;
-}
+import { createQuote, useSmartQuotes, type SmartQuoteDTO } from '@/features/quotes';
 
 export function SmartQuotesTable() {
-  const [quotes, setQuotes] = useState<SmartQuote[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { quotes, loading } = useSmartQuotes();
   const toast = useToast();
   const router = useRouter();
 
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
-  useEffect(() => {
-    fetchSmartQuotes();
-  }, []);
-
-  const fetchSmartQuotes = async () => {
+  const handleCreateQuote = async (quote: SmartQuoteDTO) => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
 
-      const response = await fetch('/api/quotes/smart', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      await createQuote(token, {
+        supplier_id: quote.supplier_id,
+        items: quote.items.map((item) => ({
+          product_name: item.product_name,
+          manufacturer: 'Não especificado',
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
       });
-
-      if (!response.ok) throw new Error('Erro ao carregar cotações inteligentes');
-      const data = await response.json();
-      setQuotes(data);
-    } catch (error) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar as cotações inteligentes',
-        status: 'error',
-        duration: 3000,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateQuote = async (quote: SmartQuote) => {
-    try {
-      const token = localStorage.getItem('@ti-assistant:token');
-      if (!token) throw new Error('Token não encontrado');
-
-      const response = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          supplier_id: quote.supplier,
-          items: quote.items.map(item => ({
-            product_name: item.product_name,
-            quantity: item.quantity,
-            unit_price: item.unit_price
-          })),
-          total_value: quote.total_value
-        })
-      });
-
-      if (!response.ok) throw new Error('Erro ao criar cotação');
 
       toast({
         title: 'Sucesso',
@@ -103,7 +49,7 @@ export function SmartQuotesTable() {
     } catch (error) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível criar a cotação',
+        description: error instanceof Error ? error.message : 'Não foi possível criar a cotação',
         status: 'error',
         duration: 3000,
       });
@@ -148,8 +94,8 @@ export function SmartQuotesTable() {
         </Thead>
         <Tbody>
           {quotes.map((quote) => (
-            <Tr key={quote.id}>
-              <Td>{quote.supplier}</Td>
+            <Tr key={quote.supplier_id}>
+              <Td>{quote.supplier_name}</Td>
               <Td>
                 <Box>
                   {quote.items.map((item, index) => (
@@ -176,4 +122,4 @@ export function SmartQuotesTable() {
       </Table>
     </Box>
   );
-} 
+}

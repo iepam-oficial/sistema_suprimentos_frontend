@@ -1,4 +1,5 @@
 import baseUrl from '@/utils/enviroments';
+import type { ImageUploadResponseDTO } from '@ti-assistant/contracts';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await response.json().catch(() => ({}));
+    const data = (await response.json().catch(() => ({}))) as Partial<ImageUploadResponseDTO> & {
+      message?: string;
+    };
 
     if (!response.ok) {
       return NextResponse.json(

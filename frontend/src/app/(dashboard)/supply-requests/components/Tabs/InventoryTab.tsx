@@ -21,19 +21,7 @@ import { SearchIcon, TimerIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useFilters } from '@/contexts/GlobalContext';
 import { useColorModeValue } from '@chakra-ui/react';
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  description: string;
-  model: string;
-  serial_number: string;
-  status: string;
-  category: {
-    label: string;
-  };
-  image_url?: string;
-}
+import type { InventoryItem } from '@/features/inventory/types';
 
 interface InventoryTabProps {
   inventoryItems: InventoryItem[];

@@ -11,8 +11,8 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { Search } from 'lucide-react';
-import { REPORT_CATALOG, REPORT_GROUPS } from '@/lib/reports/catalog';
-import { ReportSlug } from '@/lib/reports/types';
+import { REPORT_CATALOG, REPORT_GROUPS } from '@/features/reports/catalog';
+import { ReportSlug } from '@/features/reports/types';
 
 const GROUP_ICONS: Record<string, string> = {
   Geral: '📊',

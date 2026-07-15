@@ -7,25 +7,30 @@ import {
   SupportTicket,
   SupportTicketKind,
   TicketStatus,
+  UpdateSupportTicketInput,
   formatTicketDate,
   shortTicketId,
-} from './types';
+} from '@/features/support-tickets/types';
+import {
+  updateSupportTicket,
+  deleteSupportTicket,
+} from '@/features/support-tickets/api/supportTicketApi';
 import { StatusBadge } from '@/components/support-desk/StatusBadge';
 import { PriorityBadge } from '@/components/support-desk/PriorityBadge';
 import { TypeBadge } from '@/components/support-desk/TypeBadge';
 import { cardClass, inputClass, labelClass, btnPrimary, btnSecondary } from '@/components/support-desk/formClasses';
 import { cn } from '@/components/support-desk/cn';
+import {
+  fetchLocations,
+  fetchSectorsByLocation,
+  type LocationDTO,
+  type SectorDTO,
+} from '@/features/reference-data';
+import { fetchUsers } from '@/features/identity';
 
-export interface LocationOption {
-  id: string;
-  name: string;
-}
+export type LocationOption = Pick<LocationDTO, 'id' | 'name'>;
 
-export interface SectorOption {
-  id: string;
-  name: string;
-  location_id: string;
-}
+export type SectorOption = Pick<SectorDTO, 'id' | 'name' | 'location_id'>;
 
 export interface UserOption {
   id: string;
@@ -44,16 +49,17 @@ export function useSupportTicketResources() {
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) return;
     const loadRefs = async () => {
-      const locRes = await fetch('/api/locations', { headers: { Authorization: `Bearer ${token}` } });
-      if (locRes.ok) {
-        const d = await locRes.json();
-        setLocations(Array.isArray(d) ? d : []);
+      try {
+        const d = await fetchLocations(token);
+        setLocations(d);
+      } catch {
+        // formulário ainda funciona sem local
       }
-      const uRes = await fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } });
-      if (uRes.ok) {
-        const uData = await uRes.json();
-        const all = Array.isArray(uData) ? uData : [];
-        setTechnicians(all.filter((u: UserOption) => u.role === 'TECHNICIAN'));
+      try {
+        const all = await fetchUsers(token);
+        setTechnicians(all.filter((u) => u.role === 'TECHNICIAN'));
+      } catch {
+        // formulário ainda funciona sem técnicos
       }
     };
     loadRefs();
@@ -71,15 +77,8 @@ export function useSupportTicketResources() {
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token) return;
     try {
-      const secRes = await fetch(`/api/sectors/location/${locationId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!secRes.ok) {
-        setSectors([]);
-        return;
-      }
-      const d = await secRes.json();
-      setSectors(Array.isArray(d) ? d : []);
+      const d = await fetchSectorsByLocation(token, locationId);
+      setSectors(d);
     } catch {
       sectorsForLocationRef.current = null;
       setSectors([]);
@@ -415,32 +414,13 @@ export function useSupportTicketMutations(ticketId: string | undefined) {
   const putTicket = async (body: Record<string, unknown>) => {
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token || !ticketId) throw new Error('Sessão inválida');
-    const res = await fetch(`/api/support-tickets/${ticketId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Erro ao salvar');
-    }
-    return (await res.json()) as SupportTicket;
+    return updateSupportTicket(token, ticketId, body as UpdateSupportTicketInput);
   };
 
   const deleteTicket = async () => {
     const token = localStorage.getItem('@ti-assistant:token');
     if (!token || !ticketId) throw new Error('Sessão inválida');
-    const res = await fetch(`/api/support-tickets/${ticketId}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Erro ao excluir');
-    }
+    await deleteSupportTicket(token, ticketId);
   };
 
   const showError = (e: unknown) => {

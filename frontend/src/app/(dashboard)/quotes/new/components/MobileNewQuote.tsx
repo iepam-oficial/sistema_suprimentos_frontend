@@ -23,12 +23,8 @@ import {
 import { Plus, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatBRL, mulMoney, sumMoney } from '@/utils/money';
-
-interface Supplier {
-  id: string;
-  name: string;
-  cnpj: string;
-}
+import { fetchSuppliers as loadSuppliers } from '@/features/catalog/api/catalogApi';
+import type { SupplierDTO } from '@/features/catalog/types';
 
 interface QuoteItem {
   product_name: string;
@@ -49,7 +45,7 @@ interface MobileNewQuoteProps {
 }
 
 export function MobileNewQuote({ onSubmit, onCancel }: MobileNewQuoteProps) {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [formData, setFormData] = useState({
     supplier_id: '',
@@ -78,14 +74,7 @@ export function MobileNewQuote({ onSubmit, onCancel }: MobileNewQuoteProps) {
       const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
 
-      const response = await fetch('/api/suppliers', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Erro ao carregar fornecedores');
-      const data = await response.json();
+      const data = await loadSuppliers(token);
       setSuppliers(data);
     } catch (error) {
       toast({
@@ -156,37 +145,10 @@ export function MobileNewQuote({ onSubmit, onCancel }: MobileNewQuoteProps) {
         notes: item.notes || undefined
       }));
 
-      const total_value = items.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
-
-      const response = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          supplier_id: selectedSupplierData.id,
-          items,
-          total_value,
-          notes: formData.notes || undefined
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao criar cotação');
-      }
-
-      toast({
-        title: 'Sucesso',
-        description: 'Cotação criada com sucesso',
-        status: 'success',
-        duration: 3000,
-      });
-
       onSubmit({
         supplier: selectedSupplierData.id,
         items,
+        notes: formData.notes || undefined,
       });
     } catch (error: any) {
       toast({

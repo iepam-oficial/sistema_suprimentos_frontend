@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  createServiceOrder,
+  RateLimitError,
+  type CreateServiceOrderInput,
+} from '@/features/operations'
+import {
   Box,
   Button,
   FormControl,
@@ -112,8 +117,7 @@ export default function NewOrderPage() {
         throw new Error('Token não encontrado')
       }
 
-      // Prepara os dados para envio, incluindo apenas campos preenchidos
-      const dataToSend: any = {
+      const dataToSend: CreateServiceOrderInput = {
         serial_number: formData.serial_number,
         problem_reported: formData.problem_reported,
         service_type: formData.service_type,
@@ -127,24 +131,7 @@ export default function NewOrderPage() {
       if (formData.accessories.trim()) dataToSend.accessories = formData.accessories;
       if (formData.notes.trim()) dataToSend.notes = formData.notes;
 
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(dataToSend)
-      })
-
-      if (res.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.message || 'Erro ao criar ordem de serviço')
-      }
+      await createServiceOrder(token, dataToSend)
 
       toast({
         title: 'Sucesso',
@@ -154,11 +141,16 @@ export default function NewOrderPage() {
         isClosable: true,
       })
       router.push('/orders')
-    } catch (err: any) {
-      setFormError(err.message || 'Erro ao criar ordem de serviço')
+    } catch (err: unknown) {
+      if (err instanceof RateLimitError) {
+        router.push('/rate-limit')
+        return
+      }
+      const message = err instanceof Error ? err.message : 'Erro ao criar ordem de serviço'
+      setFormError(message)
       toast({
         title: 'Erro',
-        description: err.message || 'Erro ao criar ordem de serviço',
+        description: message,
         status: 'error',
         duration: 5000,
         isClosable: true,

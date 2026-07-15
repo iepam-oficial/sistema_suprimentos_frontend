@@ -8,6 +8,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/supplies',
   '/supply-requests',
   '/quotes',
+  '/procurement',
   '/extra-expenses',
   '/alerts',
   '/events',
@@ -19,17 +20,28 @@ const PROTECTED_PATH_PREFIXES = [
 const ROLE_DEFAULT_PATH: Record<string, string> = {
   ADMIN: '/dashboard',
   MANAGER: '/dashboard',
+  COORDINATOR: '/procurement/solicitacoes',
+  DIRECTOR: '/procurement/aprovacoes-sc',
   EMPLOYEE: '/supply-requests',
   TECHNICIAN: '/supply-requests',
   ORGANIZER: '/supply-requests',
   SUPPORT: '/support-tickets',
 }
 
+const EMPLOYEE_SELF_SERVICE_PREFIXES = [
+  '/supply-requests',
+  '/support-tickets',
+  '/quotes',
+  '/events',
+] as const
+
 /** Paths a role may use as post-login `?from=` target (prefix match). */
 const ROLE_ALLOWED_FROM_PREFIXES: Record<string, readonly string[]> = {
   ADMIN: PROTECTED_PATH_PREFIXES,
   MANAGER: PROTECTED_PATH_PREFIXES,
-  EMPLOYEE: ['/supply-requests', '/support-tickets', '/quotes', '/events'],
+  COORDINATOR: [...EMPLOYEE_SELF_SERVICE_PREFIXES, '/procurement'],
+  DIRECTOR: ['/procurement', '/quotes', '/events'],
+  EMPLOYEE: EMPLOYEE_SELF_SERVICE_PREFIXES,
   TECHNICIAN: [
     '/supply-requests',
     '/support-tickets',
@@ -38,7 +50,7 @@ const ROLE_ALLOWED_FROM_PREFIXES: Record<string, readonly string[]> = {
     '/quotes',
     '/events',
   ],
-  ORGANIZER: ['/supply-requests', '/support-tickets', '/quotes', '/events'],
+  ORGANIZER: EMPLOYEE_SELF_SERVICE_PREFIXES,
   SUPPORT: ['/support-tickets', '/alerts', '/quotes', '/events'],
 }
 

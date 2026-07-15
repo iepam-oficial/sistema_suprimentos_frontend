@@ -27,29 +27,23 @@ import {
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
 import { EditIcon, DeleteIcon } from '@chakra-ui/icons'
-import { useRouter } from 'next/navigation';
-
-interface Location {
-    id: string
-    name: string
-    description: string
-    location?: {
-        id: string
-        name: string
-    }
-    location_id?: string
-}
-
-interface Branch {
-    id: string
-    name: string
-}
+import { useRouter } from 'next/navigation'
+import {
+    fetchLocales,
+    fetchLocations,
+    createLocale,
+    updateLocale,
+    deleteLocale,
+    RateLimitError,
+    type LocaleDTO,
+    type LocationDTO,
+} from '@/features/reference-data'
 
 export default function LocationSettings() {
-    const [locations, setLocations] = useState<Location[]>([])
-    const [branches, setBranches] = useState<Branch[]>([])
+    const [locations, setLocations] = useState<LocaleDTO[]>([])
+    const [branches, setBranches] = useState<LocationDTO[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [editingLocation, setEditingLocation] = useState<Location | null>(null)
+    const [editingLocation, setEditingLocation] = useState<LocaleDTO | null>(null)
     const toast = useToast()
     const { isOpen: isLocationModalOpen, onOpen: onLocationModalOpen, onClose: onLocationModalClose } = useDisclosure()
     const router = useRouter();
@@ -60,23 +54,18 @@ export default function LocationSettings() {
     })
 
     useEffect(() => {
-        fetchLocations()
-        fetchBranches()
+        loadLocales()
+        loadBranches()
     }, [])
 
-    const fetchLocations = async () => {
+    const loadLocales = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             if (!token) {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/locales', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-            const data = await response.json()
+            const data = await fetchLocales(token)
             setLocations(data)
         } catch (error) {
             toast({
@@ -89,26 +78,19 @@ export default function LocationSettings() {
         }
     }
 
-    const fetchBranches = async () => {
+    const loadBranches = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             if (!token) {
                 throw new Error('Token não encontrado')
             }
-            const response = await fetch('/api/locations', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            const data = await response.json()
+            const data = await fetchLocations(token)
             setBranches(data)
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível carregar as localizações.',
@@ -130,24 +112,7 @@ export default function LocationSettings() {
             }
 
             if (editingLocation) {
-                // Atualizar local existente
-                const response = await fetch(`/api/locales/${editingLocation.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(locationFormData),
-                })
-
-                if (response.status === 429) {
-                    router.push('/rate-limit');
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error('Erro ao atualizar local')
-                }
+                await updateLocale(token, editingLocation.id, locationFormData)
 
                 toast({
                     title: 'Sucesso',
@@ -157,24 +122,7 @@ export default function LocationSettings() {
                     isClosable: true,
                 })
             } else {
-                // Criar novo local
-                const response = await fetch('/api/locales', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(locationFormData),
-                })
-
-                if (response.status === 429) {
-                    router.push('/rate-limit');
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error('Erro ao criar local')
-                }
+                await createLocale(token, locationFormData)
 
                 toast({
                     title: 'Sucesso',
@@ -185,9 +133,13 @@ export default function LocationSettings() {
                 })
             }
 
-            fetchLocations()
+            loadLocales()
             handleLocationClose()
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível salvar o local.',
@@ -211,21 +163,7 @@ export default function LocationSettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/locales/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error('Erro ao excluir local')
-            }
+            await deleteLocale(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -235,8 +173,12 @@ export default function LocationSettings() {
                 isClosable: true,
             })
 
-            fetchLocations()
+            loadLocales()
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível excluir o local.',
@@ -247,12 +189,12 @@ export default function LocationSettings() {
         }
     }
 
-    const handleLocationEdit = (location: Location) => {
+    const handleLocationEdit = (location: LocaleDTO) => {
         setEditingLocation(location)
         setLocationFormData({
             name: location.name,
-            description: location.description,
-            location_id: location.location?.id || ''
+            description: location.description ?? '',
+            location_id: location.location?.id || location.location_id || ''
         })
         onLocationModalOpen()
     }

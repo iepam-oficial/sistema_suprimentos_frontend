@@ -10,124 +10,29 @@ import {
   Tab,
   TabPanel,
   useToast,
-  useBreakpointValue,
-  useColorMode,
   Flex,
-  HStack,
-  Button,
-  IconButton,
-  Drawer,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerHeader,
-  DrawerBody,
-  DrawerCloseButton,
-  useDisclosure,
   Divider,
-  Select,
   useMediaQuery,
   Heading,
 } from '@chakra-ui/react';
 import { QuoteList } from './components/QuoteList';
 import { CreateQuoteButton } from './components/CreateQuoteButton';
 import { SmartQuotesTable } from './components/SmartQuotesTable';
-import { useState, useEffect } from 'react';
-import { FiPlus, FiFilter, FiSearch, FiChevronRight } from 'react-icons/fi';
-import { useRouter } from 'next/navigation';
-
-interface Quote {
-  id: string;
-  supplier: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  total_value: number;
-  created_at: string;
-  created_by: string;
-  user: {
-    id: string;
-    name: string;
-  };
-  items: Array<{
-    product_name: string;
-    quantity: number;
-    unit_price: number;
-  }>;
-}
+import { LegacyQuoteDeprecationBanner } from './components/LegacyQuoteDeprecationBanner';
+import { useQuotes } from '@/features/quotes';
 
 export default function QuotesPage() {
-  const router = useRouter();
-  const { colorMode } = useColorMode();
   const [isMobile] = useMediaQuery('(max-width: 768px)');
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const toast = useToast();
-  const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
+  const { quotes, loading, handleStatusChange, reload } = useQuotes();
 
-  // Cores
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const headingColor = useColorModeValue('gray.800', 'white');
 
-  const fetchQuotes = async () => {
+  const onStatusChange = async (quoteId: string, status: 'APPROVED' | 'REJECTED') => {
     try {
-      const response = await fetch('/api/quotes', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('@ti-assistant:token')}`
-        }
-      });
-
-      if (response.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar cotações');
-      }
-
-      const data = await response.json();
-      setQuotes(data);
-    } catch (error) {
-      console.error('Erro ao buscar cotações:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao buscar cotações',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchQuotes();
-  }, []);
-
-  const handleStatusChange = async (quoteId: string, status: 'APPROVED' | 'REJECTED') => {
-    try {
-      const response = await fetch(`/api/quotes/${quoteId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('@ti-assistant:token')}`
-        },
-        body: JSON.stringify({ status })
-      });
-
-      if (response.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Erro ao alterar status da cotação');
-      }
-
-      await fetchQuotes();
-
+      await handleStatusChange(quoteId, status);
       toast({
         title: 'Sucesso',
         description: 'Status da cotação alterado com sucesso',
@@ -135,44 +40,14 @@ export default function QuotesPage() {
         duration: 3000,
         isClosable: true,
       });
-    } catch (error) {
-      console.error('Erro ao alterar status:', error);
+    } catch (err) {
       toast({
         title: 'Erro',
-        description: 'Erro ao alterar status da cotação',
+        description: err instanceof Error ? err.message : 'Erro ao alterar status da cotação',
         status: 'error',
         duration: 3000,
         isClosable: true,
       });
-    }
-  };
-
-  const filteredQuotes = quotes.filter(quote => {
-    const matchesSearch = quote.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      quote.user.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !statusFilter || quote.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'green';
-      case 'REJECTED':
-        return 'red';
-      default:
-        return 'yellow';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'Aprovada';
-      case 'REJECTED':
-        return 'Rejeitada';
-      default:
-        return 'Pendente';
     }
   };
 
@@ -198,6 +73,8 @@ export default function QuotesPage() {
             <Divider />
           </>
         )}
+
+        <LegacyQuoteDeprecationBanner />
 
         <Box position="sticky" top="7vh" zIndex={21} bg={useColorModeValue('white', 'gray.700')} borderRadius="lg">
           <Tabs variant="enclosed" size={{ base: 'sm', md: 'md' }}>
@@ -262,7 +139,7 @@ export default function QuotesPage() {
                     <Box display="flex" justifyContent="flex-end">
                       <CreateQuoteButton />
                     </Box>
-                    <QuoteList quotes={quotes} onStatusChange={handleStatusChange} />
+                    <QuoteList quotes={quotes} loading={loading} onStatusChange={onStatusChange} onReload={reload} />
                   </VStack>
                 </TabPanel>
                 <TabPanel p={{ base: 2, md: 4 }}>

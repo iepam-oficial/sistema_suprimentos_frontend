@@ -1,4 +1,4 @@
-import { SupportTicket } from '@/app/(dashboard)/support-tickets/types';
+import { SupportTicket } from '@/features/support-tickets/types';
 
 export function computeTicketStats(tickets: SupportTicket[]) {
   const open = tickets.filter((t) => t.status === 'OPEN').length;

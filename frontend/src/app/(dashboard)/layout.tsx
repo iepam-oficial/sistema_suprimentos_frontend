@@ -1,5 +1,6 @@
 'use client';
 
+import { ProcurementMenuBadgesProvider } from '@/features/procurement';
 import Sidebar from '@/components/Sidebar';
 import { usePathname } from 'next/navigation';
 
@@ -16,8 +17,8 @@ export default function DashboardLayout({
   }
 
   return (
-    <Sidebar>
-      {children}
-    </Sidebar>
+    <ProcurementMenuBadgesProvider>
+      <Sidebar>{children}</Sidebar>
+    </ProcurementMenuBadgesProvider>
   );
-} 
+}

@@ -51,6 +51,11 @@ import { ExtraExpense } from '../interfaces/IExtraExpense';
 import { exportToPDF } from '@/utils/exportToPDF';
 import { formatBRL } from '@/utils/money';
 import type { ExtraExpenseCategory } from '../../settings/interfaces/IExtraExpenseCategory';
+import {
+  deleteExtraExpense,
+  fetchExtraExpenses,
+} from '@/features/financeiro/api/extraExpenseApi';
+import { fetchExtraExpenseCategories } from '@/features/financeiro/api/extraExpenseCategoryApi';
 
 interface ExtraExpensesListProps {
   onEditExpense: (expense: ExtraExpense) => void;
@@ -91,18 +96,8 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
   const fetchExpenses = async () => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch('/api/extra-expenses', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar gastos extras');
-      }
-
-      const data = await response.json();
+      if (!token) throw new Error('Token não encontrado');
+      const data = await fetchExtraExpenses(token);
       setExpenses(data);
     } catch (error) {
       toast({
@@ -120,17 +115,9 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch('/api/extra-expense-categories', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
+      if (!token) return;
+      const data = await fetchExtraExpenseCategories(token);
+      setCategories(data);
     } catch (error) {
       console.error('Erro ao buscar categorias:', error);
     }
@@ -181,17 +168,8 @@ export default function ExtraExpensesList({ onEditExpense, isFormOpen, onOpenFor
 
     try {
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch(`/api/extra-expenses/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao excluir gasto');
-      }
+      if (!token) throw new Error('Token não encontrado');
+      await deleteExtraExpense(token, id);
 
       toast({
         title: 'Sucesso',

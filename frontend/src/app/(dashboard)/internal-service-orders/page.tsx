@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from 'react';
 import {
   Box,
   Heading,
@@ -13,83 +12,15 @@ import {
   Spinner,
   Flex,
   Text,
-  Badge,
-  useToast,
   Button,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
-
-interface InternalServiceOrder {
-  id: string;
-  title: string;
-  description?: string;
-  technician_id: string;
-  inventory_id?: string;
-  location_id?: string;
-  sector_id?: string;
-  start_date: string;
-  end_date?: string;
-  time_spent_hours: number;
-  type: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  technician?: { name: string };
-  inventory?: { name: string };
-  location?: { name: string };
-  sector?: { name: string };
-}
+import { useInternalServiceOrders } from '@/features/operations';
 
 export default function InternalServiceOrdersPage() {
-  const [orders, setOrders] = useState<InternalServiceOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const toast = useToast();
+  const { orders, loading, error } = useInternalServiceOrders();
   const router = useRouter();
-
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setError(null);
-        setLoading(true);
-        const token = localStorage.getItem('@ti-assistant:token');
-        if (!token) {
-          router.push('/');
-          return;
-        }
-        const res = await fetch('/api/internal-service-orders', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (res.status === 429) {
-          router.push('/rate-limit')
-          return
-        }
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'Erro ao buscar ordens de serviço internas');
-        }
-        const data = await res.json();
-        setOrders(data);
-      } catch (err: any) {
-        setError(err.message || 'Erro ao buscar ordens de serviço internas');
-        toast({
-          title: 'Erro',
-          description: err.message || 'Erro ao buscar ordens de serviço internas',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrders();
-  }, [toast, router]);
 
   return (
     <Box p={8}>
@@ -144,4 +75,4 @@ export default function InternalServiceOrdersPage() {
       )}
     </Box>
   );
-} 
+}

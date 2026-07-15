@@ -3,6 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  fetchServiceOrderById,
+  RateLimitError,
+  updateServiceOrder,
+  type ServiceOrderDTO,
+  type UpdateServiceOrderInput,
+} from '@/features/operations'
+import {
     Box,
     Button,
     FormControl,
@@ -30,25 +37,8 @@ import {
 } from '@chakra-ui/react'
 import { ArrowLeft } from 'lucide-react'
 
-interface Order {
-    id: string
-    order_number: string
-    client_name: string
-    equipment_description: string
-    model: string
-    serial_number: string
-    problem_reported: string
-    entry_date: string
-    exit_date: string | null
-    service_type: string
-    accessories: string | null
-    notes: string | null
-    total_price: number
-    supplier_id: string | null
-}
-
 export default function EditOrderPage({ params }: { params: { id: string } }) {
-    const [order, setOrder] = useState<Order | null>(null)
+    const [order, setOrder] = useState<ServiceOrderDTO | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -65,29 +55,18 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
                     throw new Error('Token não encontrado')
                 }
 
-                const response = await fetch(`/api/orders/${params.id}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                })
-
-                if (response.status === 429) {
-                    router.push('/rate-limit');
-                    return;
-                }
-
-                if (!response.ok) {
-                    const errorData = await response.json()
-                    throw new Error(errorData.message || 'Erro ao buscar ordem de serviço')
-                }
-
-                const data = await response.json()
+                const data = await fetchServiceOrderById(token, params.id)
                 setOrder(data)
-            } catch (err: any) {
-                setError(err.message || 'Erro ao buscar ordem de serviço')
+            } catch (err: unknown) {
+                if (err instanceof RateLimitError) {
+                    router.push('/rate-limit')
+                    return
+                }
+                const message = err instanceof Error ? err.message : 'Erro ao buscar ordem de serviço'
+                setError(message)
                 toast({
                     title: 'Erro',
-                    description: err.message || 'Erro ao buscar ordem de serviço',
+                    description: message,
                     status: 'error',
                     duration: 5000,
                     isClosable: true,
@@ -111,12 +90,7 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
                 throw new Error('Token não encontrado')
             }
 
-            // Verifica se a OS já estava concluída antes da edição
-            const originalOrder = await fetch(`/api/orders/${params.id}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            }).then(res => res.json())
+            const originalOrder = await fetchServiceOrderById(token, params.id)
 
             if (originalOrder.exit_date && !order.exit_date) {
                 toast({
@@ -129,24 +103,19 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
                 return
             }
 
-            const response = await fetch(`/api/orders/${params.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(order)
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
+            const updateInput: UpdateServiceOrderInput = {
+                client_name: order.client_name,
+                equipment_description: order.equipment_description,
+                model: order.model,
+                problem_reported: order.problem_reported,
+                service_type: order.service_type,
+                accessories: order.accessories,
+                notes: order.notes,
+                total_price: order.total_price,
+                supplier_id: order.supplier_id ?? undefined,
             }
 
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.message || 'Erro ao atualizar ordem de serviço')
-            }
+            await updateServiceOrder(token, params.id, updateInput)
 
             toast({
                 title: 'Sucesso',

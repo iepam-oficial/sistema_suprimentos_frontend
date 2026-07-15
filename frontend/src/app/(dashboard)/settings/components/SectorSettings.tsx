@@ -29,37 +29,23 @@ import {
 } from '@chakra-ui/react'
 import { useState, useEffect } from 'react'
 import { EditIcon, DeleteIcon } from '@chakra-ui/icons'
-import { useRouter } from 'next/navigation';
-
-interface Location {
-    id: string
-    name: string
-    address: string
-    branch: string
-    user_id: string
-    created_at: string
-    updated_at: string
-}
-
-interface Sector {
-    id: string
-    name: string
-    description: string | null
-    location_id: string
-    location: Location
-    inventory: any[]
-    _count?: {
-        inventory: number
-    }
-    created_at: string
-    updated_at: string
-}
+import { useRouter } from 'next/navigation'
+import {
+    fetchSectors,
+    fetchLocations,
+    createSector,
+    updateSector,
+    deleteSector,
+    RateLimitError,
+    type LocationDTO,
+    type SectorWithCountDTO,
+} from '@/features/reference-data'
 
 export default function SectorSettings() {
-    const [sectors, setSectors] = useState<Sector[]>([])
-    const [locations, setLocations] = useState<Location[]>([])
+    const [sectors, setSectors] = useState<SectorWithCountDTO[]>([])
+    const [locations, setLocations] = useState<LocationDTO[]>([])
     const [isLoading, setIsLoading] = useState(false)
-    const [editingSector, setEditingSector] = useState<Sector | null>(null)
+    const [editingSector, setEditingSector] = useState<SectorWithCountDTO | null>(null)
     const toast = useToast()
     const { isOpen: isSectorModalOpen, onOpen: onSectorModalOpen, onClose: onSectorModalClose } = useDisclosure()
     const router = useRouter();
@@ -70,31 +56,24 @@ export default function SectorSettings() {
     })
 
     useEffect(() => {
-        fetchSectors()
-        fetchLocations()
+        loadSectors()
+        loadLocations()
     }, [])
 
-    const fetchSectors = async () => {
+    const loadSectors = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             if (!token) {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/sectors', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (response.status === 429) {
-                router.push('/rate-limit');
-                return;
-            }
-
-            const data = await response.json()
-            setSectors(data)
+            const data = await fetchSectors(token)
+            setSectors(data as SectorWithCountDTO[])
         } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit')
+                return
+            }
             toast({
                 title: 'Erro',
                 description: 'Não foi possível carregar os setores.',
@@ -105,24 +84,14 @@ export default function SectorSettings() {
         }
     }
 
-    const fetchLocations = async () => {
+    const loadLocations = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             if (!token) {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch('/api/locations', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-            
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`)
-            }
-            
-            const data = await response.json()
+            const data = await fetchLocations(token)
             console.log('Locations data:', data) // Debug log
             setLocations(data)
         } catch (error) {
@@ -148,20 +117,7 @@ export default function SectorSettings() {
             }
 
             if (editingSector) {
-                // Atualizar setor existente
-                const response = await fetch(`/api/sectors/${editingSector.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(sectorFormData),
-                })
-
-                if (!response.ok) {
-                    const errorData = await response.json()
-                    throw new Error(errorData.error || 'Erro ao atualizar setor')
-                }
+                await updateSector(token, editingSector.id, sectorFormData)
 
                 toast({
                     title: 'Sucesso',
@@ -171,20 +127,7 @@ export default function SectorSettings() {
                     isClosable: true,
                 })
             } else {
-                // Criar novo setor
-                const response = await fetch('/api/sectors', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify(sectorFormData),
-                })
-
-                if (!response.ok) {
-                    const errorData = await response.json()
-                    throw new Error(errorData.error || 'Erro ao criar setor')
-                }
+                await createSector(token, sectorFormData)
 
                 toast({
                     title: 'Sucesso',
@@ -195,7 +138,7 @@ export default function SectorSettings() {
                 })
             }
 
-            fetchSectors()
+            loadSectors()
             handleSectorClose()
         } catch (error) {
             toast({
@@ -221,17 +164,7 @@ export default function SectorSettings() {
                 throw new Error('Token não encontrado')
             }
 
-            const response = await fetch(`/api/sectors/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            })
-
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.error || 'Erro ao excluir setor')
-            }
+            await deleteSector(token, id)
 
             toast({
                 title: 'Sucesso',
@@ -241,7 +174,7 @@ export default function SectorSettings() {
                 isClosable: true,
             })
 
-            fetchSectors()
+            loadSectors()
         } catch (error) {
             toast({
                 title: 'Erro',
@@ -253,7 +186,7 @@ export default function SectorSettings() {
         }
     }
 
-    const handleSectorEdit = (sector: Sector) => {
+    const handleSectorEdit = (sector: SectorWithCountDTO) => {
         setEditingSector(sector)
         setSectorFormData({
             name: sector.name,

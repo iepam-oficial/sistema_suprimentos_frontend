@@ -29,20 +29,17 @@ import {
 import { Wrench, Building2, Layers, ClipboardList } from 'lucide-react';
 import type { InventoryItem } from '../../inventory/types';
 import { useRef } from 'react';
-
-interface Location {
-  id: string;
-  name: string;
-  address: string;
-  branch: string;
-}
-
-interface Locale {
-  id: string;
-  name: string;
-  description?: string;
-  location_id: string;
-}
+import {
+  fetchLocations,
+  fetchLocales,
+  type LocationDTO,
+  type LocaleDTO,
+} from '@/features/reference-data';
+import { useAuthSession } from '@/features/identity';
+import {
+  createInternalServiceOrder,
+  type CreateInternalServiceOrderInput,
+} from '@/features/operations';
 
 export default function NewInternalServiceOrderPage() {
   const [formData, setFormData] = useState({
@@ -62,9 +59,10 @@ export default function NewInternalServiceOrderPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const toast = useToast();
   const router = useRouter();
+  const { token } = useAuthSession();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [locales, setLocales] = useState<Locale[]>([]);
+  const [locations, setLocations] = useState<LocationDTO[]>([]);
+  const [locales, setLocales] = useState<LocaleDTO[]>([]);
   const [serialInput, setSerialInput] = useState('');
   const [serialSuggestions, setSerialSuggestions] = useState<string[]>([]);
   const serialInputRef = useRef<HTMLInputElement>(null);
@@ -72,7 +70,6 @@ export default function NewInternalServiceOrderPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('@ti-assistant:token');
         if (!token) return;
         // Buscar inventário
         const invRes = await fetch('/api/inventory', {
@@ -80,40 +77,32 @@ export default function NewInternalServiceOrderPage() {
         });
         const invData = await invRes.json();
         setInventory(Array.isArray(invData) ? invData : []);
-        // Buscar locais
-        const locRes = await fetch('/api/locations', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const locData = await locRes.json();
-        setLocations(Array.isArray(locData) ? locData : []);
+        const locData = await fetchLocations(token);
+        setLocations(locData);
       } catch (err) {
         // Silenciar erro, já há toast no submit
       }
     };
     fetchData();
-  }, []);
+  }, [token]);
 
   // Buscar ambientes quando o polo mudar
   useEffect(() => {
     if (formData.location_id) {
-      const fetchLocales = async () => {
+      const loadLocales = async () => {
         try {
-          const token = localStorage.getItem('@ti-assistant:token');
           if (!token) return;
-          const res = await fetch('/api/locales', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const data = await res.json();
-          setLocales(Array.isArray(data) ? data.filter((l: Locale) => l.location_id === formData.location_id) : []);
+          const data = await fetchLocales(token);
+          setLocales(data.filter((l) => l.location_id === formData.location_id));
         } catch (err) {
           setLocales([]);
         }
       };
-      fetchLocales();
+      loadLocales();
     } else {
       setLocales([]);
     }
-  }, [formData.location_id]);
+  }, [formData.location_id, token]);
 
   // Atualizar sugestões conforme digita
   useEffect(() => {
@@ -198,27 +187,22 @@ export default function NewInternalServiceOrderPage() {
         setLoading(false);
         return;
       }
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) {
         throw new Error('Token não encontrado');
       }
-      const dataToSend: any = {
-        ...formData,
-        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : undefined,
+      const dataToSend: CreateInternalServiceOrderInput = {
+        title: formData.title,
+        description: formData.description || undefined,
+        inventory_id: formData.inventory_id || undefined,
+        location_id: formData.location_id || undefined,
+        sector_id: formData.sector_id || undefined,
+        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : '',
         end_date: formData.end_date ? new Date(formData.end_date).toISOString() : undefined,
+        time_spent_hours: formData.time_spent_hours,
+        type: formData.type || undefined,
+        notes: formData.notes || undefined,
       };
-      const res = await fetch('/api/internal-service-orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(dataToSend),
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Erro ao criar ordem de serviço interna');
-      }
+      await createInternalServiceOrder(token, dataToSend);
       toast({
         title: 'Sucesso',
         description: 'Ordem de serviço interna criada com sucesso',

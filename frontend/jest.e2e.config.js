@@ -2,7 +2,9 @@
 module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',
-    testMatch: ['**/tests/e2e/**/*.test.ts'],
+    testMatch: ['**/tests/e2e/specs/**/*.test.ts'],
+    maxWorkers: 1,
+    setupFilesAfterEnv: ['<rootDir>/tests/e2e/setup/jest.setup.ts'],
     /** E2E: vários `driver.wait` (60s) + navegação; margem para CI lento. */
     testTimeout: 180000,
     /** Evita colisão Haste com `package.json` dentro de `.next/standalone` após `next build`. */

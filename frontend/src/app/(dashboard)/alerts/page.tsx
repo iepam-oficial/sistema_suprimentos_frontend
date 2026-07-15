@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
     Box,
     Table,
@@ -20,7 +20,6 @@ import {
     MenuItem,
     Icon,
     useBreakpointValue,
-    Container,
     VStack,
     Flex,
     Heading,
@@ -28,30 +27,50 @@ import {
 } from '@chakra-ui/react';
 import { MoreVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { fetchAlerts, deleteAlert, RateLimitError } from '@/features/alerts/api/alertApi';
+import type { AlertDTO } from '@/features/alerts/types';
+import { getDangerLevelColor, getDangerLevelLabel } from '@/features/alerts/lib/dangerLevel';
 
-interface Alert {
-    id: string;
-    about: string;
-    danger_level: string;
-    description: string;
-    created_at: string;
-    server?: {
-        id: string;
-        IP: string;
-    };
-    printer?: {
-        id: string;
-        name: string;
-    };
+function formatDevice(alert: AlertDTO): string {
+    if (alert.inventory?.name) {
+        return `Inventário: ${alert.inventory.name}`;
+    }
+    return 'N/A';
 }
 
 export default function AlertsPage() {
-    const [alerts, setAlerts] = useState<Alert[]>([]);
+    const [alerts, setAlerts] = useState<AlertDTO[]>([]);
     const [loading, setLoading] = useState(true);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, md: false });
     const { colorMode } = useColorMode();
     const router = useRouter();
+
+    const loadAlerts = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('@ti-assistant:token');
+            if (!token) return;
+
+            const data = await fetchAlerts(token);
+            setAlerts(data);
+        } catch (error) {
+            if (error instanceof RateLimitError) {
+                router.push('/rate-limit');
+                return;
+            }
+            console.error('Erro ao buscar alertas:', error);
+            toast({
+                title: 'Erro',
+                description: 'Não foi possível carregar os alertas',
+                status: 'error',
+                duration: 3000,
+                isClosable: true,
+            });
+            setAlerts([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [router, toast]);
 
     useEffect(() => {
         const token = localStorage.getItem('@ti-assistant:token');
@@ -74,59 +93,17 @@ export default function AlertsPage() {
             return;
         }
 
-        fetchAlerts();
-    }, [router, toast]);
-
-    const fetchAlerts = async () => {
-        try {
-            const token = localStorage.getItem('@ti-assistant:token');
-            const response = await fetch('/api/alerts', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }) ;
-
-            if (response.status === 429) {
-                router.push('/rate-limit')
-                return
-            }
-
-            if (!response.ok) {
-                throw new Error('Erro ao buscar alertas');
-            }
-
-            const data = await response.json();
-            setAlerts(Array.isArray(data) ? data : []);
-        } catch (error) {
-            console.error('Erro ao buscar alertas:', error);
-            toast({
-                title: 'Erro',
-                description: 'Não foi possível carregar os alertas',
-                status: 'error',
-                duration: 3000,
-                isClosable: true,
-            });
-            setAlerts([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+        loadAlerts();
+    }, [router, toast, loadAlerts]);
 
     const handleDelete = async (id: string) => {
         if (!confirm('Tem certeza que deseja excluir este alerta?')) return;
 
         try {
             const token = localStorage.getItem('@ti-assistant:token');
-            const response = await fetch(`/api/alerts?id=${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            if (!token) return;
 
-            if (!response.ok) {
-                throw new Error('Erro ao excluir alerta');
-            }
+            await deleteAlert(token, id);
 
             toast({
                 title: 'Sucesso',
@@ -136,7 +113,7 @@ export default function AlertsPage() {
                 isClosable: true,
             });
 
-            fetchAlerts();
+            loadAlerts();
         } catch (error) {
             console.error('Erro ao excluir alerta:', error);
             toast({
@@ -146,21 +123,6 @@ export default function AlertsPage() {
                 duration: 3000,
                 isClosable: true,
             });
-        }
-    };
-
-    const getDangerLevelColor = (level: string) => {
-        switch (level.toLowerCase()) {
-            case 'baixo':
-                return 'green';
-            case 'médio':
-                return 'yellow';
-            case 'alto':
-                return 'orange';
-            case 'crítico':
-                return 'red';
-            default:
-                return 'gray';
         }
     };
 
@@ -186,7 +148,6 @@ export default function AlertsPage() {
                 </Heading>
             </Flex>
 
-            {/* Tabela para desktop, cards para mobile */}
             {isMobile ? (
                 <VStack spacing={4} align="stretch">
                     {alerts.length === 0 ? (
@@ -206,7 +167,7 @@ export default function AlertsPage() {
                             >
                                 <HStack justify="space-between" mb={2}>
                                     <Badge colorScheme={getDangerLevelColor(alert.danger_level)} variant="subtle" px={2} py={1} rounded="md">
-                                        {alert.danger_level}
+                                        {getDangerLevelLabel(alert.danger_level)}
                                     </Badge>
                                     <Menu>
                                         <MenuButton
@@ -229,7 +190,7 @@ export default function AlertsPage() {
                                 <Text fontWeight="bold" color={colorMode === 'dark' ? 'white' : 'gray.800'}>{alert.about}</Text>
                                 <Text color={colorMode === 'dark' ? 'gray.200' : 'gray.700'} fontSize="sm">{alert.description}</Text>
                                 <Text color={colorMode === 'dark' ? 'gray.400' : 'gray.600'} fontSize="sm" mt={2}>
-                                    {alert.server ? `Servidor: ${alert.server.IP}` : alert.printer ? `Impressora: ${alert.printer.name}` : 'N/A'}
+                                    {formatDevice(alert)}
                                 </Text>
                                 <Text color={colorMode === 'dark' ? 'gray.400' : 'gray.600'} fontSize="xs">
                                     {new Date(alert.created_at).toLocaleString()}
@@ -285,15 +246,13 @@ export default function AlertsPage() {
                                                 py={1}
                                                 rounded="md"
                                             >
-                                                {alert.danger_level}
+                                                {getDangerLevelLabel(alert.danger_level)}
                                             </Badge>
                                         </Td>
                                         <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{alert.about}</Td>
                                         <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>{alert.description}</Td>
                                         <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
-                                            {alert.server ? `Servidor: ${alert.server.IP}` :
-                                                alert.printer ? `Impressora: ${alert.printer.name}` :
-                                                    'N/A'}
+                                            {formatDevice(alert)}
                                         </Td>
                                         <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
                                             {new Date(alert.created_at).toLocaleString()}
@@ -341,4 +300,4 @@ export default function AlertsPage() {
             )}
         </VStack>
     );
-} 
+}

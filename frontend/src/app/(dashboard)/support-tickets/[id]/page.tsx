@@ -8,7 +8,11 @@ import {
   canViewSupportTickets,
   SupportTicketKind,
   TicketStatus,
-} from '../types';
+} from '@/features/support-tickets/types';
+import {
+  fetchSupportTicketById,
+  RateLimitError,
+} from '@/features/support-tickets/api/supportTicketApi';
 import {
   SupportTicketReadOnlySummary,
   SupportTicketResolvedAlert,
@@ -96,27 +100,21 @@ export default function SupportTicketDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/support-tickets/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-      if (!res.ok) {
-        if (res.status === 404) {
-          setError('Chamado não encontrado ou sem permissão para visualizar.');
-          setTicket(null);
-          return;
-        }
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Erro ao carregar chamado');
-      }
-      const data = (await res.json()) as SupportTicket;
+      const data = await fetchSupportTicketById(token, id);
       setTicket(data);
       syncForm(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro ao carregar');
+      if (e instanceof RateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
+      const message = e instanceof Error ? e.message : 'Erro ao carregar';
+      if (message.toLowerCase().includes('não encontrado')) {
+        setError('Chamado não encontrado ou sem permissão para visualizar.');
+        setTicket(null);
+        return;
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }

@@ -10,66 +10,46 @@ import {
   Flex,
   VStack,
   HStack,
-  Badge,
   Button,
 } from '@chakra-ui/react';
-
-interface InternalServiceOrder {
-  id: string;
-  title: string;
-  description?: string;
-  technician_id: string;
-  inventory_id?: string;
-  location_id?: string;
-  sector_id?: string;
-  start_date: string;
-  end_date?: string;
-  time_spent_hours: number;
-  type: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-  technician?: { name: string };
-  inventory?: { name: string };
-  location?: { name: string };
-  sector?: { name: string };
-}
+import { useAuthSession } from '@/features/identity';
+import {
+  fetchInternalServiceOrderById,
+  RateLimitError,
+  type InternalServiceOrder,
+} from '@/features/operations';
 
 export default function InternalServiceOrderDetailsPage({ params }: { params: { id: string } }) {
   const [order, setOrder] = useState<InternalServiceOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { token } = useAuthSession();
 
   useEffect(() => {
-    const fetchOrder = async () => {
+    const loadOrder = async () => {
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
       try {
         setError(null);
         setLoading(true);
-        const token = localStorage.getItem('@ti-assistant:token');
-        if (!token) {
-          router.push('/login');
+        const data = await fetchInternalServiceOrderById(token, params.id);
+        setOrder(data);
+      } catch (err) {
+        if (err instanceof RateLimitError) {
+          router.push('/rate-limit');
           return;
         }
-        const res = await fetch(`/api/internal-service-orders/${params.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'Erro ao buscar ordem de serviço interna');
-        }
-        const data = await res.json();
-        setOrder(data);
-      } catch (err: any) {
-        setError(err.message || 'Erro ao buscar ordem de serviço interna');
+        setError(err instanceof Error ? err.message : 'Erro ao buscar ordem de serviço interna');
       } finally {
         setLoading(false);
       }
     };
-    fetchOrder();
-  }, [params.id, router]);
+    loadOrder();
+  }, [params.id, router, token]);
 
   if (loading) {
     return (
@@ -107,4 +87,4 @@ export default function InternalServiceOrderDetailsPage({ params }: { params: { 
       </VStack>
     </Box>
   );
-} 
+}

@@ -17,13 +17,18 @@ import {
   Flex,
 } from '@chakra-ui/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { REPORT_CATALOG } from '@/lib/reports/catalog';
+import {
+  fetchReport,
+  fetchReportFilters,
+  RateLimitError,
+} from '@/features/reports/api/reportApi';
+import { REPORT_CATALOG } from '@/features/reports/catalog';
 import {
   ExecutiveSummaryPayload,
   FilterOptions,
   ReportPayload,
   ReportSlug,
-} from '@/lib/reports/types';
+} from '@/features/reports/types';
 import { MobileReports } from './components/MobileReports';
 import { ReportCatalog } from './components/ReportCatalog';
 import {
@@ -82,7 +87,8 @@ function ReportsPageContent() {
   const syncUrl = useCallback(
     (slug: ReportSlug, f: ReportFiltersState) => {
       const q = buildReportsQuery(slug, f);
-      router.replace(`/reports?${q}`, { scroll: false });
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      router.replace(`/reports?${q}${hash}`, { scroll: false });
     },
     [router]
   );
@@ -109,18 +115,20 @@ function ReportsPageContent() {
   }, [router, toast]);
 
   useEffect(() => {
-    const token = localStorage.getItem('@ti-assistant:token');
-    if (!token) return;
+    const storedToken = localStorage.getItem('@ti-assistant:token');
+    if (!storedToken) return;
+    const token: string = storedToken;
 
     async function loadFilterOptions() {
       setFiltersLoading(true);
       try {
-        const res = await fetch('/api/reports?report=filters', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 429) { router.push('/rate-limit'); return; }
-        if (res.ok) setFilterOptions(await res.json());
-      } catch { /* ignore */ } finally {
+        const options = await fetchReportFilters(token);
+        setFilterOptions(options);
+      } catch (error) {
+        if (error instanceof RateLimitError) {
+          router.push('/rate-limit');
+        }
+      } finally {
         setFiltersLoading(false);
       }
     }
@@ -129,22 +137,21 @@ function ReportsPageContent() {
   }, [router]);
 
   useEffect(() => {
-    const token = localStorage.getItem('@ti-assistant:token');
-    if (!token) return;
+    const storedToken = localStorage.getItem('@ti-assistant:token');
+    if (!storedToken) return;
+    const token: string = storedToken;
 
     async function loadReport() {
       setLoading(true);
       try {
-        const query = buildReportsQuery(activeSlug, filters);
-        const res = await fetch(`/api/reports?${query}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.status === 429) { router.push('/rate-limit'); return; }
-        if (!res.ok) throw new Error('Erro ao carregar relatório');
-        const data = await res.json();
+        const data = await fetchReport(token, activeSlug, filters);
         setReportData(data);
         syncUrl(activeSlug, filters);
-      } catch {
+      } catch (error) {
+        if (error instanceof RateLimitError) {
+          router.push('/rate-limit');
+          return;
+        }
         toast({
           title: 'Erro',
           description: 'Não foi possível carregar o relatório',
@@ -160,6 +167,21 @@ function ReportsPageContent() {
 
     loadReport();
   }, [activeSlug, filters, router, syncUrl, toast]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (typeof window === 'undefined') return;
+    if (!window.location.hash) return;
+
+    const target = document.querySelector(window.location.hash);
+    if (!target) return;
+
+    const timer = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   const handleSlugChange = (slug: ReportSlug) => setActiveSlug(slug);
   const handleFiltersChange = (f: ReportFiltersState) => setFilters(f);

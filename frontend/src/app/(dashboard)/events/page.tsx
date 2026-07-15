@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -15,9 +15,11 @@ import {
 } from '@chakra-ui/react';
 import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import type { Event, EventStatus } from '@/types/event';
-import { canChangeEventStatus, canCreateEvent } from '@/utils/eventPermissions';
-import { eventsOnDate, formatSelectedDateLabel } from '@/utils/eventPresentation';
+import type { EventStatus } from '@/features/events/types';
+import { canChangeEventStatus, canCreateEvent } from '@/features/events/types';
+import { updateEvent } from '@/features/events/api/eventApi';
+import { useEventsFetch } from '@/features/events/hooks/useEventsFetch';
+import { eventsOnDate, formatSelectedDateLabel } from '@/features/events/lib/eventPresentation';
 import { MonthCalendar } from './components/MonthCalendar';
 import { EventCard } from './components/EventCard';
 import { EventFormModal } from './components/EventFormModal';
@@ -36,9 +38,7 @@ function getUserRole(): string {
 }
 
 export default function EventsPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { events, setEvents, loading, error, reload, setLoading } = useEventsFetch();
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [modalOpen, setModalOpen] = useState(false);
@@ -67,41 +67,9 @@ export default function EventsPage() {
     [events, selectedDate]
   );
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      setError(null);
-      const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch('/api/events', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Erro ao buscar eventos');
-      }
-
-      const data = await response.json();
-      setEvents(Array.isArray(data) ? data : []);
-    } catch (e) {
-      const message =
-        e instanceof Error ? e.message : 'Não foi possível carregar os eventos';
-      setError(message);
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
-
   useEffect(() => {
     setUserRole(getUserRole());
-    fetchEvents();
-  }, [fetchEvents]);
+  }, []);
 
   const handleStatusChange = async (eventId: string, status: EventStatus) => {
     const previous = events.find((e) => e.id === eventId);
@@ -114,21 +82,9 @@ export default function EventsPage() {
 
     try {
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch(`/api/events/${eventId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status }),
-      });
+      if (!token) throw new Error('Token não encontrado');
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || 'Erro ao atualizar status do evento');
-      }
-
-      const updated = await response.json();
+      const updated = await updateEvent(token, eventId, { status });
       setEvents((list) =>
         list.map((e) => (e.id === eventId ? { ...e, ...updated } : e))
       );
@@ -209,7 +165,7 @@ export default function EventsPage() {
               color="blue.500"
               onClick={() => {
                 setLoading(true);
-                fetchEvents();
+                reload();
               }}
             >
               Tentar novamente
@@ -260,7 +216,7 @@ export default function EventsPage() {
         <EventFormModal
           isOpen={modalOpen}
           onClose={() => setModalOpen(false)}
-          onCreated={fetchEvents}
+          onCreated={reload}
         />
       ) : null}
     </Box>

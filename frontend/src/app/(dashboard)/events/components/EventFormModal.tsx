@@ -17,12 +17,13 @@ import {
   Textarea,
   useToast,
 } from '@chakra-ui/react';
-import type { CreateEventPayload, EventType } from '@/types/event';
+import type { CreateEventPayload, EventType } from '@/features/events/types';
+import { createEvent } from '@/features/events/api/eventApi';
 import {
   combineDateInputAndTime,
   EVENT_TYPE_OPTIONS,
   toDateInputValue,
-} from '@/utils/eventPresentation';
+} from '@/features/events/lib/eventPresentation';
 
 interface EventFormModalProps {
   isOpen: boolean;
@@ -102,19 +103,8 @@ export function EventFormModal({ isOpen, onClose, onCreated }: EventFormModalPro
 
       setSaving(true);
       const token = localStorage.getItem('@ti-assistant:token');
-      const response = await fetch('/api/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || 'Não foi possível criar o evento.');
-      }
+      if (!token) throw new Error('Token não encontrado');
+      await createEvent(token, payload);
 
       toast({
         title: 'Sucesso',

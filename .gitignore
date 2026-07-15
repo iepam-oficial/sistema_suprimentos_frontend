@@ -10,6 +10,16 @@
 *.userosscache
 *.sln.docstates
 
+.next/
+out/
+node_modules/
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -205,6 +215,9 @@ PublishScripts/
 **/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
+# Allow vendored @ti-assistant/contracts for Railway deploy
+!frontend/packages/
+!frontend/packages/**
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files

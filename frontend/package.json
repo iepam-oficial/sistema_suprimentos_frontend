@@ -15,6 +15,7 @@
     "test:e2e:ci": "E2E_HEADLESS=1 jest --config jest.e2e.config.js"
   },
   "dependencies": {
+    "@ti-assistant/contracts": "file:./packages/contracts",
     "@auth/core": "^0.34.2",
     "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/next-js": "^2.2.0",

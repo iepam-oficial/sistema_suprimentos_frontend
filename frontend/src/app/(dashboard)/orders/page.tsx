@@ -51,16 +51,20 @@ import {
 import NextLink from 'next/link'
 import { SearchIcon } from '@chakra-ui/icons'
 import { Filter, FileText, Plus, Download, Search, Settings, Calendar, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
-import { Order, Filters } from './types'
-import { filterOrders, generateOrdersPDF } from './utils/ordersUtils'
+import {
+  fetchServiceOrders,
+  RateLimitError,
+  type ServiceOrderDTO,
+} from '@/features/operations'
+import { filterOrders, generateOrdersPDF, type OrderFilters } from './utils/ordersUtils'
 import { formatBRL } from '@/utils/money'
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<ServiceOrderDTO[]>([])
+  const [filteredOrders, setFilteredOrders] = useState<ServiceOrderDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<OrderFilters>({
     equipment: '',
     status: '',
     date: '',
@@ -106,34 +110,19 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
       try {
         setError(null)
-        const res = await fetch('/api/orders', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-
-        if (res.status === 429) {
-          router.push('/rate-limit');
-          return;
-        }
-
-        if (!res.ok) {
-          const errorData = await res.json()
-          throw new Error(errorData.message || 'Erro ao buscar ordens de serviço')
-        }
-
-        const data = await res.json()
-        if (!Array.isArray(data)) {
-          throw new Error('Dados recebidos não são um array')
-        }
-
+        const data = await fetchServiceOrders(token)
         setOrders(data)
         setFilteredOrders(data)
-      } catch (err: any) {
-        setError(err.message || 'Erro ao buscar ordens de serviço')
+      } catch (err: unknown) {
+        if (err instanceof RateLimitError) {
+          router.push('/rate-limit')
+          return
+        }
+        const message = err instanceof Error ? err.message : 'Erro ao buscar ordens de serviço'
+        setError(message)
         toast({
           title: 'Erro',
-          description: err.message || 'Erro ao buscar ordens de serviço',
+          description: message,
           status: 'error',
           duration: 5000,
           isClosable: true,

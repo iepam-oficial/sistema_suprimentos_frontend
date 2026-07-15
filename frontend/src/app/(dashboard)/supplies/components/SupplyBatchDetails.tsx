@@ -9,7 +9,6 @@ import {
   VStack,
   HStack,
   Badge,
-  Image,
   Button,
   Spinner,
   useToast,
@@ -22,13 +21,6 @@ import {
   StatNumber,
   StatHelpText,
   IconButton,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
 } from '@chakra-ui/react';
 import { FiArrowLeft, FiFileText, FiCalendar, FiPackage, FiDollarSign, FiUser, FiTruck } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
@@ -39,32 +31,48 @@ interface SupplyBatchDetailsProps {
   onBack: () => void;
 }
 
+type InvoiceFileType = 'image' | 'pdf' | 'xml';
+
+function getInvoiceFileTypeLabel(fileType?: InvoiceFileType | null): string {
+  switch (fileType) {
+    case 'image':
+      return 'Imagem';
+    case 'pdf':
+      return 'PDF';
+    case 'xml':
+      return 'XML';
+    default:
+      return 'Arquivo';
+  }
+}
+
 interface SupplyBatch {
   id: string;
   supply_id: string;
   supplier_id: string;
-  quantity: number;
+  purchased_quantity: number;
   unit_price: number;
   total_price: number;
   purchased_at: string;
   expires_at?: string;
   notes?: string;
   invoice_url?: string;
+  invoice_file_type?: InvoiceFileType | null;
   created_at: string;
   updated_at: string;
-  supply: {
+  supply?: {
     id: string;
     name: string;
     description?: string;
-    unit: {
+    unit?: {
       symbol: string;
       name: string;
     };
-    category: {
+    category?: {
       label: string;
     };
   };
-  supplier: {
+  supplier?: {
     id: string;
     name: string;
     email: string;
@@ -76,7 +84,6 @@ interface SupplyBatch {
 export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps) {
   const [batch, setBatch] = useState<SupplyBatch | null>(null);
   const [loading, setLoading] = useState(true);
-  const { isOpen: isInvoiceOpen, onOpen: onInvoiceOpen, onClose: onInvoiceClose } = useDisclosure();
   const toast = useToast();
   const router = useRouter();
   
@@ -155,9 +162,14 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
     );
   }
 
+  const openInvoice = () => {
+    if (batch.invoice_url) {
+      window.open(batch.invoice_url, '_blank');
+    }
+  };
+
   return (
-    <>
-      <VStack spacing={6} align="stretch">
+    <VStack spacing={6} align="stretch">
         {/* Header */}
         <HStack justify="space-between" align="center">
           <HStack spacing={4}>
@@ -193,9 +205,9 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
                   <VStack spacing={3} align="stretch">
                     <Box>
                       <Text fontWeight="bold" color={textColor}>Nome</Text>
-                      <Text>{batch.supply.name}</Text>
+                      <Text>{batch.supply?.name ?? '—'}</Text>
                     </Box>
-                    {batch.supply.description && (
+                    {batch.supply?.description && (
                       <Box>
                         <Text fontWeight="bold" color={textColor}>Descrição</Text>
                         <Text>{batch.supply.description}</Text>
@@ -203,11 +215,15 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
                     )}
                     <Box>
                       <Text fontWeight="bold" color={textColor}>Categoria</Text>
-                      <Text>{batch.supply.category.label}</Text>
+                      <Text>{batch.supply?.category?.label ?? '—'}</Text>
                     </Box>
                     <Box>
                       <Text fontWeight="bold" color={textColor}>Unidade</Text>
-                      <Text>{batch.supply.unit.name} ({batch.supply.unit.symbol})</Text>
+                      <Text>
+                        {batch.supply?.unit
+                          ? `${batch.supply.unit.name} (${batch.supply.unit.symbol})`
+                          : '—'}
+                      </Text>
                     </Box>
                   </VStack>
                 </CardBody>
@@ -225,19 +241,19 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
                   <VStack spacing={3} align="stretch">
                     <Box>
                       <Text fontWeight="bold" color={textColor}>Nome</Text>
-                      <Text>{batch.supplier.name}</Text>
+                      <Text>{batch.supplier?.name ?? '—'}</Text>
                     </Box>
                     <Box>
                       <Text fontWeight="bold" color={textColor}>Email</Text>
-                      <Text>{batch.supplier.email}</Text>
+                      <Text>{batch.supplier?.email ?? '—'}</Text>
                     </Box>
                     <Box>
                       <Text fontWeight="bold" color={textColor}>Telefone</Text>
-                      <Text>{batch.supplier.phone}</Text>
+                      <Text>{batch.supplier?.phone ?? '—'}</Text>
                     </Box>
                     <Box>
                       <Text fontWeight="bold" color={textColor}>Endereço</Text>
-                      <Text>{batch.supplier.address}</Text>
+                      <Text>{batch.supplier?.address ?? '—'}</Text>
                     </Box>
                   </VStack>
                 </CardBody>
@@ -269,8 +285,8 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
                   <VStack spacing={4}>
                     <Stat>
                       <StatLabel>Quantidade</StatLabel>
-                      <StatNumber>{batch.quantity}</StatNumber>
-                      <StatHelpText>{batch.supply.unit.symbol}</StatHelpText>
+                      <StatNumber>{batch.purchased_quantity}</StatNumber>
+                      <StatHelpText>{batch.supply?.unit?.symbol ?? 'un'}</StatHelpText>
                     </Stat>
                     <Divider />
                     <Stat>
@@ -328,26 +344,19 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
                     </HStack>
                   </CardHeader>
                   <CardBody>
-                    <VStack spacing={3}>
-                      <Image
-                        src={batch.invoice_url}
-                        alt="Preview da Nota Fiscal"
-                        maxH="200px"
-                        objectFit="contain"
-                        borderRadius="md"
-                        cursor="pointer"
-                        onClick={onInvoiceOpen}
-                        _hover={{ opacity: 0.8 }}
-                        transition="opacity 0.2s"
-                      />
+                    <VStack spacing={3} align="stretch">
+                      <Box>
+                        <Text fontWeight="bold" color={textColor}>Tipo</Text>
+                        <Text>{getInvoiceFileTypeLabel(batch.invoice_file_type)}</Text>
+                      </Box>
                       <Button
                         leftIcon={<FiFileText />}
                         colorScheme="blue"
-                        onClick={onInvoiceOpen}
+                        onClick={openInvoice}
                         size="sm"
                         w="full"
                       >
-                        Visualizar Nota Fiscal
+                        Abrir nota fiscal
                       </Button>
                     </VStack>
                   </CardBody>
@@ -356,27 +365,6 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
             </VStack>
           </GridItem>
         </Grid>
-      </VStack>
-
-      {/* Modal para visualizar Nota Fiscal */}
-      <Modal isOpen={isInvoiceOpen} onClose={onInvoiceClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Nota Fiscal</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            {batch.invoice_url && (
-              <Image
-                src={batch.invoice_url}
-                alt="Nota Fiscal"
-                maxH="70vh"
-                objectFit="contain"
-                mx="auto"
-              />
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </>
+    </VStack>
   );
 } 

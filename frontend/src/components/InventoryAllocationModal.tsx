@@ -18,22 +18,9 @@ import {
   useToast,
 } from '@chakra-ui/react';
 
-interface InventoryItem {
-  id: string;
-  name: string;
-  description?: string;
-  // Adicione outros campos necessários
-}
-
-interface Locale {
-  id: string;
-  name: string;
-  description?: string;
-  location: {
-    id: string;
-    name: string;
-  };
-}
+import type { InventoryItem } from '@/features/inventory/types';
+import { fetchMe, useAuthSession } from '@/features/identity';
+import { fetchLocalesByUserLocation, type LocaleDTO } from '@/features/reference-data';
 
 interface InventoryAllocationModalProps {
   isOpen: boolean;
@@ -53,11 +40,12 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
   const [returnDate, setReturnDate] = useState('');
   const [destination, setDestination] = useState('');
   const [notes, setNotes] = useState('');
-  const [locales, setLocales] = useState<Locale[]>([]);
+  const [locales, setLocales] = useState<LocaleDTO[]>([]);
   const [loadingLocales, setLoadingLocales] = useState(false);
   const [userSector, setUserSector] = useState<string>('');
   const { colorMode } = useColorMode();
   const toast = useToast();
+  const { token } = useAuthSession();
 
   // Buscar locais da filial do usuário
   useEffect(() => {
@@ -69,36 +57,15 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
   const fetchUserLocales = async () => {
     setLoadingLocales(true);
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) {
         throw new Error('Token não encontrado');
       }
 
-      const response = await fetch('/api/locales/user-location', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Erro ao buscar locais');
-      }
-
-      const localesData = await response.json();
+      const localesData = await fetchLocalesByUserLocation(token);
       setLocales(localesData);
 
-      // Buscar dados do usuário para obter seu setor
-      const userResponse = await fetch('/api/users/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        setUserSector(userData.sector?.id || '');
-      }
+      const userData = await fetchMe(token);
+      setUserSector(userData.sector?.id || '');
     } catch (error) {
       toast({
         title: 'Erro',
@@ -181,7 +148,7 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
               >
                 {locales.map((locale) => (
                   <option key={locale.id} value={locale.id}>
-                    {locale.name} - {locale.location.name}
+                    {locale.name} - {locale.location?.name ?? '—'}
                   </option>
                 ))}
               </Select>

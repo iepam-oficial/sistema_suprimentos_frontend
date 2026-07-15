@@ -24,20 +24,20 @@ import {
 import { useRouter } from 'next/navigation'
 import {
   Wrench,
-  Box as BoxIcon,
   TrendingUp,
   AlertTriangle,
   Users,
   FileText,
   ShoppingCart,
   Clock,
+  DollarSign,
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatBRL } from '@/utils/money'
+import type { AlertDTO } from '@/features/alerts/types'
+import { getDangerLevelColor, getDangerLevelLabel } from '@/features/alerts/lib/dangerLevel'
 
 interface DashboardStats {
-  totalInventory: number
-  totalInventoryValue: number
   totalServiceOrders: number
   totalServiceOrdersValue: number
   openServiceOrders: number
@@ -49,14 +49,9 @@ interface DashboardStats {
   pendingQuotes: number
   totalSupplyRequests: number
   pendingSupplyRequests: number
-}
-
-interface Alert {
-  id: string
-  about: string
-  description: string
-  danger_level: string
-  created_at: string
+  approvedOrdersMonthlyInventoryValue: number
+  approvedOrdersMonthlySuppliesValue: number
+  approvedOrdersMonthlyTotalValue: number
 }
 
 interface ServiceOrder {
@@ -71,7 +66,7 @@ interface ServiceOrder {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [recentAlerts, setRecentAlerts] = useState<Alert[]>([])
+  const [recentAlerts, setRecentAlerts] = useState<AlertDTO[]>([])
   const [recentServiceOrders, setRecentServiceOrders] = useState<ServiceOrder[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
@@ -227,28 +222,38 @@ export default function DashboardPage() {
               _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
               transition="all 0.2s"
               cursor="pointer"
-              onClick={() => router.push('/inventory')}
+              onClick={() => router.push('/supply-requests/admin')}
             >
               <CardBody p={4}>
-                <HStack spacing={2} mb={2}>
-                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, purple.500, pink.500)" color="white">
-                    <BoxIcon size={20} />
+                <HStack spacing={2} mb={3}>
+                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, emerald.500, green.600)" color="white">
+                    <DollarSign size={20} />
                   </Box>
                   <VStack align="start" spacing={0}>
-                    <Text fontSize="md" fontWeight="bold" color={textColor}>Inventário</Text>
-                    <Text fontSize="xs" color={textSecondary}>Gestão de equipamentos</Text>
+                    <Text fontSize="md" fontWeight="bold" color={textColor}>Pedidos Aprovados no Mês</Text>
+                    <Text fontSize="xs" color={textSecondary}>Soma em reais das aprovações do mês atual</Text>
                   </VStack>
                 </HStack>
-                <Stat>
-                  <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>{stats.totalInventory}</StatNumber>
-                  <StatHelpText fontSize="sm" color={textSecondary}>
-                    <StatArrow type="increase" />
-                    Itens cadastrados
-                  </StatHelpText>
-                  <StatHelpText fontSize="sm" color={textSecondary} mt={1}>
-                    Valor Total: {formatBRL(stats.totalInventoryValue)}
-                  </StatHelpText>
-                </Stat>
+                <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4}>
+                  <Stat>
+                    <Text fontSize="xs" color={textSecondary} mb={1}>Inventário</Text>
+                    <StatNumber fontSize="xl" fontWeight="bold" color={textColor}>
+                      {formatBRL(stats.approvedOrdersMonthlyInventoryValue)}
+                    </StatNumber>
+                  </Stat>
+                  <Stat>
+                    <Text fontSize="xs" color={textSecondary} mb={1}>Suprimentos</Text>
+                    <StatNumber fontSize="xl" fontWeight="bold" color={textColor}>
+                      {formatBRL(stats.approvedOrdersMonthlySuppliesValue)}
+                    </StatNumber>
+                  </Stat>
+                  <Stat>
+                    <Text fontSize="xs" color={textSecondary} mb={1}>Valor Total</Text>
+                    <StatNumber fontSize="xl" fontWeight="bold" color={successColor}>
+                      {formatBRL(stats.approvedOrdersMonthlyTotalValue)}
+                    </StatNumber>
+                  </Stat>
+                </SimpleGrid>
               </CardBody>
             </Card>
           </SimpleGrid>
@@ -367,7 +372,9 @@ export default function DashboardPage() {
               _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
               transition="all 0.2s"
               cursor="pointer"
-              onClick={() => router.push('/reports')}
+              onClick={() =>
+                router.push('/reports?report=executive-summary&timeRange=365#consumption-trends')
+              }
             >
               <CardBody p={4}>
                 <HStack spacing={2} mb={2}>
@@ -557,14 +564,11 @@ export default function DashboardPage() {
                       <HStack justify="space-between" mb={1}>
                         <Text fontWeight="bold" fontSize="sm" color={textColor}>{alert.about}</Text>
                         <Badge
-                          colorScheme={
-                            alert.danger_level === 'ALTO' ? 'red' :
-                              alert.danger_level === 'MEDIO' ? 'orange' : 'green'
-                          }
+                          colorScheme={getDangerLevelColor(alert.danger_level)}
                           fontSize="xs"
                           variant="solid"
                         >
-                          {alert.danger_level}
+                          {getDangerLevelLabel(alert.danger_level)}
                         </Badge>
                       </HStack>
                       <Text fontSize="sm" color={textSecondary} mb={1}>{alert.description}</Text>

@@ -43,30 +43,11 @@ import {
 import { SearchIcon } from 'lucide-react';
 import { CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-interface AllocationRequest {
-  id: string;
-  inventory: {
-    id: string;
-    name: string;
-    description: string;
-    model: string;
-    serial_number: string;
-  };
-  destination: string;
-  destination_name?: string;
-  destination_id?: string;
-  notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
-  created_at: string;
-  return_date: string;
-  requester_delivery_confirmation: boolean;
-  manager_delivery_confirmation: boolean;
-}
+import type { InventoryAllocation } from '@/features/inventory/types';
 
 export function MyAllocationsPage() {
-  const [allocations, setAllocations] = useState<AllocationRequest[]>([]);
-  const [filteredAllocations, setFilteredAllocations] = useState<AllocationRequest[]>([]);
+  const [allocations, setAllocations] = useState<InventoryAllocation[]>([]);
+  const [filteredAllocations, setFilteredAllocations] = useState<InventoryAllocation[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);

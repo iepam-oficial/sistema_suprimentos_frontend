@@ -1,18 +1,18 @@
-import { Order } from '../types'
+import type { ServiceOrderDTO } from '@/features/operations'
 import jsPDF from 'jspdf'
 import { formatBRL } from '@/utils/money'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, PieController } from 'chart.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend, PieController)
 
-interface Filters {
+export interface OrderFilters {
     equipment: string
     status: string
     date: string
     serialNumber: string
 }
 
-export const filterOrders = (orders: Order[], filters: Filters): Order[] => {
+export const filterOrders = (orders: ServiceOrderDTO[], filters: OrderFilters): ServiceOrderDTO[] => {
     let result = [...orders]
 
     if (filters.equipment) {
@@ -47,8 +47,8 @@ export const filterOrders = (orders: Order[], filters: Filters): Order[] => {
 }
 
 export const generateOrdersPDF = async (
-    filteredOrders: Order[],
-    filters: Filters,
+    filteredOrders: ServiceOrderDTO[],
+    filters: OrderFilters,
     toast: any
 ): Promise<void> => {
     if (!filteredOrders.length) {

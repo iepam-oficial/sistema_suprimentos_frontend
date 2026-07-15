@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe35200114200166000187550010000000015123456789" versao="4.00">
+      <ide>
+        <cUF>35</cUF>
+        <nNF>15</nNF>
+        <serie>1</serie>
+        <dhEmi>2026-06-23T10:00:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <xNome>Ferramentas ABC Ltda</xNome>
+      </emit>
+      <det nItem="1">
+        <prod>
+          <xProd>Parafuso sextavado M8</xProd>
+          <qCom>10.0000</qCom>
+          <vUnCom>25.5000</vUnCom>
+          <vProd>255.00</vProd>
+        </prod>
+      </det>
+      <det nItem="2">
+        <prod>
+          <xProd>Chave de fenda isolada</xProd>
+          <qCom>5.0000</qCom>
+          <vUnCom>100.0000</vUnCom>
+          <vProd>500.00</vProd>
+        </prod>
+      </det>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00">
+    <infProt>
+      <chNFe>35200114200166000187550010000000015123456789</chNFe>
+      <cStat>100</cStat>
+      <xMotivo>Autorizado o uso da NF-e</xMotivo>
+    </infProt>
+  </protNFe>
+</nfeProc>

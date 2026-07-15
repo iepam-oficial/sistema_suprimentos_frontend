@@ -5,9 +5,7 @@ import { useEffect, useState } from 'react';
 import {
     Box,
     Button,
-    Container,
     Flex,
-    Heading,
     Input,
     InputGroup,
     InputLeftElement,
@@ -20,8 +18,6 @@ import {
     Td,
     useDisclosure,
     useToast,
-    Card,
-    CardBody,
     Text,
     Badge,
     IconButton,
@@ -29,7 +25,6 @@ import {
     useColorModeValue,
     HStack,
     VStack,
-    Divider,
     useBreakpointValue,
     useColorMode,
     Tabs,
@@ -37,42 +32,65 @@ import {
     TabPanels,
     Tab,
     TabPanel,
+    Drawer,
+    DrawerOverlay,
+    DrawerContent,
+    DrawerHeader,
+    DrawerBody,
+    DrawerCloseButton,
+    DrawerFooter,
+    FormControl,
+    FormLabel,
 } from '@chakra-ui/react';
-import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiBarChart2, FiAlertTriangle } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiAlertTriangle, FiPackage } from 'react-icons/fi';
+import { Filter } from 'lucide-react';
 import { SupplyModal } from './components/SupplyModal';
+import { NewBatchModal } from './components/NewBatchModal';
 import { MobileSupplies } from './components/MobileSupplies';
+import { useUser } from '@/features/identity';
 import { Supply } from './utils/types';
-import { filterSupplies } from './utils/filterUtils';
+import { filterSupplies, type SupplyVisibilityFilter } from './utils/filterUtils';
 import { exportSuppliesBelowMinimum } from './utils/exportUtils';
-import { SupplyStatistics } from './components/SupplyStatistics';
 import { SupplyBatchList } from './components/SupplyBatchList';
 import { useRouter } from 'next/navigation';
+import { fetchCategories as fetchCategoriesApi, type CategoryDTO } from '@/features/reference-data';
+import type { CreateSupplyInput } from '@/features/catalog/types';
 
 export default function SuppliesPage() {
     const [supplies, setSupplies] = useState<Supply[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [categories, setCategories] = useState<{ id: string; label: string }[]>([]);
+    const [selectedVisibility, setSelectedVisibility] = useState<SupplyVisibilityFilter>('');
+    const [categories, setCategories] = useState<CategoryDTO[]>([]);
     const { isOpen, onOpen, onClose } = useDisclosure();
+    const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
+    const { isOpen: isBatchOpen, onOpen: onBatchOpen, onClose: onBatchClose } = useDisclosure();
     const toast = useToast();
     const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
+    const { user } = useUser();
+    const isManager = !!user && ['ADMIN', 'MANAGER'].includes(user.role);
     const { colorMode } = useColorMode();
     const router = useRouter();
     const isMobile = useBreakpointValue({ base: true, md: false });
 
-    const bgColor = useColorModeValue('white', 'gray.800');
-    const borderColor = useColorModeValue('gray.200', 'gray.700');
-    const hoverBg = useColorModeValue('gray.50', 'gray.700');
+    const drawerBg = useColorModeValue('white', 'gray.800');
+    const drawerBorder = useColorModeValue('gray.200', 'gray.600');
+    const textColor = useColorModeValue('gray.800', 'white');
+    const inputBg = useColorModeValue('white', 'gray.700');
+    const inputBorder = useColorModeValue('gray.200', 'gray.600');
 
     useEffect(() => {
-        fetchSupplies();
-        fetchCategories();
-    }, []);
+        if (user) {
+            fetchSupplies();
+        }
+        loadCategories();
+    }, [user?.role]);
 
     const fetchSupplies = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
-            const response = await fetch('/api/supplies', {
+            const audience = isManager ? 'manager' : 'requester';
+            const response = await fetch(`/api/supplies?audience=${audience}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -98,23 +116,18 @@ export default function SuppliesPage() {
         }
     };
 
-    const fetchCategories = async () => {
+    const loadCategories = async () => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
-            const response = await fetch('/api/categories', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            const data = await response.json();
-            setCategories(Array.isArray(data) ? data : []);
+            if (!token) return;
+            const data = await fetchCategoriesApi(token);
+            setCategories(data);
         } catch (error) {
             setCategories([]);
         }
     };
 
-    const handleCreate = async (data: any) => {
+    const handleCreate = async (data: CreateSupplyInput) => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             const response = await fetch('/api/supplies', {
@@ -207,7 +220,7 @@ export default function SuppliesPage() {
         }
     };
 
-    const handleEdit = async (data: any) => {
+    const handleEdit = async (data: CreateSupplyInput) => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
             const response = await fetch(`/api/supplies/${selectedSupply?.id}`, {
@@ -254,235 +267,328 @@ export default function SuppliesPage() {
         onClose();
     };
 
-    const filteredSupplies = filterSupplies(supplies, searchTerm, selectedCategory);
+    const filteredSupplies = filterSupplies(supplies, searchTerm, selectedCategory, selectedVisibility);
+    const filtersActive = Boolean(selectedCategory || selectedVisibility);
+
+    const clearFilters = () => {
+        setSelectedCategory('');
+        setSelectedVisibility('');
+    };
 
     if (isMobile) {
         return (
-            <MobileSupplies
-                supplies={filteredSupplies}
-                categories={categories}
-                onSearch={setSearchTerm}
-                onCategoryChange={setSelectedCategory}
-                onDelete={handleDelete}
-                onCreate={handleCreate}
-                onEdit={handleEdit}
-            />
+            <>
+                <MobileSupplies
+                    supplies={filteredSupplies}
+                    categories={categories}
+                    isManager={isManager}
+                    onSearch={setSearchTerm}
+                    selectedCategory={selectedCategory}
+                    selectedVisibility={selectedVisibility}
+                    onCategoryChange={setSelectedCategory}
+                    onVisibilityChange={setSelectedVisibility}
+                    filtersActive={filtersActive}
+                    onClearFilters={clearFilters}
+                    onDelete={handleDelete}
+                    onCreate={handleCreate}
+                    onEdit={handleEdit}
+                    onNewBatch={onBatchOpen}
+                />
+                {isManager && (
+                    <NewBatchModal
+                        isOpen={isBatchOpen}
+                        onClose={onBatchClose}
+                        onSuccess={fetchSupplies}
+                    />
+                )}
+            </>
         );
     }
 
     return (
-        <>
-            <Tabs variant="enclosed" colorScheme="blue">
-                <TabList>
+        <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" px={2} py={2}>
+            <Tabs
+                variant="enclosed"
+                colorScheme="blue"
+                size="sm"
+                flex="1"
+                display="flex"
+                flexDirection="column"
+                minH={0}
+            >
+                <TabList flexShrink={0}>
                     <Tab>Lista de Suprimentos</Tab>
-                    <Tab>Estatísticas</Tab>
-                    <Tab>Lotes</Tab>
+                    {isManager && <Tab>Lotes</Tab>}
                 </TabList>
-                <TabPanels>
-                    <TabPanel>
+                <TabPanels flex="1" minH={0} overflow="hidden">
+                    <TabPanel p={2} h="full" display="flex" flexDirection="column" minH={0}>
             <VStack
-                spacing={4}
+                spacing={2}
                 align="stretch"
                 bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
                 backdropFilter="blur(12px)"
-                p={isMobile ? 0 : 3}
-                borderRadius="lg"
+                p={2}
+                borderRadius="md"
                 boxShadow="sm"
                 borderWidth="1px"
                 borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-                
+                flex="1"
+                minH={0}
                 overflow="hidden"
             >
-                {!isMobile && (
-                    <Flex justify="space-between" align="center" mb={3}>
-                        <Heading size="lg" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Gerenciamento de Suprimentos</Heading>
-                        <HStack spacing={2}>
+                <Flex justify="space-between" align="center" gap={2} flexWrap="wrap" flexShrink={0}>
+                    <HStack spacing={2} flex="1" minW="180px">
+                        <InputGroup maxW="320px" flex="1" size="sm">
+                            <InputLeftElement pointerEvents="none" h="full">
+                                <FiSearch color={colorMode === 'dark' ? 'gray.400' : 'gray.300'} />
+                            </InputLeftElement>
+                            <Input
+                                placeholder="Buscar suprimentos..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
+                                borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
+                                _hover={{
+                                    borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+                                }}
+                                _focus={{
+                                    borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500',
+                                    boxShadow: 'none',
+                                }}
+                            />
+                        </InputGroup>
+                        <Tooltip label="Filtros">
+                            <Box position="relative">
+                                <IconButton
+                                    aria-label="Filtros"
+                                    icon={<Filter size={16} />}
+                                    size="sm"
+                                    variant="ghost"
+                                    colorScheme="blue"
+                                    onClick={onFilterOpen}
+                                />
+                                {filtersActive && (
+                                    <Badge
+                                        position="absolute"
+                                        top="-1"
+                                        right="-1"
+                                        borderRadius="full"
+                                        boxSize="2.5"
+                                        colorScheme="blue"
+                                        p={0}
+                                    />
+                                )}
+                            </Box>
+                        </Tooltip>
+                    </HStack>
+                    {isManager && (
+                        <HStack spacing={1} flexShrink={0}>
                             <Button
+                                size="sm"
                                 colorScheme="orange"
                                 onClick={handleExportBelowMinimum}
                                 leftIcon={<FiAlertTriangle />}
-                                bg={colorMode === 'dark' ? 'rgba(237, 137, 54, 0.8)' : undefined}
-                                _hover={{
-                                    bg: colorMode === 'dark' ? 'rgba(237, 137, 54, 0.9)' : undefined,
-                                    transform: 'translateY(-1px)',
-                                }}
-                                transition="all 0.3s ease"
                             >
                                 Abaixo do Mínimo
                             </Button>
                             <Button
+                                size="sm"
+                                leftIcon={<FiPackage />}
+                                colorScheme="teal"
+                                onClick={onBatchOpen}
+                            >
+                                Novo Lote
+                            </Button>
+                            <Button
+                                size="sm"
                                 leftIcon={<FiPlus />}
                                 colorScheme="blue"
                                 onClick={onOpen}
-                                bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined}
-                                _hover={{
-                                    bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined,
-                                    transform: 'translateY(-1px)',
-                                }}
-                                transition="all 0.3s ease"
                             >
                                 Novo Suprimento
                             </Button>
                         </HStack>
-                    </Flex>
-                )}
-
-                <HStack spacing={2} wrap="wrap">
-                    <InputGroup maxW="400px">
-                        <InputLeftElement pointerEvents="none">
-                            <FiSearch color={colorMode === 'dark' ? 'gray.400' : 'gray.300'} />
-                        </InputLeftElement>
-                        <Input
-                            placeholder="Buscar suprimentos..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
-                            backdropFilter="blur(12px)"
-                            borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-                            _hover={{
-                                borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
-                            }}
-                            _focus={{
-                                borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500',
-                                boxShadow: 'none',
-                            }}
-                        />
-                    </InputGroup>
-                    <Select
-                        placeholder="Filtrar por categoria"
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        maxW="200px"
-                        bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
-                        backdropFilter="blur(12px)"
-                        borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-                        _hover={{
-                            borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
-                        }}
-                        _focus={{
-                            borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500',
-                            boxShadow: 'none',
-                        }}
-                    >
-                        {categories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                                {category.label}
-                            </option>
-                        ))}
-                    </Select>
-                </HStack>
-
-                <Divider />
+                    )}
+                </Flex>
 
                 <Box
-                    bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
-                    p={6}
-                    borderRadius="lg"
-                    boxShadow="sm"
+                    flex="1"
+                    minH={0}
+                    overflowX="auto"
+                    overflowY="auto"
                     borderWidth="1px"
                     borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-                    backdropFilter="blur(12px)"
-                    overflowX="auto"
-                    flex="1"
-                    overflowY="auto"
-                                maxH="60vh"
+                    borderRadius="md"
                 >
-                    <Table variant="simple">
-                        <Thead>
+                    <Table size="sm" variant="simple">
+                        <Thead position="sticky" top={0} zIndex={1}>
                             <Tr>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Nome</Th>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Descrição</Th>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Quantidade</Th>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Mínimo</Th>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Unidade</Th>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Categoria</Th>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Fornecedor</Th>
-                                <Th color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.7)' : 'rgba(255, 255, 255, 0.7)'}>Ações</Th>
+                                <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Nome</Th>
+                                <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Descrição</Th>
+                                <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Disponível</Th>
+                                <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Mínimo</Th>
+                                <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Unidade</Th>
+                                <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Categoria</Th>
+                                {isManager && (
+                                    <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Visível</Th>
+                                )}
+                                {isManager && (
+                                    <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Ações</Th>
+                                )}
                             </Tr>
                         </Thead>
                         <Tbody>
                             {filteredSupplies.map((supply) => (
                                 <Tr
                                     key={supply.id}
-                                    transition="all 0.3s ease"
                                     _hover={{
-                                        bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.3)' : 'rgba(255, 255, 255, 0.3)',
-                                        transform: 'translateY(-1px)',
+                                        bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.4)' : 'gray.50',
                                     }}
                                 >
                                     {[
                                         { value: supply.name },
                                         { value: supply.description },
-                                        { value: supply.quantity },
+                                        { value: supply.available_quantity },
                                         { value: supply.minimum_quantity },
-                                        { value: supply.unit.symbol },
-                                        { value: supply.category.label },
-                                        { value: supply.supplier.name }
+                                        { value: supply.unit?.symbol ?? '' },
+                                        { value: supply.category?.label ?? '' },
                                     ].map((cell, index) => (
-                                        <Td 
+                                        <Td
                                             key={index}
-                                            color={colorMode === 'dark' ? 'white' : 'gray.800'} 
-                                            bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
+                                            py={1.5}
+                                            px={2}
+                                            color={colorMode === 'dark' ? 'white' : 'gray.800'}
+                                            fontSize="sm"
+                                            maxW="200px"
+                                            isTruncated
                                         >
                                             {cell.value}
                                         </Td>
                                     ))}
-                                    <Td bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}>
-                                        <HStack spacing={2}>
-                                            <Tooltip label="Editar">
-                                                <IconButton
-                                                    aria-label="Editar"
-                                                    icon={<FiEdit2 />}
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => handleOpenEdit(supply)}
-                                                    _hover={{
-                                                        bg: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                                                        transform: 'translateY(-1px)'
-                                                    }}
-                                                    transition="all 0.2s ease"
-                                                />
-                                            </Tooltip>
-                                            <Tooltip label="Excluir">
-                                                <IconButton
-                                                    aria-label="Excluir"
-                                                    icon={<FiTrash2 />}
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    colorScheme="red"
-                                                    onClick={() => handleDelete(supply.id)}
-                                                    _hover={{
-                                                        bg: colorMode === 'dark' ? 'rgba(255, 0, 0, 0.1)' : 'rgba(255, 0, 0, 0.1)',
-                                                        transform: 'translateY(-1px)'
-                                                    }}
-                                                    transition="all 0.2s ease"
-                                                />
-                                            </Tooltip>
-                                        </HStack>
-                                    </Td>
+                                    {isManager && (
+                                        <Td py={1.5} px={2}>
+                                            <Badge size="sm" colorScheme={supply.visible_to_requesters ? 'green' : 'gray'}>
+                                                {supply.visible_to_requesters ? 'Sim' : 'Não'}
+                                            </Badge>
+                                        </Td>
+                                    )}
+                                    {isManager && (
+                                        <Td py={1} px={2}>
+                                            <HStack spacing={0}>
+                                                <Tooltip label="Editar">
+                                                    <IconButton
+                                                        aria-label="Editar"
+                                                        icon={<FiEdit2 />}
+                                                        size="xs"
+                                                        variant="ghost"
+                                                        onClick={() => handleOpenEdit(supply)}
+                                                    />
+                                                </Tooltip>
+                                                <Tooltip label="Excluir">
+                                                    <IconButton
+                                                        aria-label="Excluir"
+                                                        icon={<FiTrash2 />}
+                                                        size="xs"
+                                                        variant="ghost"
+                                                        colorScheme="red"
+                                                        onClick={() => handleDelete(supply.id)}
+                                                    />
+                                                </Tooltip>
+                                            </HStack>
+                                        </Td>
+                                    )}
                                 </Tr>
                             ))}
                         </Tbody>
                     </Table>
                 </Box>
             </VStack>
+
+            <Drawer isOpen={isFilterOpen} placement="right" onClose={onFilterClose} size="sm">
+                <DrawerOverlay />
+                <DrawerContent bg={drawerBg} borderLeft="1px solid" borderColor={drawerBorder}>
+                    <DrawerCloseButton />
+                    <DrawerHeader color={textColor} borderBottom="1px solid" borderColor={drawerBorder}>
+                        <HStack spacing={2}>
+                            <Filter size={20} />
+                            <Text>Filtros</Text>
+                        </HStack>
+                    </DrawerHeader>
+                    <DrawerBody>
+                        <VStack spacing={4} pt={4} align="stretch">
+                            <FormControl>
+                                <FormLabel color={textColor} fontSize="sm">Categoria</FormLabel>
+                                <Select
+                                    placeholder="Todas as categorias"
+                                    value={selectedCategory}
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    bg={inputBg}
+                                    borderColor={inputBorder}
+                                    size="sm"
+                                >
+                                    {categories.map((category) => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.label}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            {isManager && (
+                                <FormControl>
+                                    <FormLabel color={textColor} fontSize="sm">Visibilidade</FormLabel>
+                                    <Select
+                                        value={selectedVisibility}
+                                        onChange={(e) => setSelectedVisibility(e.target.value as SupplyVisibilityFilter)}
+                                        bg={inputBg}
+                                        borderColor={inputBorder}
+                                        size="sm"
+                                    >
+                                        <option value="">Todas</option>
+                                        <option value="visible">Visível</option>
+                                        <option value="hidden">Oculto</option>
+                                    </Select>
+                                </FormControl>
+                            )}
+                        </VStack>
+                    </DrawerBody>
+                    <DrawerFooter borderTop="1px solid" borderColor={drawerBorder}>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            w="full"
+                            onClick={clearFilters}
+                            isDisabled={!filtersActive}
+                        >
+                            Limpar filtros
+                        </Button>
+                    </DrawerFooter>
+                </DrawerContent>
+            </Drawer>
                     </TabPanel>
-                    <TabPanel>
-                        <SupplyStatistics />
-                    </TabPanel>
-                    <TabPanel>
-                        <SupplyBatchList />
-                    </TabPanel>
+                    {isManager && (
+                        <TabPanel p={2} h="full" display="flex" flexDirection="column" minH={0} overflow="auto">
+                            <SupplyBatchList />
+                        </TabPanel>
+                    )}
                 </TabPanels>
             </Tabs>
 
-            <SupplyModal
-                isOpen={isOpen}
-                onClose={handleClose}
-                onSubmit={selectedSupply ? handleEdit : handleCreate}
-                categories={categories}
-                initialData={selectedSupply || undefined}
-            />
-        </>
+            {isManager && (
+                <>
+                    <SupplyModal
+                        isOpen={isOpen}
+                        onClose={handleClose}
+                        onSubmit={selectedSupply ? handleEdit : handleCreate}
+                        categories={categories}
+                        initialData={selectedSupply || undefined}
+                    />
+                    <NewBatchModal
+                        isOpen={isBatchOpen}
+                        onClose={onBatchClose}
+                        onSuccess={fetchSupplies}
+                    />
+                </>
+            )}
+        </Box>
     );
 } 

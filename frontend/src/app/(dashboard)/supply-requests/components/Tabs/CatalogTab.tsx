@@ -19,19 +19,18 @@ import {
   Box,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { ShoppingCart, SearchIcon, Plus } from 'lucide-react';
+import { ShoppingCart, SearchIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Supply } from '../../types';
 import { useFilters } from '@/contexts/GlobalContext';
-import { formatBRL } from '@/utils/money';
 
 interface CatalogTabProps {
   supplies: Supply[];
+  availableSuppliesCount: number;
   onAddToCart: (supply: Supply) => void;
-  onOpenCustomRequestModal?: () => void;
 }
 
-export function CatalogTab({ supplies, onAddToCart, onOpenCustomRequestModal }: CatalogTabProps) {
+export function CatalogTab({ supplies, availableSuppliesCount, onAddToCart }: CatalogTabProps) {
   const router = useRouter();
   const { colorMode } = useColorMode();
   const [isMobile] = useMediaQuery('(max-width: 768px)');
@@ -42,31 +41,6 @@ export function CatalogTab({ supplies, onAddToCart, onOpenCustomRequestModal }: 
 
   return (
     <>
-      {/* Remover o botão do desktop, manter só no mobile */}
-      {onOpenCustomRequestModal && isMobile && (
-        <Flex mb={6} justify="center">
-          <Button
-            data-testid="custom-request-open-button"
-            colorScheme="blue"
-            leftIcon={<Plus size={18} />}
-            onClick={onOpenCustomRequestModal}
-            w="full"
-            boxShadow="sm"
-            fontWeight="medium"
-            fontSize="md"
-            borderRadius="lg"
-            transition="all 0.2s"
-            _hover={{
-              bg: 'blue.600',
-              color: 'white',
-              transform: 'translateY(-2px)',
-              boxShadow: 'md',
-            }}
-          >
-            Pedido Customizado
-          </Button>
-        </Flex>
-      )}
       {!isMobile && (
       <InputGroup mb={6}>
         <InputLeftElement pointerEvents="none">
@@ -85,6 +59,15 @@ export function CatalogTab({ supplies, onAddToCart, onOpenCustomRequestModal }: 
       </InputGroup>
       )}
       
+      {supplies.length === 0 ? (
+        <Box py={10} textAlign="center">
+          <Text color={colorMode === 'dark' ? 'gray.400' : 'gray.500'}>
+            {availableSuppliesCount === 0
+              ? 'Nenhum suprimento disponível no momento'
+              : 'Nenhum suprimento encontrado'}
+          </Text>
+        </Box>
+      ) : (
       <Grid templateColumns={{ base: 'repeat(2, 1fr)', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }} gap={{ base: 0, md: 6 }}>
         {supplies.map((supply) => (
           <Card
@@ -116,16 +99,15 @@ export function CatalogTab({ supplies, onAddToCart, onOpenCustomRequestModal }: 
                   {supply.description}
                 </Text>
                 <HStack hidden={isMobile} justify="space-between">
-                  <Badge colorScheme="blue">{supply.category.label}</Badge>
+                  <Badge colorScheme="blue">{supply.category?.label ?? '—'}</Badge>
                 </HStack>
                 <Text fontSize={{ base: 'xs', md: 'sm' }} color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>
-                  {formatBRL(supply.unit_price)}
+                  Disponível: {supply.available_quantity} {supply.unit?.symbol ?? 'un'}
                 </Text>
                 <Button 
                   colorScheme="blue" 
                   leftIcon={<ShoppingCart size={isMobile ? 16 : 20} />} 
                   onClick={(e) => { e.stopPropagation(); onAddToCart(supply); }} 
-                  isDisabled={supply.quantity <= 0} 
                   bg={colorMode === 'dark' ? 'rgba(66, 153, 225, 0.8)' : undefined} 
                   _hover={{ bg: colorMode === 'dark' ? 'rgba(66, 153, 225, 0.9)' : undefined, transform: 'translateY(-1px)' }} 
                   transition="all 0.3s ease" 
@@ -139,6 +121,7 @@ export function CatalogTab({ supplies, onAddToCart, onOpenCustomRequestModal }: 
           </Card>
         ))}
       </Grid>
+      )}
     </>
   );
-} 
+}

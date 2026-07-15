@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { SupportTicket, SupportTicketKind, TicketStatus, canViewSupportTickets } from './types';
+import { SupportTicket, SupportTicketKind, TicketStatus, canViewSupportTickets } from '@/features/support-tickets/types';
+import { fetchSupportTicketById } from '@/features/support-tickets/api/supportTicketApi';
 import { DeskModal } from '@/components/support-desk/DeskModal';
 import {
   SupportTicketReadOnlySummary,
@@ -77,14 +78,7 @@ export function SupportTicketDeskModal({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/support-tickets/${ticketId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Erro ao carregar chamado');
-      }
-      const data = (await res.json()) as SupportTicket;
+      const data = await fetchSupportTicketById(token, ticketId);
       setTicket(data);
       syncForm(data);
     } catch (e: unknown) {

@@ -32,42 +32,32 @@ import {
 } from '@chakra-ui/react';
 import { Mail, Lock, User, Trash2, Edit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  sector_id?: string;
-  sector?: {
-    id: string;
-    name: string;
-    location: {
-      id: string;
-      name: string;
-    };
-  };
-}
-
-interface Sector {
-  id: string;
-  name: string;
-  location: {
-    id: string;
-    name: string;
-  };
-}
+import {
+  fetchSectors,
+  RateLimitError,
+  type SectorDTO,
+} from '@/features/reference-data';
+import {
+  createUser,
+  deleteUser,
+  fetchUsers,
+  RateLimitError as UserRateLimitError,
+  updateUser,
+  useAuthSession,
+  type UserDetailDTO,
+} from '@/features/identity';
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
+  const { token } = useAuthSession();
+  const [users, setUsers] = useState<UserDetailDTO[]>([]);
+  const [sectors, setSectors] = useState<SectorDTO[]>([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('EMPLOYEE');
   const [sector_id, setSectorId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<UserDetailDTO | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editRole, setEditRole] = useState('EMPLOYEE');
@@ -83,30 +73,20 @@ export default function UserManagement() {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
   useEffect(() => {
-    fetchUsers();
-    fetchSectors();
-  }, []);
+    loadUsers();
+    loadSectors();
+  }, [token]);
 
-  const fetchUsers = async () => {
+  const loadUsers = async () => {
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
-
-      const response = await fetch('/api/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.status === 429) {
+      const data = await fetchUsers(token);
+      setUsers(data);
+    } catch (error) {
+      if (error instanceof UserRateLimitError) {
         router.push('/rate-limit');
         return;
       }
-
-      if (!response.ok) throw new Error('Erro ao carregar usuários');
-      const data = await response.json();
-      setUsers(data);
-    } catch (error) {
       toast({
         title: 'Erro',
         description: 'Não foi possível carregar os usuários',
@@ -116,26 +96,17 @@ export default function UserManagement() {
     }
   };
 
-  const fetchSectors = async () => {
+  const loadSectors = async () => {
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
 
-      const response = await fetch('/api/sectors', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.status === 429) {
+      const data = await fetchSectors(token);
+      setSectors(data);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
         router.push('/rate-limit');
         return;
       }
-
-      if (!response.ok) throw new Error('Erro ao carregar setores');
-      const data = await response.json();
-      setSectors(data);
-    } catch (error) {
       toast({
         title: 'Erro',
         description: 'Não foi possível carregar os setores',
@@ -150,22 +121,9 @@ export default function UserManagement() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
 
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name, email, password, role, sector_id })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao criar usuário');
-      }
+      await createUser(token, { name, email, password, role, sector_id });
 
       toast({
         title: 'Sucesso',
@@ -183,8 +141,12 @@ export default function UserManagement() {
 
       // Fechar modal e recarregar lista
       onCreateModalClose();
-      fetchUsers();
+      loadUsers();
     } catch (error) {
+      if (error instanceof UserRateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
       toast({
         title: 'Erro',
         description: error instanceof Error ? error.message : 'Erro ao criar usuário',
@@ -200,20 +162,8 @@ export default function UserManagement() {
     if (!confirm('Tem certeza que deseja desativar este usuário?')) return;
 
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
-
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Erro ao desativar usuário');
-      }
+      await deleteUser(token, userId);
 
       toast({
         title: 'Sucesso',
@@ -222,8 +172,12 @@ export default function UserManagement() {
         duration: 3000,
       });
 
-      fetchUsers();
+      loadUsers();
     } catch (error) {
+      if (error instanceof UserRateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
       toast({
         title: 'Erro',
         description: 'Não foi possível excluir o usuário',
@@ -233,7 +187,7 @@ export default function UserManagement() {
     }
   };
 
-  const handleEdit = (user: User) => {
+  const handleEdit = (user: UserDetailDTO) => {
     setEditingUser(user);
     setEditName(user.name);
     setEditEmail(user.email);
@@ -248,39 +202,15 @@ export default function UserManagement() {
     setEditLoading(true);
 
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
       if (!token) throw new Error('Token não encontrado');
 
-      const updateData: any = {
+      await updateUser(token, editingUser!.id, {
         name: editName,
         email: editEmail,
         role: editRole,
-      };
-
-      // Só incluir sector_id se não estiver vazio
-      if (editSectorId && editSectorId.trim() !== '') {
-        updateData.sector_id = editSectorId;
-      } else {
-        updateData.sector_id = null;
-      }
-
-      if (changePassword && editPassword) {
-        updateData.password = editPassword;
-      }
-
-      const response = await fetch(`/api/users/${editingUser!.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(updateData)
+        sector_id: editSectorId && editSectorId.trim() !== '' ? editSectorId : null,
+        ...(changePassword && editPassword ? { password: editPassword } : {}),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao atualizar usuário');
-      }
 
       toast({
         title: 'Sucesso',
@@ -290,8 +220,12 @@ export default function UserManagement() {
       });
 
       onEditModalClose();
-      fetchUsers();
+      loadUsers();
     } catch (error) {
+      if (error instanceof UserRateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
       toast({
         title: 'Erro',
         description: error instanceof Error ? error.message : 'Erro ao atualizar usuário',
@@ -307,10 +241,12 @@ export default function UserManagement() {
     const roles = {
       ADMIN: 'Administrador',
       MANAGER: 'Gerente',
+      COORDINATOR: 'Coordenador',
+      DIRECTOR: 'Diretor',
       EMPLOYEE: 'Funcionário',
       SUPPORT: 'Suporte',
       TECHNICIAN: 'Técnico',
-      ORGANIZER: 'Organizador'
+      ORGANIZER: 'Organizador',
     };
     return roles[role as keyof typeof roles] || role;
   };
@@ -359,7 +295,7 @@ export default function UserManagement() {
                 <Td>{user.name}</Td>
                 <Td>{user.email}</Td>
                 <Td>{getRoleText(user.role)}</Td>
-                <Td>{user.sector ? `${user.sector.name} - ${user.sector.location.name}` : '-'}</Td>
+                <Td>{user.sector ? `${user.sector.name} - ${user.sector.location?.name ?? '-'}` : '-'}</Td>
                 <Td>
                   <HStack spacing={2}>
                     <IconButton
@@ -428,6 +364,8 @@ export default function UserManagement() {
                 <Select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
                   <option value="ADMIN">Administrador</option>
                   <option value="MANAGER">Gerente</option>
+                  <option value="COORDINATOR">Coordenador</option>
+                  <option value="DIRECTOR">Diretor</option>
                   <option value="EMPLOYEE">Funcionário</option>
                   <option value="SUPPORT">Suporte</option>
                   <option value="TECHNICIAN">Técnico</option>
@@ -444,7 +382,7 @@ export default function UserManagement() {
                 >
                   {sectors.map((sector) => (
                     <option key={sector.id} value={sector.id}>
-                      {sector.name} - {sector.location.name}
+                      {sector.name} - {sector.location?.name ?? '-'}
                     </option>
                   ))}
                 </Select>
@@ -551,6 +489,8 @@ export default function UserManagement() {
             <Select value={role} onChange={(e) => setRole(e.target.value)}>
               <option value="ADMIN">Administrador</option>
               <option value="MANAGER">Gerente</option>
+              <option value="COORDINATOR">Coordenador</option>
+              <option value="DIRECTOR">Diretor</option>
               <option value="EMPLOYEE">Funcionário</option>
               <option value="SUPPORT">Suporte</option>
               <option value="TECHNICIAN">Técnico</option>
@@ -567,7 +507,7 @@ export default function UserManagement() {
                   >
                     {sectors.map((sector) => (
                       <option key={sector.id} value={sector.id}>
-                        {sector.name} - {sector.location.name}
+                        {sector.name} - {sector.location?.name ?? '-'}
                       </option>
                     ))}
                   </Select>

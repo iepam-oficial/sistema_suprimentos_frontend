@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Card,
@@ -33,40 +33,18 @@ import {
 import Link from 'next/link';
 import { format, isAfter, isBefore, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useRouter } from 'next/navigation';
-
-export interface MaintenanceTask {
-  id: string;
-  title: string;
-  description?: string;
-  due_date: string;
-  status: string;
-  completed_at?: string;
-  created_at: string;
-  schedule: {
-    id: string;
-    inventory: {
-      id: string;
-      name: string;
-      serial_number: string;
-    };
-    technician: {
-      id: string;
-      name: string;
-    };
-    type: string;
-    interval_days: number;
-  };
-}
+import {
+  type MaintenanceTask,
+  type TaskViewFilter,
+  useMaintenanceTasks,
+} from '@/features/operations';
 
 export function MaintenanceTasksPanel() {
-  const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [viewFilter, setViewFilter] = useState('all');
+  const [viewFilter, setViewFilter] = useState<TaskViewFilter>('all');
   const toast = useToast();
-  const router = useRouter();
+  const { tasks, loading, markCompleted } = useMaintenanceTasks(viewFilter);
 
   const cardBg = useColorModeValue('white', 'gray.800');
   const cardBorder = useColorModeValue('gray.200', 'gray.700');
@@ -79,77 +57,14 @@ export function MaintenanceTasksPanel() {
   const inputBg = useColorModeValue('white', 'gray.700');
   const inputBorder = useColorModeValue('gray.300', 'gray.600');
 
-  const fetchTasks = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('@ti-assistant:token');
-      if (!token) {
-        router.push('/');
-        return;
-      }
-
-      let endpoint = '/api/tasks';
-      if (viewFilter === 'upcoming') {
-        endpoint = '/api/tasks/upcoming?days=30';
-      } else if (viewFilter === 'overdue') {
-        endpoint = '/api/tasks/overdue';
-      }
-
-      const response = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.status === 429) {
-        router.push('/rate-limit');
-        return;
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        setTasks(data);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar tarefas:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [router, viewFilter]);
-
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
-
   const handleMarkAsCompleted = async (taskId: string) => {
     try {
-      const token = localStorage.getItem('@ti-assistant:token');
-      if (!token) {
-        router.push('/');
-        return;
-      }
-
-      const response = await fetch(`/api/tasks/${taskId}/complete`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
+      const success = await markCompleted(taskId);
+      if (success) {
         toast({
           title: 'Sucesso!',
           description: 'Tarefa marcada como concluída!',
           status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        await fetchTasks();
-      } else {
-        const error = await response.json();
-        toast({
-          title: 'Erro!',
-          description: error.error || 'Erro ao marcar tarefa como concluída',
-          status: 'error',
           duration: 3000,
           isClosable: true,
         });
@@ -158,7 +73,8 @@ export function MaintenanceTasksPanel() {
       console.error('Erro ao marcar tarefa como concluída:', error);
       toast({
         title: 'Erro!',
-        description: 'Erro ao marcar tarefa como concluída',
+        description:
+          error instanceof Error ? error.message : 'Erro ao marcar tarefa como concluída',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -167,11 +83,14 @@ export function MaintenanceTasksPanel() {
   };
 
   const filteredTasks = tasks.filter((task) => {
+    const inventoryName = task.schedule?.inventory?.name ?? '';
+    const serialNumber = task.schedule?.inventory?.serial_number ?? '';
+    const technicianName = task.schedule?.technician?.name ?? '';
     const matchesSearch =
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.schedule.inventory.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.schedule.inventory.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.schedule.technician.name.toLowerCase().includes(searchTerm.toLowerCase());
+      inventoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      technicianName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = !statusFilter || task.status === statusFilter;
 
@@ -282,7 +201,7 @@ export function MaintenanceTasksPanel() {
             </Box>
             <Select
               value={viewFilter}
-              onChange={(e) => setViewFilter(e.target.value)}
+              onChange={(e) => setViewFilter(e.target.value as TaskViewFilter)}
               size="sm"
               bg={inputBg}
               borderColor={inputBorder}
@@ -462,7 +381,7 @@ export function MaintenanceTasksPanel() {
                           <HStack spacing={2} flexWrap="wrap">
                             {getStatusBadge(task)}
                             <Badge variant="outline" colorScheme="purple" fontSize="xs" px={1.5} py={0}>
-                              {getTypeLabel(task.schedule.type)}
+                              {getTypeLabel(task.schedule?.type ?? '')}
                             </Badge>
                           </HStack>
                         </VStack>
@@ -477,19 +396,19 @@ export function MaintenanceTasksPanel() {
                           <Text as="span" fontWeight="semibold" color={textColor}>
                             Equip.:{' '}
                           </Text>
-                          {task.schedule.inventory.name}
+                          {task.schedule?.inventory?.name ?? '—'}
                         </Text>
                         <Text fontSize="xs" color={textSecondary} noOfLines={1}>
                           <Text as="span" fontWeight="semibold" color={textColor}>
                             Série:{' '}
                           </Text>
-                          {task.schedule.inventory.serial_number}
+                          {task.schedule?.inventory?.serial_number ?? '—'}
                         </Text>
                         <Text fontSize="xs" color={textSecondary} noOfLines={1}>
                           <Text as="span" fontWeight="semibold" color={textColor}>
                             Téc.:{' '}
                           </Text>
-                          {task.schedule.technician.name}
+                          {task.schedule?.technician?.name ?? '—'}
                         </Text>
                         <Text fontSize="xs" noOfLines={1}>
                           <Text as="span" fontWeight="semibold" color={textColor}>
@@ -532,7 +451,7 @@ export function MaintenanceTasksPanel() {
                           Concluir
                         </Button>
                       )}
-                      <Link href={`/maintenance-schedules/${task.schedule.id}`}>
+                      <Link href={`/maintenance-schedules/${task.schedule?.id ?? ''}`}>
                         <Button variant="outline" size="sm" colorScheme="blue">
                           Agendamento
                         </Button>

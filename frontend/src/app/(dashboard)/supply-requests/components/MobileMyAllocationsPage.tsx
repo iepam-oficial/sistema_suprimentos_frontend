@@ -10,35 +10,17 @@ import {
 import { useRouter } from 'next/navigation';
 import { ReturnItemModal } from '@/app/(dashboard)/supply-requests/components/ReturnItemModal';
 import { AllocationCard } from '@/app/(dashboard)/supply-requests/components/AllocationCard';
-
-interface AllocationRequest {
-  id: string;
-  inventory: {
-    id: string;
-    name: string;
-    model: string;
-    serial_number: string;
-  };
-  destination: string;
-  destination_name?: string;
-  destination_id?: string;
-  notes: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED' | 'RETURNED' | 'LOST';
-  created_at: string;
-  return_date: string;
-  requester_delivery_confirmation: boolean;
-  manager_delivery_confirmation: boolean;
-}
+import type { InventoryAllocation } from '@/features/inventory/types';
 
 export function MobileMyAllocationsPage() {
-  const [allocations, setAllocations] = useState<AllocationRequest[]>([]);
+  const [allocations, setAllocations] = useState<InventoryAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
   const router = useRouter();
   const [returnModalOpen, setReturnModalOpen] = useState(false);
-  const [returningAllocation, setReturningAllocation] = useState<AllocationRequest | null>(null);
+  const [returningAllocation, setReturningAllocation] = useState<InventoryAllocation | null>(null);
   const [lostModalOpen, setLostModalOpen] = useState(false);
-  const [lostAllocation, setLostAllocation] = useState<AllocationRequest | null>(null);
+  const [lostAllocation, setLostAllocation] = useState<InventoryAllocation | null>(null);
 
   useEffect(() => {
     fetchAllocations();
