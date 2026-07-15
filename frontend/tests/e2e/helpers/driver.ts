@@ -12,7 +12,12 @@ export async function createDriver(): Promise<WebDriver> {
   }
   options.addArguments('--window-size=1440,900', '--no-sandbox', '--disable-dev-shm-usage');
 
-  return new Builder().forBrowser('chrome').setChromeOptions(options).build();
+  const builder = new Builder().forBrowser('chrome').setChromeOptions(options);
+  const remoteUrl = process.env.SELENIUM_REMOTE_URL;
+  if (remoteUrl) {
+    builder.usingServer(remoteUrl);
+  }
+  return builder.build();
 }
 
 export async function quitDriver(driver: WebDriver | undefined): Promise<void> {

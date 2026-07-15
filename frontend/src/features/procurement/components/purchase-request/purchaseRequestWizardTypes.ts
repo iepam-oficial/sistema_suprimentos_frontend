@@ -1,4 +1,5 @@
 import type { CreatePurchaseRequestInput, PurchaseRequestDTO } from '@ti-assistant/contracts';
+import { createClientKey } from '@/utils/clientKey';
 
 export interface PurchaseRequestItemFormRow {
   key: string;
@@ -17,7 +18,7 @@ export interface PurchaseRequestWizardForm {
 
 export function createEmptyItemRow(): PurchaseRequestItemFormRow {
   return {
-    key: crypto.randomUUID(),
+    key: createClientKey(),
     description: '',
     quantity: 1,
     unit: '',

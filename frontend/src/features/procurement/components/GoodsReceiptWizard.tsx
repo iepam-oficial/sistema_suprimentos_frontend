@@ -36,6 +36,7 @@ import type {
 import { GoodsReceiptStatus, ReceiptLineDestination } from '@ti-assistant/contracts';
 import type { CategoryDTO, LocationDTO } from '@/features/reference-data';
 import { fetchCategories, fetchLocations } from '@/features/reference-data';
+import { createClientKey } from '@/utils/clientKey';
 import {
   classifyInvoiceLines,
   directorApproveGoodsReceipt,
@@ -79,7 +80,7 @@ function isPdfOrImageFile(file: File): boolean {
 
 function createEmptyInvoiceLine(lineNumber: number): PendingInvoiceLineRow {
   return {
-    key: crypto.randomUUID(),
+    key: createClientKey(),
     line_number: lineNumber,
     description: '',
     quantity: 1,
@@ -191,7 +192,7 @@ export function GoodsReceiptWizard({
     if (poItems && poItems.length > 0) {
       setPhysicalLines(
         poItems.map((item) => ({
-          key: crypto.randomUUID(),
+          key: createClientKey(),
           description: item.description,
           quantity_received: item.quantity,
           pr_item_id: item.pr_item_id ?? undefined,
@@ -200,7 +201,7 @@ export function GoodsReceiptWizard({
       return;
     }
 
-    setPhysicalLines([{ key: crypto.randomUUID(), description: '', quantity_received: 1 }]);
+    setPhysicalLines([{ key: createClientKey(), description: '', quantity_received: 1 }]);
   }, [receipt.physical_lines, receipt.purchase_order?.items]);
 
   useEffect(() => {
@@ -334,7 +335,7 @@ export function GoodsReceiptWizard({
         setPendingInvoiceMetadata(result.suggested_metadata ?? {});
         setPendingInvoiceLines(
           suggested.length > 0
-            ? suggested.map((line) => ({ ...line, key: crypto.randomUUID() }))
+            ? suggested.map((line) => ({ ...line, key: createClientKey() }))
             : [createEmptyInvoiceLine(1)]
         );
         setShowInvoiceLineReview(true);
@@ -652,7 +653,7 @@ export function GoodsReceiptWizard({
   const addPhysicalLine = () => {
     setPhysicalLines((prev) => [
       ...prev,
-      { key: crypto.randomUUID(), description: '', quantity_received: 1 },
+      { key: createClientKey(), description: '', quantity_received: 1 },
     ]);
   };
 
