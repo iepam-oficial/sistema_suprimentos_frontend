@@ -1,6 +1,12 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: 'standalone',
+    // Mantém server.js em .next/standalone/server.js (sem aninhar path do monorepo)
+    experimental: {
+        outputFileTracingRoot: path.join(__dirname),
+    },
     async redirects() {
         return [
             {
@@ -48,9 +54,6 @@ const nextConfig = {
     },
     env: {
         IMGBB_IMAGES_API_KEY: process.env.IMGBB_IMAGES_API_KEY,
-    },
-    experimental: {
-        outputFileTracingRoot: undefined,
     },
 };
 
