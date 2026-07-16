@@ -69,6 +69,12 @@ export function createSidebarHoverController(options: ControllerOptions = {}) {
       clearCloseTimer();
       emit({ isExpanded: true, flyoutGroup: id });
     },
+    clearFlyout: () => {
+      clearCloseTimer();
+      if (state.flyoutGroup !== null) {
+        emit({ isExpanded: state.isExpanded, flyoutGroup: null });
+      }
+    },
     collapseNow: () => {
       clearCloseTimer();
       emit({ isExpanded: false, flyoutGroup: null });
@@ -108,6 +114,10 @@ export function useSidebarHover(closeDelayMs: number = CLOSE_DELAY_MS) {
     controllerRef.current?.onGroupEnter(id);
   }, []);
 
+  const clearFlyout = useCallback(() => {
+    controllerRef.current?.clearFlyout();
+  }, []);
+
   const collapseNow = useCallback(() => {
     controllerRef.current?.collapseNow();
   }, []);
@@ -118,6 +128,7 @@ export function useSidebarHover(closeDelayMs: number = CLOSE_DELAY_MS) {
     onShellEnter,
     onShellLeave,
     onGroupEnter,
+    clearFlyout,
     collapseNow,
   };
 }

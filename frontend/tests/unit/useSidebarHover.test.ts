@@ -83,4 +83,12 @@ describe('createSidebarHoverController', () => {
     jest.advanceTimersByTime(500);
     expect(controller.getState()).toEqual({ isExpanded: false, flyoutGroup: null });
   });
+
+  it('clearFlyout keeps expanded and removes flyout group', () => {
+    const { controller } = setup();
+    controller.onShellEnter();
+    controller.onGroupEnter('compras');
+    controller.clearFlyout();
+    expect(controller.getState()).toEqual({ isExpanded: true, flyoutGroup: null });
+  });
 });
