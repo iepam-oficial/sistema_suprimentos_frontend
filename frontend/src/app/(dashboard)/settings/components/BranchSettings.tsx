@@ -4,6 +4,7 @@ import {
     VStack,
     FormControl,
     FormLabel,
+    FormHelperText,
     Input,
     Button,
     useToast,
@@ -16,6 +17,8 @@ import {
     IconButton,
     HStack,
     Heading,
+    Text,
+    Badge,
     useDisclosure,
     Modal,
     ModalOverlay,
@@ -36,6 +39,7 @@ import {
     RateLimitError,
     type LocationDTO,
 } from '@/features/reference-data'
+import { formatCnpjMask } from '@/utils/formatCnpjMask'
 
 export default function BranchSettings() {
     const [branches, setBranches] = useState<LocationDTO[]>([])
@@ -48,7 +52,9 @@ export default function BranchSettings() {
     const [branchFormData, setBranchFormData] = useState({
         name: '',
         address: '',
-        branch: ''
+        branch: '',
+        cnpj: '',
+        legal_name: '',
     })
 
     useEffect(() => {
@@ -89,8 +95,14 @@ export default function BranchSettings() {
                 throw new Error('Token não encontrado')
             }
 
+            const payload = {
+                ...branchFormData,
+                cnpj: branchFormData.cnpj.trim() === '' ? null : branchFormData.cnpj,
+                legal_name: branchFormData.legal_name.trim() === '' ? null : branchFormData.legal_name,
+            }
+
             if (editingBranch) {
-                await updateLocation(token, editingBranch.id, branchFormData)
+                await updateLocation(token, editingBranch.id, payload)
 
                 toast({
                     title: 'Sucesso',
@@ -100,7 +112,7 @@ export default function BranchSettings() {
                     isClosable: true,
                 })
             } else {
-                await createLocation(token, branchFormData)
+                await createLocation(token, payload)
 
                 toast({
                     title: 'Sucesso',
@@ -114,9 +126,13 @@ export default function BranchSettings() {
             fetchBranches()
             handleBranchClose()
         } catch (error) {
+            const description =
+                error instanceof Error && error.message
+                    ? error.message
+                    : 'Não foi possível salvar a localização.'
             toast({
                 title: 'Erro',
-                description: 'Não foi possível salvar a localização.',
+                description,
                 status: 'error',
                 duration: 3000,
                 isClosable: true,
@@ -164,7 +180,9 @@ export default function BranchSettings() {
         setBranchFormData({
             name: branch.name,
             address: branch.address ?? '',
-            branch: branch.branch ?? ''
+            branch: branch.branch ?? '',
+            cnpj: branch.cnpj ?? '',
+            legal_name: branch.legal_name ?? '',
         })
         onBranchModalOpen()
     }
@@ -174,7 +192,9 @@ export default function BranchSettings() {
         setBranchFormData({
             name: '',
             address: '',
-            branch: ''
+            branch: '',
+            cnpj: '',
+            legal_name: '',
         })
         onBranchModalClose()
     }
@@ -200,7 +220,14 @@ export default function BranchSettings() {
                 <Tbody>
                     {branches.map((branch) => (
                         <Tr key={branch.id}>
-                            <Td>{branch.name}</Td>
+                            <Td>
+                                <Text>{branch.name}</Text>
+                                {branch.cnpj ? (
+                                    <Text fontSize="sm" color="gray.500">{branch.cnpj}</Text>
+                                ) : (
+                                    <Badge colorScheme="orange" variant="subtle" size="sm">Sem CNPJ</Badge>
+                                )}
+                            </Td>
                             <Td>{branch.address}</Td>
                             <Td>{branch.branch}</Td>
                             <Td>
@@ -259,6 +286,37 @@ export default function BranchSettings() {
                                         placeholder="Nome do polo"
                                     />
                                 </FormControl>
+
+                                <Text fontWeight="medium" alignSelf="flex-start" pt={2}>
+                                    Dados da empresa
+                                </Text>
+                                <FormControl>
+                                    <FormLabel>CNPJ</FormLabel>
+                                    <Input
+                                        value={branchFormData.cnpj}
+                                        onChange={(e) => setBranchFormData({
+                                            ...branchFormData,
+                                            cnpj: formatCnpjMask(e.target.value),
+                                        })}
+                                        placeholder="00.000.000/0000-00"
+                                    />
+                                    {branchFormData.cnpj.trim() === '' && (
+                                        <FormHelperText color="orange.500">
+                                            CNPJ não informado
+                                        </FormHelperText>
+                                    )}
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel>Razão social</FormLabel>
+                                    <Input
+                                        value={branchFormData.legal_name}
+                                        onChange={(e) => setBranchFormData({
+                                            ...branchFormData,
+                                            legal_name: e.target.value,
+                                        })}
+                                        placeholder="Razão social da empresa"
+                                    />
+                                </FormControl>
                             </VStack>
                         </ModalBody>
                         <ModalFooter>
@@ -278,4 +336,4 @@ export default function BranchSettings() {
             </Modal>
         </VStack>
     )
-} 
+}
