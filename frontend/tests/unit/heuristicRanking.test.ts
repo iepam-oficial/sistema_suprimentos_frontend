@@ -156,5 +156,68 @@ describe('heuristicRanking', () => {
     it('returns an empty array when there are no proposals', () => {
       expect(computeHeuristicRanking([])).toEqual([]);
     });
+
+    it('gives neutral payment score to proposals without boleto a prazo', () => {
+      const proposals = [
+        {
+          invite_id: 'pix-only',
+          total_value: 1000,
+          delivery_days: 10,
+          payment_score_days: null,
+          freight: 50,
+          taxes: 100,
+        },
+        {
+          invite_id: 'boleto-30',
+          total_value: 1000,
+          delivery_days: 10,
+          payment_score_days: 30,
+          freight: 50,
+          taxes: 100,
+        },
+        {
+          invite_id: 'boleto-60',
+          total_value: 1000,
+          delivery_days: 10,
+          payment_score_days: 60,
+          freight: 50,
+          taxes: 100,
+        },
+      ];
+
+      const rankings = computeHeuristicRanking(proposals);
+      const pix = rankings.find((r) => r.invite_id === 'pix-only');
+      const b30 = rankings.find((r) => r.invite_id === 'boleto-30');
+      const b60 = rankings.find((r) => r.invite_id === 'boleto-60');
+
+      expect(pix?.score_payment).toBe(2.5);
+      expect(b30?.score_payment).toBe(0);
+      expect(b60?.score_payment).toBe(5);
+      expect(b60!.total_score).toBeGreaterThan(b30!.total_score);
+    });
+
+    it('gives all payment score 5 when no proposal has boleto a prazo', () => {
+      const proposals = [
+        {
+          invite_id: 'a',
+          total_value: 1000,
+          delivery_days: 10,
+          payment_score_days: null,
+          freight: 50,
+          taxes: 100,
+        },
+        {
+          invite_id: 'b',
+          total_value: 1000,
+          delivery_days: 10,
+          payment_score_days: null,
+          freight: 50,
+          taxes: 100,
+        },
+      ];
+
+      const rankings = computeHeuristicRanking(proposals);
+      expect(rankings.every((r) => r.score_payment === 5)).toBe(true);
+    });
   });
 });

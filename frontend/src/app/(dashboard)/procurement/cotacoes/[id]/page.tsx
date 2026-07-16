@@ -10,6 +10,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  Select,
   Spinner,
   Table,
   Tbody,
@@ -47,6 +48,7 @@ import {
   QuoteOriginSection,
   QuoteTimelineDrawer,
   sendProcurementQuote,
+  setQuoteSelectedPaymentMethod,
   usePollingRefresh,
 } from '@/features/procurement';
 
@@ -415,6 +417,68 @@ export default function ProcurementQuoteDetailPage() {
           </Text>
         </Box>
 
+        {isDirector &&
+          quote.status === 'APPROVED' &&
+          (quote.winner_invite?.proposal?.payment_methods?.length ?? 0) > 0 && (
+            <Box>
+              <Heading size="sm" mb={2} color={headingColor}>
+                Forma de pagamento do pedido
+              </Heading>
+              <HStack maxW="420px" align="flex-end">
+                <Select
+                  size="sm"
+                  placeholder="Selecionar forma aceita pelo fornecedor"
+                  value={quote.selected_payment_method_code ?? ''}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    if (!code) return;
+                    const token = localStorage.getItem('@ti-assistant:token');
+                    if (!token) return;
+                    try {
+                      setActionLoading(true);
+                      const updated = await setQuoteSelectedPaymentMethod(
+                        token,
+                        quote.id,
+                        code,
+                      );
+                      setQuote(updated);
+                      toast({
+                        title: 'Forma de pagamento definida',
+                        status: 'success',
+                        duration: 3000,
+                        isClosable: true,
+                      });
+                    } catch (err) {
+                      toast({
+                        title: 'Erro ao definir pagamento',
+                        description:
+                          err instanceof Error ? err.message : 'Tente novamente.',
+                        status: 'error',
+                        duration: 4000,
+                        isClosable: true,
+                      });
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }}
+                >
+                  {(quote.winner_invite?.proposal?.payment_methods ?? []).map(
+                    (method) => (
+                      <option key={method.code} value={method.code}>
+                        {method.label}
+                      </option>
+                    ),
+                  )}
+                </Select>
+              </HStack>
+              {quote.selected_payment_method_label && (
+                <Text fontSize="xs" color={mutedColor} mt={1}>
+                  Atual: {quote.selected_payment_method_label}
+                </Text>
+              )}
+            </Box>
+          )}
+
         <Divider />
 
         <Box>
@@ -430,6 +494,7 @@ export default function ProcurementQuoteDetailPage() {
                   <Th>Revisão</Th>
                   <Th>Proposta</Th>
                   <Th>Valor total</Th>
+                  <Th>Pagamento</Th>
                   <Th>PDF</Th>
                   {isManager && <Th>Ações</Th>}
                 </Tr>
@@ -474,6 +539,26 @@ export default function ProcurementQuoteDetailPage() {
                               style: 'currency',
                               currency: 'BRL',
                             })
+                          : '—'}
+                      </Td>
+                      <Td color={textColor} fontSize="sm" maxW="220px">
+                        {invite.proposal?.payment_methods?.length
+                          ? (
+                              <>
+                                {(invite.proposal.payment_methods ?? [])
+                                  .map((m) => m.label)
+                                  .join(', ')}
+                                {invite.proposal.payment_methods.some(
+                                  (m) => m.requires_boleto_terms,
+                                ) &&
+                                  invite.proposal.boleto_grace_days != null && (
+                                    <Text fontSize="xs" color={mutedColor}>
+                                      Carência {invite.proposal.boleto_grace_days}d ·{' '}
+                                      {invite.proposal.boleto_installments}x
+                                    </Text>
+                                  )}
+                              </>
+                            )
                           : '—'}
                       </Td>
                       <Td>

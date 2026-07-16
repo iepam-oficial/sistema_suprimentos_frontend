@@ -6,15 +6,19 @@ import { waitForText } from '../helpers/wait';
 export interface ProposalProfile {
   unitPrice: number;
   delivery: number;
+  /** Used as boleto grace days when withBoleto is true */
   payment: number;
   freight: number;
   taxes: number;
+  /** When true, select Boleto a prazo and fill grace/installments */
+  withBoleto?: boolean;
+  installments?: number;
 }
 
 export const DEFAULT_PROPOSAL_PROFILES: ProposalProfile[] = [
-  { unitPrice: 25.5, delivery: 5, payment: 30, freight: 10, taxes: 5 },
-  { unitPrice: 28, delivery: 10, payment: 20, freight: 15, taxes: 8 },
-  { unitPrice: 30, delivery: 15, payment: 15, freight: 20, taxes: 10 },
+  { unitPrice: 25.5, delivery: 5, payment: 30, freight: 10, taxes: 5, withBoleto: true, installments: 1 },
+  { unitPrice: 28, delivery: 10, payment: 20, freight: 15, taxes: 8, withBoleto: false },
+  { unitPrice: 30, delivery: 15, payment: 15, freight: 20, taxes: 10, withBoleto: true, installments: 3 },
 ];
 
 async function fillNumberByLabel(driver: WebDriver, label: string, value: number): Promise<void> {
@@ -32,6 +36,16 @@ async function fillCurrencyInput(driver: WebDriver, input: WebElement, value: nu
   await input.sendKeys('\t');
 }
 
+async function selectPaymentMethod(driver: WebDriver, label: string): Promise<void> {
+  const checkbox = await driver.findElement(
+    By.xpath(`//label[contains(.,'${label}')]/preceding::input[@type='checkbox'][1] | //label[contains(.,'${label}')]//input[@type='checkbox']`),
+  );
+  const checked = await checkbox.isSelected();
+  if (!checked) {
+    await checkbox.click();
+  }
+}
+
 export async function fillProposalForm(
   driver: WebDriver,
   profile: ProposalProfile,
@@ -40,7 +54,14 @@ export async function fillProposalForm(
   await waitForText(driver, 'Dados da proposta');
 
   await fillNumberByLabel(driver, 'Entrega (dias)', profile.delivery);
-  await fillNumberByLabel(driver, 'Pagamento (dias)', profile.payment);
+
+  if (profile.withBoleto) {
+    await selectPaymentMethod(driver, 'Boleto a prazo');
+    await fillNumberByLabel(driver, 'Carência', profile.payment);
+    await fillNumberByLabel(driver, 'Nº de parcelas', profile.installments ?? 1);
+  } else {
+    await selectPaymentMethod(driver, 'PIX');
+  }
 
   const freightInput = await driver.findElement(
     By.xpath("//label[contains(.,'Frete')]/following::input[1]"),

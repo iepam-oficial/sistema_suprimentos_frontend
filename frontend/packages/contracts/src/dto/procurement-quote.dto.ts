@@ -18,6 +18,21 @@ export interface ProcurementQuoteProposalItemDTO {
   total_price: number;
 }
 
+export interface ProposalPaymentMethodDTO {
+  code: string;
+  label: string;
+  requires_boleto_terms: boolean;
+}
+
+export interface PaymentMethodDTO {
+  id?: string;
+  code: string;
+  label: string;
+  requires_boleto_terms: boolean;
+  active?: boolean;
+  sort_order?: number;
+}
+
 export interface ProcurementQuoteProposalDTO {
   id: string;
   invite_id: string;
@@ -30,6 +45,9 @@ export interface ProcurementQuoteProposalDTO {
   proposal_pdf_url?: string | null;
   submitted_at: string;
   items: ProcurementQuoteProposalItemDTO[];
+  payment_methods?: ProposalPaymentMethodDTO[];
+  boleto_grace_days?: number | null;
+  boleto_installments?: number | null;
 }
 
 export interface ProposalCorrectionRequestDTO {
@@ -110,6 +128,10 @@ export interface ProcurementQuoteDTO {
   invites?: ProcurementQuoteInviteDTO[];
   rankings?: ProcurementQuoteRankingDTO[];
   winner_invite?: ProcurementQuoteInviteDTO | null;
+  selected_payment_method_code?: string | null;
+  selected_payment_method_label?: string | null;
+  selected_payment_by_user_id?: string | null;
+  selected_payment_at?: string | null;
 }
 
 export interface CreateProcurementQuoteInput {
@@ -138,10 +160,14 @@ export interface SubmitProcurementProposalItemInput {
 export interface SubmitProcurementProposalInput {
   total_value: number;
   delivery_days: number;
-  payment_days: number;
+  /** @deprecated Prefer payment_method_codes + boleto_*; synced from boleto_grace_days when present */
+  payment_days?: number;
   freight?: number;
   taxes?: number;
   items: SubmitProcurementProposalItemInput[];
+  payment_method_codes: string[];
+  boleto_grace_days?: number | null;
+  boleto_installments?: number | null;
 }
 
 export interface PortalQuoteItemDTO {
@@ -181,6 +207,24 @@ export interface PortalQuoteInviteContextDTO {
   proposal?: ProcurementQuoteProposalDTO | null;
   ai_extraction_available: boolean;
   correction_request?: ProposalCorrectionRequestDTO | null;
+  available_payment_methods: PaymentMethodDTO[];
+}
+
+export interface CreatePaymentMethodInput {
+  code: string;
+  label: string;
+  requires_boleto_terms?: boolean;
+  sort_order?: number;
+}
+
+export interface UpdatePaymentMethodInput {
+  label?: string;
+  requires_boleto_terms?: boolean;
+  sort_order?: number;
+}
+
+export interface SetQuoteSelectedPaymentMethodInput {
+  payment_method_code: string;
 }
 
 export interface RequestProposalCorrectionInput {

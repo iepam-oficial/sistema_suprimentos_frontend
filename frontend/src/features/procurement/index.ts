@@ -49,6 +49,7 @@ export {
   markProposalReviewOk,
   requestProposalCorrection,
   sendProcurementQuote,
+  setQuoteSelectedPaymentMethod,
 } from './api/procurementQuoteApi';
 export type {
   CloseQuotePendingSupplier,

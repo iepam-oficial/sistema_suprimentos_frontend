@@ -280,3 +280,19 @@ export async function approveProcurementQuote(
   });
   return handleResponse<ProcurementQuoteDTO>(response);
 }
+
+export async function setQuoteSelectedPaymentMethod(
+  token: string,
+  id: string,
+  payment_method_code: string,
+): Promise<ProcurementQuoteDTO> {
+  const response = await fetch(
+    `/api/procurement-quotes/${encodeURIComponent(id)}/selected-payment-method`,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders(token),
+      body: JSON.stringify({ payment_method_code }),
+    },
+  );
+  return handleResponse<ProcurementQuoteDTO>(response);
+}

@@ -208,6 +208,9 @@ function useSidebarMenuModel() {
     { label: 'Tema', href: '/settings/theme' },
     { label: 'Segurança', href: '/settings/security' },
     ...(!isEmployee ? [{ label: 'Unidades de Medida', href: '/settings/unit-of-measures' }] : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+      ? [{ label: 'Formas de pagamento', href: '/settings/payment-methods' }]
+      : []),
     ...(!isEmployee ? [{ label: 'Categorias', href: '/settings/categories' }] : []),
     ...(!isEmployee ? [{ label: 'Polos', href: '/settings/branches' }] : []),
     ...(!isEmployee ? [{ label: 'Ambientes', href: '/settings/enviroments' }] : []),

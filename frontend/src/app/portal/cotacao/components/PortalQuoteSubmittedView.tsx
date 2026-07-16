@@ -11,6 +11,8 @@ interface PortalQuoteSubmittedViewProps {
 
 export function PortalQuoteSubmittedView({ proposal }: PortalQuoteSubmittedViewProps) {
   const { mutedColor, headingColor } = useGlassTokens();
+  const methods = proposal.payment_methods ?? [];
+  const hasBoleto = methods.some((m) => m.requires_boleto_terms);
 
   return (
     <VStack align="stretch" spacing={3} px={1}>
@@ -28,10 +30,23 @@ export function PortalQuoteSubmittedView({ proposal }: PortalQuoteSubmittedViewP
           <Text color={mutedColor}>Prazo de entrega</Text>
           <Text color={headingColor}>{proposal.delivery_days} dias</Text>
         </HStack>
-        <HStack justify="space-between">
-          <Text color={mutedColor}>Prazo de pagamento</Text>
-          <Text color={headingColor}>{proposal.payment_days} dias</Text>
+        <HStack justify="space-between" align="flex-start">
+          <Text color={mutedColor}>Formas de pagamento aceitas</Text>
+          <Text color={headingColor} textAlign="right">
+            {methods.length > 0
+              ? methods.map((m) => m.label).join(', ')
+              : '—'}
+          </Text>
         </HStack>
+        {hasBoleto && (
+          <HStack justify="space-between">
+            <Text color={mutedColor}>Boleto a prazo</Text>
+            <Text color={headingColor}>
+              Carência {proposal.boleto_grace_days ?? '—'} dias ·{' '}
+              {proposal.boleto_installments ?? '—'}x (a cada 30 dias)
+            </Text>
+          </HStack>
+        )}
       </VStack>
       <StickyDataTable>
         <Thead>
