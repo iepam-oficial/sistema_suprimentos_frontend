@@ -69,6 +69,8 @@ export interface LocationDTO {
   name: string;
   address?: string;
   branch?: string;
+  cnpj?: string | null;
+  legal_name?: string | null;
   user_id?: string;
   created_at?: string;
   updated_at?: string;
@@ -78,12 +80,16 @@ export interface CreateLocationInput {
   name: string;
   address: string;
   branch: string;
+  cnpj?: string | null;
+  legal_name?: string | null;
 }
 
 export interface UpdateLocationInput {
   name?: string;
   address?: string;
   branch?: string;
+  cnpj?: string | null;
+  legal_name?: string | null;
 }
 
 export interface SectorDTO {
