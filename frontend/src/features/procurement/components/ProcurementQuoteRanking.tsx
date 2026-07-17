@@ -192,11 +192,11 @@ export function ProcurementQuoteRanking({
               return (
                 <Tr
                   key={ranking.id}
-                  cursor={canApprove && quote.status === 'CLOSED' ? 'pointer' : 'default'}
+                  cursor={canApprove && quote.status === 'AWAITING_APPROVAL' ? 'pointer' : 'default'}
                   bg={isSelected ? hoverBg : undefined}
-                  _hover={canApprove && quote.status === 'CLOSED' ? { bg: hoverBg } : undefined}
+                  _hover={canApprove && quote.status === 'AWAITING_APPROVAL' ? { bg: hoverBg } : undefined}
                   onClick={() => {
-                    if (canApprove && quote.status === 'CLOSED') {
+                    if (canApprove && quote.status === 'AWAITING_APPROVAL') {
                       setSelectedInviteId(ranking.invite_id);
                     }
                   }}
@@ -227,7 +227,7 @@ export function ProcurementQuoteRanking({
         </Table>
       </Box>
 
-      {canApprove && quote.status === 'CLOSED' && (
+      {canApprove && quote.status === 'AWAITING_APPROVAL' && (
         <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" p={4}>
           <Text fontSize="sm" fontWeight="medium" mb={3}>
             Aprovar fornecedor vencedor
