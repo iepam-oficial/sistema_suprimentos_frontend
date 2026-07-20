@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -33,9 +33,6 @@ import type {
 import { ProposalReviewStatus, QuoteInviteStatus } from '@ti-assistant/contracts';
 import {
   closeProcurementQuote,
-  CloseQuoteConfirmModal,
-  CloseQuotePendingReviewError,
-  type CloseQuotePendingSupplier,
   fetchProcurementQuoteById,
   getReviewBadge,
   markProposalReviewOk,
@@ -89,9 +86,6 @@ export default function ProcurementQuoteDetailPage() {
     inviteId: string;
     supplierName: string;
   } | null>(null);
-  const [pendingSuppliers, setPendingSuppliers] = useState<
-    CloseQuotePendingSupplier[]
-  >([]);
 
   const {
     isOpen: isTimelineOpen,
@@ -112,11 +106,6 @@ export default function ProcurementQuoteDetailPage() {
     isOpen: isHistoryOpen,
     onOpen: onHistoryOpen,
     onClose: onHistoryClose,
-  } = useDisclosure();
-  const {
-    isOpen: isCloseConfirmOpen,
-    onOpen: onCloseConfirmOpen,
-    onClose: onCloseConfirmClose,
   } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.700');
@@ -178,8 +167,7 @@ export default function ProcurementQuoteDetailPage() {
     }
   }, [authorized, loadQuote]);
 
-  const blockingOverlayOpen =
-    isPdfOpen || isCorrectionOpen || isHistoryOpen || isCloseConfirmOpen;
+  const blockingOverlayOpen = isPdfOpen || isCorrectionOpen || isHistoryOpen;
 
   usePollingRefresh({
     enabled: authorized && !blockingOverlayOpen && !actionLoading,
@@ -231,11 +219,6 @@ export default function ProcurementQuoteDetailPage() {
       });
       loadQuote();
     } catch (err) {
-      if (err instanceof CloseQuotePendingReviewError) {
-        setPendingSuppliers(err.pending_suppliers);
-        onCloseConfirmOpen();
-        return;
-      }
       toast({
         title: 'Erro ao encerrar',
         description: err instanceof Error ? err.message : 'Tente novamente.',
@@ -299,11 +282,6 @@ export default function ProcurementQuoteDetailPage() {
     setHistoryInvite(null);
   };
 
-  const handleCloseConfirmSuccess = () => {
-    setPendingSuppliers([]);
-    loadQuote();
-  };
-
   const handleOpenPdf = (supplierName: string, pdfUrl: string) => {
     setPdfPreview({ supplierName, pdfUrl });
     onPdfOpen();
@@ -313,6 +291,32 @@ export default function ProcurementQuoteDetailPage() {
     onPdfClose();
     setPdfPreview(null);
   };
+
+  const closeGate = useMemo(() => {
+    const invites = quote?.invites ?? [];
+    const reviewOkCount = invites.filter(
+      (invite) =>
+        invite.proposal != null &&
+        invite.proposal_review_status === ProposalReviewStatus.REVIEW_OK,
+    ).length;
+    const pendingReviewNames = invites
+      .filter(
+        (invite) =>
+          invite.proposal != null &&
+          invite.proposal_review_status !== ProposalReviewStatus.REVIEW_OK &&
+          invite.status !== QuoteInviteStatus.DECLINED &&
+          invite.status !== QuoteInviteStatus.EXPIRED,
+      )
+      .map((invite) => invite.supplier?.name ?? 'Fornecedor');
+    const canCloseRanking = reviewOkCount >= 2 && pendingReviewNames.length === 0;
+    let helper: string | null = null;
+    if (pendingReviewNames.length > 0) {
+      helper = `Revise as propostas de: ${pendingReviewNames.join(', ')}.`;
+    } else if (reviewOkCount < 2) {
+      helper = `São necessárias pelo menos 2 propostas com Revisão OK (atual: ${reviewOkCount}).`;
+    }
+    return { canCloseRanking, helper, reviewOkCount };
+  }, [quote]);
 
   if (!authorized) {
     return null;
@@ -389,15 +393,23 @@ export default function ProcurementQuoteDetailPage() {
               </Button>
             )}
             {isManager && quote.status === 'SENT' && (
-              <Button
-                colorScheme="purple"
-                size="sm"
-                onClick={handleClose}
-                isLoading={actionLoading}
-                loadingText="Encerrando..."
-              >
-                Encerrar e calcular ranking
-              </Button>
+              <VStack align="flex-end" spacing={1}>
+                <Button
+                  colorScheme="purple"
+                  size="sm"
+                  onClick={handleClose}
+                  isLoading={actionLoading}
+                  loadingText="Encerrando..."
+                  isDisabled={!closeGate.canCloseRanking}
+                >
+                  Encerrar e calcular ranking
+                </Button>
+                {closeGate.helper && (
+                  <Text fontSize="xs" color={mutedColor} maxW="320px" textAlign="right">
+                    {closeGate.helper}
+                  </Text>
+                )}
+              </VStack>
             )}
           </HStack>
         </HStack>
@@ -675,14 +687,6 @@ export default function ProcurementQuoteDetailPage() {
         supplierName={historyInvite?.supplierName}
         isOpen={isHistoryOpen}
         onClose={handleHistoryClose}
-      />
-
-      <CloseQuoteConfirmModal
-        quoteId={quoteId}
-        pendingSuppliers={pendingSuppliers}
-        isOpen={isCloseConfirmOpen}
-        onClose={onCloseConfirmClose}
-        onSuccess={handleCloseConfirmSuccess}
       />
     </Box>
   );
