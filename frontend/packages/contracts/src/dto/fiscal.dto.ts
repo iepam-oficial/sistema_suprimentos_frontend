@@ -3,20 +3,9 @@ export interface FiscalNcmDTO {
   code: string;
   description: string;
   effective_from?: string | null;
+  cest_codes: string[];
   active: boolean;
   catalog_version_id?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface FiscalCestDTO {
-  id: string;
-  code: string;
-  description: string;
-  default_ncm_id?: string | null;
-  active: boolean;
-  catalog_version_id?: string | null;
-  default_ncm?: Pick<FiscalNcmDTO, 'id' | 'code' | 'description'> | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,25 +14,14 @@ export interface CreateFiscalNcmInput {
   code: string;
   description: string;
   effective_from?: string | null;
+  cest_codes?: string[];
   active?: boolean;
 }
 
 export interface UpdateFiscalNcmInput {
   description?: string;
   effective_from?: string | null;
-  active?: boolean;
-}
-
-export interface CreateFiscalCestInput {
-  code: string;
-  description: string;
-  default_ncm_id?: string | null;
-  active?: boolean;
-}
-
-export interface UpdateFiscalCestInput {
-  description?: string;
-  default_ncm_id?: string | null;
+  cest_codes?: string[];
   active?: boolean;
 }
 

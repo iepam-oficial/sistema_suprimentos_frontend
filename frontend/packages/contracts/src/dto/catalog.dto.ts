@@ -1,5 +1,5 @@
 import type { MovementType, SupplyMovementType, SupplyTransactionType } from '../enums';
-import type { FiscalCestDTO, FiscalNcmDTO } from './fiscal.dto';
+import type { FiscalNcmDTO } from './fiscal.dto';
 import type {
   CategoryDTO,
   SubcategoryDTO,
@@ -58,9 +58,7 @@ export interface SupplyDTO {
   /** Omitido quando audience=requester */
   internal_code?: string | null;
   ncm_id?: string | null;
-  cest_id?: string | null;
   ncm?: Pick<FiscalNcmDTO, 'id' | 'code' | 'description'> | null;
-  cest?: Pick<FiscalCestDTO, 'id' | 'code' | 'description'> | null;
   created_at: string;
   updated_at: string;
   category?: CategoryRefDTO;
@@ -139,8 +137,7 @@ export interface CreateSupplyInput {
   subcategory_id?: string;
   image_url?: string;
   chart_of_account_id?: string;
-  ncm_id: string;
-  cest_id?: string | null;
+  ncm_id?: string;
 }
 
 export interface CreateSupplyBatchInput {
