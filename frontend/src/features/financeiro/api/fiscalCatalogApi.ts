@@ -1,5 +1,13 @@
-import type { FiscalCestDTO, FiscalNcmDTO } from '@ti-assistant/contracts';
+import type { FiscalNcmDTO } from '@ti-assistant/contracts';
 import { RateLimitError } from './extraExpenseApi';
+
+export interface FiscalNcmImportResult {
+  versionId: string;
+  created: number;
+  updated: number;
+  deactivated: number;
+  skipped: number;
+}
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 429) {
@@ -43,24 +51,27 @@ export async function fetchFiscalNcms(options?: {
   return Array.isArray(data) ? data : [];
 }
 
-export async function fetchFiscalCests(options?: {
-  active?: boolean;
-}): Promise<FiscalCestDTO[]> {
+export async function importFiscalNcms(
+  payload: unknown | File,
+): Promise<FiscalNcmImportResult> {
   const token = getToken();
-  if (!token) return [];
-
-  const params = new URLSearchParams();
-  if (options?.active !== undefined) {
-    params.set('active', String(options.active));
+  if (!token) {
+    throw new Error('Sessão expirada. Faça login novamente.');
   }
-  const qs = params.toString();
-  const response = await fetch(`/api/fiscal-cests${qs ? `?${qs}` : ''}`, {
+
+  const body =
+    payload instanceof File
+      ? JSON.parse(await payload.text())
+      : payload;
+
+  const response = await fetch('/api/fiscal-ncms/import', {
+    method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify(body),
   });
 
-  const data = await handleResponse<FiscalCestDTO[]>(response);
-  return Array.isArray(data) ? data : [];
+  return handleResponse<FiscalNcmImportResult>(response);
 }
