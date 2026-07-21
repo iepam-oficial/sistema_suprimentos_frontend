@@ -28,6 +28,7 @@ import {
   Receipt,
   ListOrdered,
   TrendingDown,
+  Barcode,
   LucideIcon,
 } from 'lucide-react';
 import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
@@ -148,6 +149,7 @@ function useSidebarMenuModel() {
     if (href === '/procurement/cotacoes') return pathname.startsWith('/procurement/cotacoes');
     if (href === '/procurement/pedidos') return pathname.startsWith('/procurement/pedidos');
     if (href === '/depreciation-rates') return pathname.startsWith('/depreciation-rates');
+    if (href === '/fiscal-codes') return pathname.startsWith('/fiscal-codes');
     return pathname === href;
   };
 
@@ -198,6 +200,9 @@ function useSidebarMenuModel() {
       : []),
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: TrendingDown, label: 'Taxas de Depreciação', href: '/depreciation-rates' }]
+      : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+      ? [{ icon: Barcode, label: 'Códigos Fiscais', href: '/fiscal-codes' }]
       : []),
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: BarChart, label: 'Relatórios', href: '/reports' }]

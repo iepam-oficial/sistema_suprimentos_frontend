@@ -1,4 +1,8 @@
-import type { FiscalNcmDTO } from '@ti-assistant/contracts';
+import type {
+  CreateFiscalNcmInput,
+  FiscalNcmDTO,
+  UpdateFiscalNcmInput,
+} from '@ti-assistant/contracts';
 import { RateLimitError } from './extraExpenseApi';
 
 export interface FiscalNcmImportResult {
@@ -31,6 +35,7 @@ function getToken(): string | null {
 
 export async function fetchFiscalNcms(options?: {
   active?: boolean;
+  q?: string;
 }): Promise<FiscalNcmDTO[]> {
   const token = getToken();
   if (!token) return [];
@@ -38,6 +43,9 @@ export async function fetchFiscalNcms(options?: {
   const params = new URLSearchParams();
   if (options?.active !== undefined) {
     params.set('active', String(options.active));
+  }
+  if (options?.q?.trim()) {
+    params.set('q', options.q.trim());
   }
   const qs = params.toString();
   const response = await fetch(`/api/fiscal-ncms${qs ? `?${qs}` : ''}`, {
@@ -49,6 +57,84 @@ export async function fetchFiscalNcms(options?: {
 
   const data = await handleResponse<FiscalNcmDTO[]>(response);
   return Array.isArray(data) ? data : [];
+}
+
+export async function fetchFiscalNcmById(id: string): Promise<FiscalNcmDTO> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
+  const response = await fetch(`/api/fiscal-ncms/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return handleResponse<FiscalNcmDTO>(response);
+}
+
+export async function createFiscalNcm(
+  data: CreateFiscalNcmInput,
+): Promise<FiscalNcmDTO> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
+  const response = await fetch('/api/fiscal-ncms', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse<FiscalNcmDTO>(response);
+}
+
+export async function updateFiscalNcm(
+  id: string,
+  data: UpdateFiscalNcmInput,
+): Promise<FiscalNcmDTO> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
+  const response = await fetch(`/api/fiscal-ncms/${id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse<FiscalNcmDTO>(response);
+}
+
+export async function setFiscalNcmActive(
+  id: string,
+  active: boolean,
+): Promise<FiscalNcmDTO> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
+  const response = await fetch(`/api/fiscal-ncms/${id}/active`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ active }),
+  });
+
+  return handleResponse<FiscalNcmDTO>(response);
 }
 
 export async function importFiscalNcms(
