@@ -202,7 +202,4 @@ export interface RequestProposalCorrectionInput {
     message: string;
     flagged_item_ids?: string[];
 }
-export interface CloseProcurementQuoteInput {
-    confirm_exclude_pending?: boolean;
-}
 //# sourceMappingURL=procurement-quote.dto.d.ts.map

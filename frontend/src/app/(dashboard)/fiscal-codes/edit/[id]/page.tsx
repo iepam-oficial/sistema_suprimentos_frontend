@@ -47,7 +47,7 @@ function formFromNcm(ncm: FiscalNcmDTO): FormState {
     code: ncm.code,
     description: ncm.description,
     effective_from: toDateInputValue(ncm.effective_from),
-    cest_codes: ncm.cest_codes,
+    cest_codes: ncm.cests?.map((c) => c.code) ?? [],
   };
 }
 

@@ -42,6 +42,87 @@ export async function runProcurementUntilOrderAccepted(
   });
 }
 
+async function selectFirstOptionByLabel(driver: WebDriver, label: string): Promise<void> {
+  const select = await driver.wait(
+    until.elementLocated(
+      By.xpath(`//*[@role='dialog']//label[contains(.,'${label}')]/following::select[1]`),
+    ),
+    15000,
+  );
+  await driver.wait(async () => {
+    const options = await select.findElements(
+      By.xpath(".//option[normalize-space(@value)!='']"),
+    );
+    return options.length > 0;
+  }, 15000);
+  await select.findElement(By.xpath(".//option[normalize-space(@value)!=''][1]")).click();
+}
+
+async function fillInlineSupplyCreate(driver: WebDriver): Promise<string> {
+  await clickByText(driver, 'Novo suprimento');
+  await waitForText(driver, 'Novo Suprimento');
+
+  const nameInput = await driver.wait(
+    until.elementLocated(
+      By.xpath("//*[@role='dialog']//label[contains(.,'Nome')]/following::input[1]"),
+    ),
+    15000,
+  );
+  const prefilledName = (await nameInput.getAttribute('value'))?.trim() ?? '';
+  expect(prefilledName.length).toBeGreaterThan(0);
+
+  const uniqueName = `Suprimento Inline E2E ${Date.now()}`;
+  await nameInput.clear();
+  await nameInput.sendKeys(uniqueName);
+
+  const descriptionInput = await driver.findElement(
+    By.xpath("//*[@role='dialog']//label[contains(.,'Descrição')]/following::input[1]"),
+  );
+  await descriptionInput.clear();
+  await descriptionInput.sendKeys(uniqueName);
+
+  const minQtyInput = await driver.findElement(
+    By.xpath(
+      "//*[@role='dialog']//label[contains(.,'Quantidade Mínima')]/following::input[1]",
+    ),
+  );
+  const minQty = (await minQtyInput.getAttribute('value'))?.trim() ?? '';
+  if (!minQty || minQty === '0') {
+    await minQtyInput.clear();
+    await minQtyInput.sendKeys('1');
+  }
+
+  await selectFirstOptionByLabel(driver, 'Unidade de Medida');
+  await selectFirstOptionByLabel(driver, 'Categoria');
+  await selectFirstOptionByLabel(driver, 'Plano de Conta');
+  await selectFirstOptionByLabel(driver, 'NCM');
+
+  const createBtn = await driver.wait(
+    until.elementLocated(
+      By.xpath("//*[@role='dialog']//button[@type='submit' and contains(.,'Criar')]"),
+    ),
+    10000,
+  );
+  await createBtn.click();
+
+  await driver.wait(async () => {
+    const similar = await driver.findElements(
+      By.xpath("//*[contains(.,'Suprimentos semelhantes encontrados')]"),
+    );
+    if (similar.length > 0) {
+      await clickByText(driver, 'Continuar cadastro');
+      return false;
+    }
+    const openModals = await driver.findElements(
+      By.xpath("//*[@role='dialog']//header[contains(.,'Novo Suprimento')]"),
+    );
+    return openModals.length === 0;
+  }, 30000);
+
+  await waitForText(driver, uniqueName, 15000);
+  return uniqueName;
+}
+
 export async function runGoodsReceipt(
   driver: WebDriver,
   api: E2eApiClient,
@@ -50,6 +131,8 @@ export async function runGoodsReceipt(
     finalize?: boolean;
     directorApprove?: boolean;
     expectCriticalBlocked?: boolean;
+    /** When true, creates a new supply via "Novo suprimento" during classification. */
+    inlineCreateSupply?: boolean;
   },
 ): Promise<string> {
   let goodsReceiptId = '';
@@ -77,6 +160,11 @@ export async function runGoodsReceipt(
     if (!(await supplyCheckbox.isSelected())) {
       await supplyCheckbox.click();
     }
+
+    if (options.inlineCreateSupply) {
+      await fillInlineSupplyCreate(driver);
+    }
+
     await clickByText(driver, 'Salvar classificação e comparar');
 
     await clickByText(driver, 'Divergências');
@@ -162,7 +250,7 @@ export async function runProcurementHappyPath(
     await driver.get(`${getBaseUrl()}/procurement/aprovacoes-sc`);
     await clickByText(driver, 'Aprovar');
     await clickByText(driver, 'Confirmar');
-    await waitForText(driver, 'Aprovada');
+    await waitForText(driver, 'Solicitação aprovada');
     await logout(driver);
   });
 
@@ -170,19 +258,20 @@ export async function runProcurementHappyPath(
     await loginAs(driver, 'MANAGER');
     await driver.get(`${getBaseUrl()}/procurement/fila-compras/${purchaseRequestId}`);
     await clickByText(driver, 'Disparar cotação');
-    await waitForUrlContains(driver, 'newQuote=');
+    await waitForUrlContains(driver, 'newQuote=', 40000);
     await clickByText(driver, 'Próximo');
     for (const supplierName of E2E_SUPPLIER_NAMES) {
-      const checkbox = await driver.findElement(
-        By.xpath(`//label[contains(.,'${supplierName}')]//input[@type='checkbox']`),
+      const label = await driver.findElement(
+        By.xpath(`//label[contains(.,'${supplierName}')]`),
       );
+      const checkbox = await label.findElement(By.css('input[type="checkbox"]'));
       if (!(await checkbox.isSelected())) {
-        await checkbox.click();
+        await label.click();
       }
     }
     await clickByText(driver, 'Próximo');
     await clickByText(driver, 'Criar e enviar');
-    await waitForUrlContains(driver, '/procurement/cotacoes/');
+    await waitForUrlContains(driver, '/procurement/cotacoes/', 40000);
     quoteId = (await driver.getCurrentUrl()).split('/').pop()?.split('?')[0] ?? '';
     await logout(driver);
   });
@@ -197,13 +286,28 @@ export async function runProcurementHappyPath(
     await loginAs(driver, 'MANAGER');
     await driver.get(`${getBaseUrl()}/procurement/cotacoes/${quoteId}`);
     await markAllProposalsReviewOk(driver, 3);
+    await driver.navigate().refresh();
+    await driver.wait(
+      until.elementLocated(
+        By.xpath("//button[contains(normalize-space(.), 'Encerrar e calcular ranking')]"),
+      ),
+      20000,
+    );
     await clickByText(driver, 'Encerrar e calcular ranking');
-    await waitForText(driver, 'Ranking de propostas');
+    await waitForText(driver, 'Cotação encerrada');
     await logout(driver);
 
     await loginAs(driver, 'DIRECTOR');
     await driver.get(`${getBaseUrl()}/procurement/cotacoes/${quoteId}`);
-    await driver.findElement(By.xpath("//tr[contains(.,'Fornecedor E2E A')]")).click();
+    const rankingRow = await driver.wait(
+      until.elementLocated(
+        By.xpath(
+          "//th[contains(.,'Pos.')]/ancestor::table//tr[contains(.,'Fornecedor E2E A')]",
+        ),
+      ),
+      20000,
+    );
+    await rankingRow.click();
     await clickByText(driver, 'Aprovar cotação');
     await waitForText(driver, 'Vencedor');
     await logout(driver);
@@ -213,19 +317,57 @@ export async function runProcurementHappyPath(
     await loginAs(driver, 'MANAGER');
     await driver.get(`${getBaseUrl()}/procurement/pedidos`);
     await clickByText(driver, 'Gerar pedido');
-    const select = await driver.findElement(By.css('select'));
-    await select.findElement(By.css('option:not([value=""])')).click();
-    await clickByText(driver, 'Gerar pedido');
+    await waitForText(driver, 'Gerar pedido de compra');
+
+    const quoteSelect = await driver.wait(
+      until.elementLocated(
+        By.xpath("//*[@role='dialog']//label[contains(.,'Cotação aprovada')]/following::select[1]"),
+      ),
+      20000,
+    );
+    await driver.wait(async () => {
+      const opts = await quoteSelect.findElements(
+        By.xpath(".//option[normalize-space(@value)!='']"),
+      );
+      return opts.length > 0;
+    }, 20000);
+    await quoteSelect.findElement(By.xpath(".//option[normalize-space(@value)!=''][1]")).click();
+
+    const paymentSelect = await driver.wait(
+      until.elementLocated(
+        By.xpath(
+          "//*[@role='dialog']//label[contains(.,'Forma de pagamento')]/following::select[1]",
+        ),
+      ),
+      20000,
+    );
+    await driver.wait(async () => {
+      const opts = await paymentSelect.findElements(
+        By.xpath(".//option[normalize-space(@value)!='']"),
+      );
+      return opts.length > 0;
+    }, 20000);
+    await paymentSelect.findElement(By.xpath(".//option[normalize-space(@value)!=''][1]")).click();
+
+    const confirmBtn = await driver.wait(
+      until.elementLocated(
+        By.xpath("//*[@role='dialog']//button[contains(.,'Gerar pedido')]"),
+      ),
+      10000,
+    );
+    await driver.wait(until.elementIsEnabled(confirmBtn), 10000);
+    await confirmBtn.click();
+
     await waitForText(driver, 'Rascunho');
     await clickByText(driver, 'Enviar');
-    await waitForText(driver, 'Enviado');
+    await waitForText(driver, 'Pedido enviado');
 
     const { token } = await api.login('gerente@example.com', getE2ePassword());
     const orders = await api.listPurchaseOrders(token);
     orderId =
-      orders.items.find((item) => item.status === 'SENT')?.id ?? orders.items[0]?.id ?? '';
+      orders.items.find((item) => item.status === 'SENT')?.id ?? '';
     if (!orderId) {
-      throw new Error('Pedido não encontrado após envio');
+      throw new Error('Pedido SENT não encontrado após envio');
     }
     await logout(driver);
   });

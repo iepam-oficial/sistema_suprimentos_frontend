@@ -26,22 +26,52 @@ export async function markAllProposalsReviewOk(
   driver: WebDriver,
   expectedCount: number,
 ): Promise<void> {
+  const invitesHeadingXpath = "//*[contains(.,'Convites aos fornecedores')]";
+
+  /** A página faz loadQuote sem `silent` e troca o conteúdo por Spinner. */
+  async function waitForInvitesTable(): Promise<void> {
+    await driver.wait(async () => {
+      const headings = await driver.findElements(By.xpath(invitesHeadingXpath));
+      return headings.length > 0;
+    }, 30000);
+  }
+
+  await waitForInvitesTable();
+  await driver.wait(async () => (await countReviewOkButtons(driver)) > 0, 30000);
+
   for (let i = 0; i < expectedCount; i += 1) {
+    await waitForInvitesTable();
     const before = await countReviewOkButtons(driver);
     if (before === 0) {
       break;
     }
 
-    const button = await driver.wait(
-      until.elementLocated(By.xpath(REVIEW_OK_BUTTON_XPATH)),
-      15000,
+    const buttons = await driver.findElements(By.xpath(REVIEW_OK_BUTTON_XPATH));
+    const button = buttons[buttons.length - 1];
+    await driver.executeScript(
+      'arguments[0].scrollIntoView({ block: "center", inline: "center" });',
+      button,
     );
     await driver.wait(until.elementIsVisible(button), 10000);
-    await button.click();
+    await driver.executeScript('arguments[0].click();', button);
 
+    // Aguarda o toast e a tabela reaparecer após o Spinner do loadQuote.
+    await driver.wait(async () => {
+      const body = await driver.getPageSource();
+      return body.includes('Revisão registrada');
+    }, 30000);
+    await waitForInvitesTable();
     await driver.wait(
       async () => (await countReviewOkButtons(driver)) < before,
-      15000,
+      30000,
+    );
+  }
+
+  await waitForInvitesTable();
+  const remaining = await countReviewOkButtons(driver);
+  if (remaining > 0) {
+    throw new Error(
+      `Ainda há ${remaining} botão(ões) "Revisão OK" após tentar marcar ${expectedCount} propostas`,
     );
   }
 }

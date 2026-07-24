@@ -44,7 +44,9 @@ import {
 } from '@chakra-ui/react';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiAlertTriangle, FiPackage } from 'react-icons/fi';
 import { Filter } from 'lucide-react';
-import { SupplyModal } from './components/SupplyModal';
+import { SupplyModal } from '@/features/catalog/components/SupplyModal';
+import { createSupply } from '@/features/catalog/api/catalogApi';
+
 import { NewBatchModal } from './components/NewBatchModal';
 import { MobileSupplies } from './components/MobileSupplies';
 import { useUser } from '@/features/identity';
@@ -130,18 +132,10 @@ export default function SuppliesPage() {
     const handleCreate = async (data: CreateSupplyInput) => {
         try {
             const token = localStorage.getItem('@ti-assistant:token')
-            const response = await fetch('/api/supplies', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
-            });
-
-            if (!response.ok) {
-                throw new Error('Erro ao criar suprimento');
+            if (!token) {
+                throw new Error('Token não encontrado');
             }
+            await createSupply(token, data);
 
             toast({
                 title: 'Suprimento criado',

@@ -33,6 +33,7 @@ import {
 } from '@/features/inventory/api/depreciationRateApi';
 
 interface FormState {
+  description: string;
   ncm: string;
   cest: string;
   chart_of_account_id: string;
@@ -50,7 +51,8 @@ function toDateInputValue(value?: string | null): string {
 
 function formFromRate(rate: DepreciationRateDTO): FormState {
   return {
-    ncm: rate.ncm,
+    description: rate.description,
+    ncm: rate.ncm ?? '',
     cest: rate.cest ?? '',
     chart_of_account_id: rate.chart_of_account_id,
     service_life_years: String(rate.service_life_years),
@@ -64,8 +66,8 @@ function formFromRate(rate: DepreciationRateDTO): FormState {
 function validateForm(data: FormState): Record<string, string> {
   const errors: Record<string, string> = {};
 
-  if (!data.ncm.trim()) {
-    errors.ncm = 'NCM é obrigatório';
+  if (!data.description.trim()) {
+    errors.description = 'Descrição é obrigatória';
   }
 
   if (!data.chart_of_account_id) {
@@ -108,7 +110,8 @@ function validateForm(data: FormState): Record<string, string> {
 
 function buildUpdatePayload(formData: FormState): UpdateDepreciationRateInput {
   const payload: UpdateDepreciationRateInput = {
-    ncm: formData.ncm.trim(),
+    description: formData.description.trim(),
+    ncm: formData.ncm.trim() || null,
     chart_of_account_id: formData.chart_of_account_id,
     service_life_years: Number(formData.service_life_years),
     annual_rate: Number(formData.annual_rate),
@@ -319,12 +322,22 @@ export default function EditDepreciationRatePage() {
             <form onSubmit={handleSubmit}>
               <VStack spacing={4}>
                 <SimpleGrid columns={2} spacing={4} width="100%">
-                  <FormControl isRequired isInvalid={!!errors.ncm}>
+                  <FormControl isRequired isInvalid={!!errors.description}>
+                    <FormLabel>Descrição</FormLabel>
+                    <Input
+                      value={formData.description}
+                      onChange={(e) => updateField('description', e.target.value)}
+                      placeholder="Ex: Máquinas automáticas"
+                    />
+                    <FormErrorMessage>{errors.description}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!errors.ncm}>
                     <FormLabel>NCM</FormLabel>
                     <Input
                       value={formData.ncm}
                       onChange={(e) => updateField('ncm', e.target.value)}
-                      placeholder="Ex: 8471.30.12"
+                      placeholder="Opcional — Ex: 8471.30.12"
                     />
                     <FormErrorMessage>{errors.ncm}</FormErrorMessage>
                   </FormControl>

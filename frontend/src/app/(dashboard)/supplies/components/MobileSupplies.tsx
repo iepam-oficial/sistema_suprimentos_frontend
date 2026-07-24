@@ -27,13 +27,14 @@ import {
 import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiAlertTriangle, FiPackage } from 'react-icons/fi';
 import { Supply } from '../utils/types';
 import type { SupplyVisibilityFilter } from '../utils/filterUtils';
-import { SupplyModal } from '../components/SupplyModal';
+import { SupplyModal } from '@/features/catalog/components/SupplyModal';
 import { useState } from 'react';
 import type { CreateSupplyInput } from '@/features/catalog/types';
+import type { CategoryDTO } from '@/features/reference-data';
 
 interface MobileSuppliesProps {
     supplies: Supply[];
-    categories: { id: string; label: string }[];
+    categories: CategoryDTO[];
     isManager?: boolean;
     onSearch: (term: string) => void;
     selectedCategory: string;

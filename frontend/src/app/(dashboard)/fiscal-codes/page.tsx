@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Badge,
   Box,
   Button,
   Card,
@@ -19,12 +18,11 @@ import {
   Switch,
   Text,
   VStack,
-  Wrap,
-  WrapItem,
   Tag,
+  Tooltip,
   useToast,
 } from '@chakra-ui/react';
-import { SearchIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { SearchIcon, EditIcon, AddIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { DataTable } from '@/components/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import type { FiscalNcmDTO } from '@ti-assistant/contracts';
@@ -51,6 +49,9 @@ export default function FiscalCodesPage() {
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(100);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const router = useRouter();
@@ -59,7 +60,10 @@ export default function FiscalCodesPage() {
   const loadNcms = useCallback(async () => {
     setIsLoading(true);
     try {
-      const filters: { active?: boolean; q?: string } = {};
+      const filters: { active?: boolean; q?: string; page: number; limit: number } = {
+        page,
+        limit,
+      };
       if (appliedSearch.trim()) {
         filters.q = appliedSearch.trim();
       }
@@ -70,7 +74,11 @@ export default function FiscalCodesPage() {
       }
 
       const data = await fetchFiscalNcms(filters);
-      setNcms(data);
+      setNcms(data.items);
+      setTotal(data.total);
+      if (data.page !== page) {
+        setPage(data.page);
+      }
     } catch (error) {
       if (error instanceof RateLimitError) {
         router.push('/rate-limit');
@@ -86,11 +94,30 @@ export default function FiscalCodesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilter, appliedSearch, router, toast]);
+  }, [activeFilter, appliedSearch, limit, page, router, toast]);
 
   useEffect(() => {
     loadNcms();
   }, [loadNcms]);
+
+  const applySearch = () => {
+    setPage(1);
+    setAppliedSearch(searchInput);
+  };
+
+  const handleActiveFilterChange = (value: string) => {
+    setPage(1);
+    setActiveFilter(value);
+  };
+
+  const handleLimitChange = (value: string) => {
+    setPage(1);
+    setLimit(Number(value) || 100);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const rangeFrom = total === 0 ? 0 : (page - 1) * limit + 1;
+  const rangeTo = Math.min(page * limit, total);
 
   const handleToggleActive = async (ncm: FiscalNcmDTO) => {
     setTogglingId(ncm.id);
@@ -127,56 +154,102 @@ export default function FiscalCodesPage() {
     {
       accessorKey: 'code',
       header: 'NCM',
-      cell: ({ row }) => formatNcmDisplay(row.original.code),
+      size: 120,
+      cell: ({ row }) => (
+        <Text fontSize="sm" whiteSpace="nowrap">
+          {formatNcmDisplay(row.original.code)}
+        </Text>
+      ),
     },
     {
       accessorKey: 'description',
       header: 'Descrição',
+      cell: ({ row }) => {
+        const description = row.original.description;
+        return (
+          <Tooltip label={description} hasArrow openDelay={300}>
+            <Text fontSize="sm" noOfLines={1} maxW="100%" cursor="default">
+              {description}
+            </Text>
+          </Tooltip>
+        );
+      },
     },
     {
-      id: 'cest_codes',
+      id: 'cests',
       header: 'CEST',
+      size: 180,
       cell: ({ row }) => {
-        const codes = row.original.cest_codes;
-        if (!codes || codes.length === 0) return <Text color="gray.400">-</Text>;
+        const cests = row.original.cests;
+        if (!cests || cests.length === 0) {
+          return (
+            <Text fontSize="sm" color="gray.400">
+              -
+            </Text>
+          );
+        }
+        const visible = cests.slice(0, 2);
+        const extra = cests.length - visible.length;
+        const tooltipLabel = cests
+          .map(
+            (cest) =>
+              `${cest.code} — ${cest.description} · Segmento: ${cest.segmento}`,
+          )
+          .join('\n');
         return (
-          <Wrap>
-            {codes.map((code) => (
-              <WrapItem key={code}>
-                <Tag size="sm" colorScheme="blue">
-                  {code}
+          <Tooltip
+            label={
+              <Box whiteSpace="pre-line" maxW="320px">
+                {tooltipLabel}
+              </Box>
+            }
+            hasArrow
+            openDelay={300}
+          >
+            <HStack spacing={1} maxW="180px" overflow="hidden">
+              {visible.map((cest) => (
+                <Tag key={cest.code} size="sm" colorScheme="blue" flexShrink={0}>
+                  {cest.code}
                 </Tag>
-              </WrapItem>
-            ))}
-          </Wrap>
+              ))}
+              {extra > 0 && (
+                <Tag size="sm" colorScheme="gray" flexShrink={0}>
+                  +{extra}
+                </Tag>
+              )}
+            </HStack>
+          </Tooltip>
         );
       },
     },
     {
       accessorKey: 'effective_from',
       header: 'Vigência',
-      cell: ({ row }) => formatDate(row.original.effective_from),
+      size: 100,
+      cell: ({ row }) => (
+        <Text fontSize="sm" whiteSpace="nowrap">
+          {formatDate(row.original.effective_from)}
+        </Text>
+      ),
     },
     {
       accessorKey: 'active',
       header: 'Ativo',
+      size: 70,
       cell: ({ row }) => (
-        <HStack spacing={3}>
-          <Badge colorScheme={row.original.active ? 'green' : 'gray'}>
-            {row.original.active ? 'Sim' : 'Não'}
-          </Badge>
-          <Switch
-            aria-label={row.original.active ? 'Desativar NCM' : 'Ativar NCM'}
-            isChecked={row.original.active}
-            isDisabled={togglingId === row.original.id}
-            onChange={() => handleToggleActive(row.original)}
-          />
-        </HStack>
+        <Switch
+          size="sm"
+          aria-label={row.original.active ? 'Desativar NCM' : 'Ativar NCM'}
+          isChecked={row.original.active}
+          isDisabled={togglingId === row.original.id}
+          onChange={() => handleToggleActive(row.original)}
+        />
       ),
     },
     {
       id: 'actions',
       header: 'Ações',
+      size: 60,
       cell: ({ row }) => (
         <IconButton
           aria-label="Editar NCM"
@@ -204,7 +277,13 @@ export default function FiscalCodesPage() {
         </Box>
 
         <FiscalNcmImportPanel
-          onImported={loadNcms}
+          onImported={() => {
+            if (page === 1) {
+              void loadNcms();
+            } else {
+              setPage(1);
+            }
+          }}
           onRateLimited={() => router.push('/rate-limit')}
         />
 
@@ -223,7 +302,7 @@ export default function FiscalCodesPage() {
                   }
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      setAppliedSearch(searchInput);
+                      applySearch();
                     }
                   }}
                 />
@@ -232,7 +311,7 @@ export default function FiscalCodesPage() {
                     colorScheme="blue"
                     size="sm"
                     leftIcon={<SearchIcon />}
-                    onClick={() => setAppliedSearch(searchInput)}
+                    onClick={applySearch}
                     isLoading={isLoading}
                   >
                     Buscar
@@ -242,7 +321,7 @@ export default function FiscalCodesPage() {
               <Select
                 placeholder="Filtrar por status"
                 value={activeFilter}
-                onChange={(e) => setActiveFilter(e.target.value)}
+                onChange={(e) => handleActiveFilterChange(e.target.value)}
                 maxW="300px"
               >
                 <option value="true">Ativos</option>
@@ -260,7 +339,73 @@ export default function FiscalCodesPage() {
             {ncms.length === 0 && !isLoading ? (
               <Text color="gray.500">Nenhum NCM encontrado.</Text>
             ) : (
-              <DataTable columns={columns} data={ncms} />
+              <VStack spacing={4} align="stretch" maxW="100%">
+                <Box
+                  maxW="100%"
+                  overflowX="hidden"
+                  sx={{
+                    '& .chakra-table__container': {
+                      overflowX: 'hidden',
+                      maxW: '100%',
+                    },
+                    '& table': {
+                      tableLayout: 'fixed',
+                      width: '100%',
+                    },
+                    '& th, & td': {
+                      px: 2,
+                      py: 1.5,
+                      fontSize: 'sm',
+                      overflow: 'hidden',
+                    },
+                    '& th:nth-of-type(1), & td:nth-of-type(1)': { width: '12%' },
+                    '& th:nth-of-type(2), & td:nth-of-type(2)': { width: '40%' },
+                    '& th:nth-of-type(3), & td:nth-of-type(3)': { width: '20%' },
+                    '& th:nth-of-type(4), & td:nth-of-type(4)': { width: '12%' },
+                    '& th:nth-of-type(5), & td:nth-of-type(5)': { width: '8%' },
+                    '& th:nth-of-type(6), & td:nth-of-type(6)': { width: '8%' },
+                  }}
+                >
+                  <DataTable columns={columns} data={ncms} />
+                </Box>
+                <HStack justify="space-between" flexWrap="wrap" spacing={4}>
+                  <Text fontSize="sm" color="gray.600">
+                    Mostrando {rangeFrom}–{rangeTo} de {total}
+                  </Text>
+                  <HStack spacing={3}>
+                    <Select
+                      size="sm"
+                      maxW="110px"
+                      value={String(limit)}
+                      onChange={(e) => handleLimitChange(e.target.value)}
+                      aria-label="Itens por página"
+                    >
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                    </Select>
+                    <Button
+                      size="sm"
+                      leftIcon={<ChevronLeftIcon />}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      isDisabled={page <= 1 || isLoading}
+                    >
+                      Anterior
+                    </Button>
+                    <Text fontSize="sm" minW="80px" textAlign="center">
+                      {page} / {totalPages}
+                    </Text>
+                    <Button
+                      size="sm"
+                      rightIcon={<ChevronRightIcon />}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      isDisabled={page >= totalPages || isLoading}
+                    >
+                      Próxima
+                    </Button>
+                  </HStack>
+                </HStack>
+              </VStack>
             )}
           </CardBody>
         </Card>

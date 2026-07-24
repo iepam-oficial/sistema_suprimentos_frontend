@@ -1,9 +1,14 @@
 import type {
   CreateFiscalNcmInput,
   FiscalNcmDTO,
+  FiscalNcmListResultDTO,
   UpdateFiscalNcmInput,
 } from '@ti-assistant/contracts';
 import { RateLimitError } from './extraExpenseApi';
+import {
+  invalidImportMessage,
+  parseAndValidateFiscalImportFile,
+} from '../lib/fiscalImportValidation';
 
 export interface FiscalNcmImportResult {
   versionId: string;
@@ -11,6 +16,9 @@ export interface FiscalNcmImportResult {
   updated: number;
   deactivated: number;
   skipped: number;
+  cestCreated?: number;
+  cestUpdated?: number;
+  cestDeactivated?: number;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -36,9 +44,13 @@ function getToken(): string | null {
 export async function fetchFiscalNcms(options?: {
   active?: boolean;
   q?: string;
-}): Promise<FiscalNcmDTO[]> {
+  page?: number;
+  limit?: number;
+}): Promise<FiscalNcmListResultDTO> {
   const token = getToken();
-  if (!token) return [];
+  if (!token) {
+    return { items: [], total: 0, page: 1, limit: options?.limit ?? 100 };
+  }
 
   const params = new URLSearchParams();
   if (options?.active !== undefined) {
@@ -47,6 +59,8 @@ export async function fetchFiscalNcms(options?: {
   if (options?.q?.trim()) {
     params.set('q', options.q.trim());
   }
+  params.set('page', String(options?.page ?? 1));
+  params.set('limit', String(options?.limit ?? 100));
   const qs = params.toString();
   const response = await fetch(`/api/fiscal-ncms${qs ? `?${qs}` : ''}`, {
     headers: {
@@ -55,8 +69,13 @@ export async function fetchFiscalNcms(options?: {
     },
   });
 
-  const data = await handleResponse<FiscalNcmDTO[]>(response);
-  return Array.isArray(data) ? data : [];
+  const data = await handleResponse<FiscalNcmListResultDTO>(response);
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    total: typeof data.total === 'number' ? data.total : 0,
+    page: typeof data.page === 'number' ? data.page : 1,
+    limit: typeof data.limit === 'number' ? data.limit : options?.limit ?? 100,
+  };
 }
 
 export async function fetchFiscalNcmById(id: string): Promise<FiscalNcmDTO> {
@@ -138,17 +157,24 @@ export async function setFiscalNcmActive(
 }
 
 export async function importFiscalNcms(
-  payload: unknown | File,
+  ncmFile: File,
+  cestFile: File,
 ): Promise<FiscalNcmImportResult> {
   const token = getToken();
   if (!token) {
     throw new Error('Sessão expirada. Faça login novamente.');
   }
 
-  const body =
-    payload instanceof File
-      ? JSON.parse(await payload.text())
-      : payload;
+  const [ncmParsed, cestParsed] = await Promise.all([
+    parseAndValidateFiscalImportFile(ncmFile, 'ncm'),
+    parseAndValidateFiscalImportFile(cestFile, 'cest'),
+  ]);
+  if (!ncmParsed.ok) {
+    throw new Error(ncmParsed.error || invalidImportMessage('ncm'));
+  }
+  if (!cestParsed.ok) {
+    throw new Error(cestParsed.error || invalidImportMessage('cest'));
+  }
 
   const response = await fetch('/api/fiscal-ncms/import', {
     method: 'POST',
@@ -156,7 +182,7 @@ export async function importFiscalNcms(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ncm: ncmParsed.data, cest: cestParsed.data }),
   });
 
   return handleResponse<FiscalNcmImportResult>(response);

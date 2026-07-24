@@ -26,6 +26,7 @@ import { createDepreciationRate } from '@/features/inventory/api/depreciationRat
 import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
 
 interface FormState {
+  description: string;
   ncm: string;
   cest: string;
   chart_of_account_id: string;
@@ -38,6 +39,7 @@ interface FormState {
 }
 
 const initialFormState: FormState = {
+  description: '',
   ncm: '',
   cest: '',
   chart_of_account_id: '',
@@ -52,8 +54,8 @@ const initialFormState: FormState = {
 function validateForm(data: FormState): Record<string, string> {
   const errors: Record<string, string> = {};
 
-  if (!data.ncm.trim()) {
-    errors.ncm = 'NCM é obrigatório';
+  if (!data.description.trim()) {
+    errors.description = 'Descrição é obrigatória';
   }
 
   if (!data.chart_of_account_id) {
@@ -143,7 +145,8 @@ export default function AddDepreciationRatePage() {
       }
 
       const payload: CreateDepreciationRateInput = {
-        ncm: formData.ncm.trim(),
+        description: formData.description.trim(),
+        ncm: formData.ncm.trim() || null,
         chart_of_account_id: formData.chart_of_account_id,
         service_life_years: Number(formData.service_life_years),
         annual_rate: Number(formData.annual_rate),
@@ -224,12 +227,22 @@ export default function AddDepreciationRatePage() {
             <form onSubmit={handleSubmit}>
               <VStack spacing={4}>
                 <SimpleGrid columns={2} spacing={4} width="100%">
-                  <FormControl isRequired isInvalid={!!errors.ncm}>
+                  <FormControl isRequired isInvalid={!!errors.description}>
+                    <FormLabel>Descrição</FormLabel>
+                    <Input
+                      value={formData.description}
+                      onChange={(e) => updateField('description', e.target.value)}
+                      placeholder="Ex: Máquinas automáticas"
+                    />
+                    <FormErrorMessage>{errors.description}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!errors.ncm}>
                     <FormLabel>NCM</FormLabel>
                     <Input
                       value={formData.ncm}
                       onChange={(e) => updateField('ncm', e.target.value)}
-                      placeholder="Ex: 8471.30.12"
+                      placeholder="Opcional — Ex: 8471.30.12"
                     />
                     <FormErrorMessage>{errors.ncm}</FormErrorMessage>
                   </FormControl>

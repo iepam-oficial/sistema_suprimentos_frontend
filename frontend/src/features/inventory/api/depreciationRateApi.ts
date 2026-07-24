@@ -1,11 +1,14 @@
 import type {
   CreateDepreciationRateInput,
+  DepreciationImportResultDTO,
   DepreciationRateDTO,
+  DepreciationSuggestResponse,
   UpdateDepreciationRateInput,
 } from '@ti-assistant/contracts';
 import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
 
 export interface DepreciationRateFilters {
+  q?: string;
   ncm?: string;
   cest?: string;
   chart_of_account_id?: string;
@@ -35,6 +38,7 @@ function authHeaders(token: string, json = false): HeadersInit {
 }
 
 function buildQueryString(params: {
+  q?: string;
   ncm?: string;
   cest?: string;
   chart_of_account_id?: string;
@@ -126,4 +130,34 @@ export async function setActiveDepreciationRate(
     body: JSON.stringify({ active }),
   });
   return handleResponse<DepreciationRateDTO>(response);
+}
+
+export async function suggestDepreciationRates(
+  token: string,
+  ncm: string,
+  cest?: string,
+  onDate?: string
+): Promise<DepreciationRateDTO[]> {
+  const query = buildQueryString({ ncm, cest, onDate });
+  const response = await fetch(`/api/depreciation-rates/suggest${query}`, {
+    headers: authHeaders(token),
+  });
+  const data = await handleResponse<DepreciationSuggestResponse>(response);
+  return Array.isArray(data.rules) ? data.rules : [];
+}
+
+export async function importDepreciationRates(
+  token: string,
+  payload: {
+    rows: unknown[];
+    default_chart_of_account_id: string;
+    effective_from?: string;
+  }
+): Promise<DepreciationImportResultDTO> {
+  const response = await fetch('/api/depreciation-rates/import', {
+    method: 'POST',
+    headers: authHeaders(token, true),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<DepreciationImportResultDTO>(response);
 }

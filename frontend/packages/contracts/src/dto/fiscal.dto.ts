@@ -1,13 +1,26 @@
+export interface FiscalCestEmbedded {
+  code: string;
+  description: string;
+  segmento: string;
+}
+
 export interface FiscalNcmDTO {
   id: string;
   code: string;
   description: string;
   effective_from?: string | null;
-  cest_codes: string[];
+  cests: FiscalCestEmbedded[];
   active: boolean;
   catalog_version_id?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FiscalNcmListResultDTO {
+  items: FiscalNcmDTO[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface CreateFiscalNcmInput {

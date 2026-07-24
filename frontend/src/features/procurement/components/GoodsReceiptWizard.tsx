@@ -150,6 +150,52 @@ function inferInitialStep(receipt: GoodsReceiptDTO): number {
   return 0;
 }
 
+/** Stable key so polling (new array refs) does not reset local draft state. */
+function invoiceLinesSyncKey(receipt: GoodsReceiptDTO): string {
+  return receipt.invoice_lines
+    .map(
+      (l) =>
+        [
+          l.id,
+          l.destination_type,
+          l.supply_id ?? '',
+          l.ai_suggested_supply_id ?? '',
+          l.ai_confidence ?? '',
+          l.description,
+          l.quantity,
+        ].join(':')
+    )
+    .join('|');
+}
+
+function physicalLinesSyncKey(receipt: GoodsReceiptDTO): string {
+  if (receipt.physical_lines.length > 0) {
+    return receipt.physical_lines
+      .map(
+        (l) =>
+          [
+            l.id,
+            l.description,
+            l.quantity_received,
+            l.supply_id ?? '',
+            l.pr_item_id ?? '',
+          ].join(':')
+      )
+      .join('|');
+  }
+
+  const poItems = receipt.purchase_order?.items ?? [];
+  if (poItems.length > 0) {
+    return `po|${poItems
+      .map((item) =>
+        [item.id ?? '', item.description, item.quantity, item.pr_item_id ?? ''].join(':')
+      )
+      .join('|')}`;
+  }
+
+  return 'empty';
+}
+
 export function GoodsReceiptWizard({
   receipt,
   onReceiptUpdated,
@@ -173,6 +219,9 @@ export function GoodsReceiptWizard({
   const mutedColor = useColorModeValue('gray.600', 'gray.400');
   const summaryBg = useColorModeValue('gray.50', 'gray.700');
   const isReadOnly = receipt.status === GoodsReceiptStatus.APPROVED;
+
+  const physicalSyncKey = useMemo(() => physicalLinesSyncKey(receipt), [receipt]);
+  const invoiceSyncKey = useMemo(() => invoiceLinesSyncKey(receipt), [receipt]);
 
   useEffect(() => {
     if (receipt.physical_lines.length > 0) {
@@ -202,13 +251,17 @@ export function GoodsReceiptWizard({
     }
 
     setPhysicalLines([{ key: createClientKey(), description: '', quantity_received: 1 }]);
-  }, [receipt.physical_lines, receipt.purchase_order?.items]);
+    // Sync only when server content changes; ignore new array refs from polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- physicalSyncKey captures relevant fields
+  }, [physicalSyncKey]);
 
   useEffect(() => {
     if (receipt.invoice_lines.length > 0) {
       setClassifications(buildClassificationsFromReceipt(receipt.invoice_lines));
     }
-  }, [receipt.invoice_lines]);
+    // Sync only when server content changes; ignore new array refs from polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- invoiceSyncKey captures relevant fields
+  }, [invoiceSyncKey]);
 
   useEffect(() => {
     const token = localStorage.getItem('@ti-assistant:token');
@@ -235,6 +288,11 @@ export function GoodsReceiptWizard({
         (l) => l.destination_type === ReceiptLineDestination.UNCLASSIFIED
       ).length,
     [receipt.invoice_lines]
+  );
+
+  const draftUnclassifiedCount = useMemo(
+    () => classifications.filter((c) => c.destination_type === 'UNCLASSIFIED').length,
+    [classifications]
   );
 
   const canFinalize = useMemo(() => {
@@ -1151,9 +1209,9 @@ export function GoodsReceiptWizard({
           >
             Buscar sugestões IA de suprimento
           </Button>
-          {unclassifiedCount > 0 && (
+          {draftUnclassifiedCount > 0 && (
             <Text fontSize="sm" color="orange.500">
-              {unclassifiedCount} linha(s) ainda não classificada(s).
+              {draftUnclassifiedCount} linha(s) ainda não classificada(s).
             </Text>
           )}
           <InvoiceLineClassificationTable

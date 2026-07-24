@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Badge,
+  Button,
   Checkbox,
   FormControl,
   FormLabel,
+  HStack,
   Input,
   Select,
   Table,
@@ -17,12 +19,19 @@ import {
   Thead,
   Tr,
   useColorModeValue,
+  useToast,
   VStack,
 } from '@chakra-ui/react';
+import { Plus } from 'lucide-react';
 import type { GoodsReceiptInvoiceLineDTO } from '@ti-assistant/contracts';
 import { ReceiptLineDestination } from '@ti-assistant/contracts';
 import type { CategoryDTO, LocationDTO, SubcategoryDTO } from '@/features/reference-data';
 import { fetchSubcategoriesByCategory } from '@/features/reference-data';
+import { SupplyModal } from '@/features/catalog/components/SupplyModal';
+import { SimilarSupplyAlert } from '@/features/catalog/components/SimilarSupplyAlert';
+import { createSupply } from '@/features/catalog/api/catalogApi';
+import { findSimilarSupplies } from '@/features/catalog/utils/findSimilarSupplies';
+import type { CreateSupplyInput, SupplyDTO } from '@/features/catalog/types';
 import { CatalogItemAutocomplete } from './CatalogItemAutocomplete';
 
 export interface InventoryLineFormData {
@@ -107,9 +116,14 @@ export function InvoiceLineClassificationTable({
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const mutedColor = useColorModeValue('gray.600', 'gray.400');
   const detailBg = useColorModeValue('gray.50', 'gray.700');
+  const toast = useToast();
   const [subcategoriesByCategory, setSubcategoriesByCategory] = useState<
     Record<string, SubcategoryDTO[]>
   >({});
+  const [createModalLineId, setCreateModalLineId] = useState<string | null>(null);
+  const [similarSupplies, setSimilarSupplies] = useState<SupplyDTO[]>([]);
+  const [pendingCreatePayload, setPendingCreatePayload] = useState<CreateSupplyInput | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     if (classifications.length === 0 && lines.length > 0) {
@@ -126,6 +140,49 @@ export function InvoiceLineClassificationTable({
     onChange(
       classifications.map((c) => (c.invoice_line_id === lineId ? { ...c, ...patch } : c))
     );
+  };
+
+  const createModalLine = lines.find((l) => l.id === createModalLineId);
+
+  const closeCreateFlow = () => {
+    setCreateModalLineId(null);
+    setSimilarSupplies([]);
+    setPendingCreatePayload(null);
+  };
+
+  const linkSupplyToLine = (lineId: string, supply: { id: string; name: string }) => {
+    updateLine(lineId, { supply_id: supply.id, supply_label: supply.name });
+  };
+
+  const executeCreate = async (payload: CreateSupplyInput) => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token || !createModalLineId) return;
+    setIsCreating(true);
+    try {
+      const created = await createSupply(token, payload);
+      linkSupplyToLine(createModalLineId, { id: created.id, name: created.name });
+      closeCreateFlow();
+      toast({ title: 'Suprimento criado', status: 'success', duration: 3000, isClosable: true });
+    } catch (err) {
+      throw err; // SupplyModal keeps form aberto
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCreateSubmit = async (payload: CreateSupplyInput) => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    if (!token || !createModalLineId) {
+      toast({ title: 'Sessão inválida', status: 'error', duration: 3000, isClosable: true });
+      return;
+    }
+    const similar = await findSimilarSupplies(token, payload.name);
+    if (similar.length > 0) {
+      setPendingCreatePayload(payload);
+      setSimilarSupplies(similar);
+      return; // mantém SupplyModal aberto atrás do alerta
+    }
+    await executeCreate(payload);
   };
 
   const setDestination = (line: GoodsReceiptInvoiceLineDTO, destination: 'SUPPLY' | 'INVENTORY') => {
@@ -284,21 +341,34 @@ export function InvoiceLineClassificationTable({
                     Sugestão IA ({Math.round(state.ai_confidence * 100)}%) — confirme ou altere
                   </Badge>
                 )}
-                <CatalogItemAutocomplete
-                  value={state.supply_label ?? ''}
-                  isDisabled={disabled}
-                  placeholder="Buscar suprimento no catálogo"
-                  onChange={(value) =>
-                    updateLine(line.id, { supply_label: value, supply_id: undefined })
-                  }
-                  onSelect={(selection) => {
-                    if (!selection.supply_id) return;
-                    updateLine(line.id, {
-                      supply_id: selection.supply_id,
-                      supply_label: selection.description,
-                    });
-                  }}
-                />
+                <HStack align="flex-end" spacing={2}>
+                  <Box flex={1}>
+                    <CatalogItemAutocomplete
+                      value={state.supply_label ?? ''}
+                      isDisabled={disabled}
+                      placeholder="Buscar suprimento no catálogo"
+                      onChange={(value) =>
+                        updateLine(line.id, { supply_label: value, supply_id: undefined })
+                      }
+                      onSelect={(selection) => {
+                        if (!selection.supply_id) return;
+                        updateLine(line.id, {
+                          supply_id: selection.supply_id,
+                          supply_label: selection.description,
+                        });
+                      }}
+                    />
+                  </Box>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<Plus size={16} />}
+                    isDisabled={disabled}
+                    onClick={() => setCreateModalLineId(line.id)}
+                  >
+                    Novo suprimento
+                  </Button>
+                </HStack>
               </FormControl>
             )}
 
@@ -413,6 +483,36 @@ export function InvoiceLineClassificationTable({
           </Box>
         );
       })}
+
+      {createModalLineId && (
+        <SupplyModal
+          isOpen={!!createModalLineId}
+          onClose={closeCreateFlow}
+          onSubmit={handleCreateSubmit}
+          categories={categories}
+          prefill={{ name: createModalLine?.description ?? '' }}
+        />
+      )}
+
+      <SimilarSupplyAlert
+        isOpen={similarSupplies.length > 0 && !!pendingCreatePayload}
+        supplies={similarSupplies}
+        isLoading={isCreating}
+        onSelectExisting={(supply) => {
+          if (!createModalLineId) return;
+          linkSupplyToLine(createModalLineId, { id: supply.id, name: supply.name });
+          closeCreateFlow();
+        }}
+        onContinueCreate={() => {
+          if (!pendingCreatePayload) return;
+          void executeCreate(pendingCreatePayload);
+        }}
+        onCancel={() => {
+          setSimilarSupplies([]);
+          setPendingCreatePayload(null);
+          // mantém SupplyModal aberto
+        }}
+      />
     </Box>
   );
 }

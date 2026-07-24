@@ -38,7 +38,7 @@ import {
     type LocaleDTO,
     type SubcategoryDTO,
 } from '@/features/reference-data';
-import { lookupDepreciationRate } from '@/features/inventory/api/depreciationRateApi';
+import { suggestDepreciationRates } from '@/features/inventory/api/depreciationRateApi';
 import type { DepreciationRateDTO } from '@ti-assistant/contracts';
 import {
     DepreciationConfigFields,
@@ -92,16 +92,18 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
     const [errors, setErrors] = useState<Record<string, string>>({})
     const toast = useToast()
     const [isDepreciable, setIsDepreciable] = useState(false);
-    const [lookedUpRate, setLookedUpRate] = useState<DepreciationRateDTO | null>(null);
-    const [lookupNotFound, setLookupNotFound] = useState(false);
-    const [isLookingUp, setIsLookingUp] = useState(false);
+    const [suggestedRates, setSuggestedRates] = useState<DepreciationRateDTO[]>([]);
+    const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null);
+    const [suggestNotFound, setSuggestNotFound] = useState(false);
+    const [isSuggesting, setIsSuggesting] = useState(false);
     const [applyDepreciationRateId, setApplyDepreciationRateId] = useState<string | null>(null);
     const [appliedSnapshots, setAppliedSnapshots] = useState<AppliedSnapshots | null>(null);
 
     const resetDepreciationSession = () => {
-        setLookedUpRate(null);
-        setLookupNotFound(false);
-        setIsLookingUp(false);
+        setSuggestedRates([]);
+        setSelectedSuggestionId(null);
+        setSuggestNotFound(false);
+        setIsSuggesting(false);
         setApplyDepreciationRateId(null);
         setAppliedSnapshots(null);
     };
@@ -289,12 +291,12 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleLookupDepreciationRate = async () => {
+    const handleSuggestDepreciationRates = async () => {
         const ncm = formData.ncm.trim();
         if (!ncm) {
             toast({
                 title: 'NCM obrigatório',
-                description: 'Informe o NCM para buscar a taxa de depreciação.',
+                description: 'Informe o NCM para sugerir taxas de depreciação.',
                 status: 'warning',
                 duration: 3000,
                 isClosable: true,
@@ -302,9 +304,10 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
             return;
         }
 
-        setIsLookingUp(true);
-        setLookedUpRate(null);
-        setLookupNotFound(false);
+        setIsSuggesting(true);
+        setSuggestedRates([]);
+        setSelectedSuggestionId(null);
+        setSuggestNotFound(false);
 
         try {
             const token = localStorage.getItem('@ti-assistant:token');
@@ -312,12 +315,12 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
 
             const cest = formData.cest.trim() || undefined;
             const onDate = formData.acquisition_date || undefined;
-            const rate = await lookupDepreciationRate(token, ncm, cest, onDate);
+            const rates = await suggestDepreciationRates(token, ncm, cest, onDate);
 
-            if (!rate) {
-                setLookupNotFound(true);
+            if (rates.length === 0) {
+                setSuggestNotFound(true);
                 toast({
-                    title: 'Regra não encontrada',
+                    title: 'Nenhuma regra encontrada',
                     description: 'Nenhuma regra ativa para este NCM/CEST. Preencha os campos manualmente.',
                     status: 'info',
                     duration: 4000,
@@ -326,44 +329,53 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                 return;
             }
 
-            setLookedUpRate(rate);
+            setSuggestedRates(rates);
         } catch (error) {
             toast({
-                title: 'Erro ao buscar taxa',
-                description: error instanceof Error ? error.message : 'Não foi possível buscar a regra.',
+                title: 'Erro ao sugerir taxas',
+                description: error instanceof Error ? error.message : 'Não foi possível buscar sugestões.',
                 status: 'error',
                 duration: 3000,
                 isClosable: true,
             });
         } finally {
-            setIsLookingUp(false);
+            setIsSuggesting(false);
         }
     };
 
     const handleApplyDepreciationRate = () => {
-        if (!lookedUpRate) return;
+        const selectedRate = suggestedRates.find((rate) => rate.id === selectedSuggestionId);
+        if (!selectedRate) {
+            toast({
+                title: 'Selecione uma regra',
+                description: 'Escolha uma sugestão na lista antes de aplicar.',
+                status: 'warning',
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
 
         setFormData((prev) => ({
             ...prev,
-            ncm: lookedUpRate.ncm,
-            cest: lookedUpRate.cest ?? prev.cest,
-            service_life: String(lookedUpRate.service_life_years),
-            annual_rate: String(lookedUpRate.annual_rate),
-            chart_of_account_id: lookedUpRate.chart_of_account_id,
+            service_life: String(selectedRate.service_life_years),
+            annual_rate: String(selectedRate.annual_rate),
+            chart_of_account_id: selectedRate.chart_of_account_id,
             override_reason: '',
         }));
-        setApplyDepreciationRateId(lookedUpRate.id);
+        setApplyDepreciationRateId(selectedRate.id);
         setAppliedSnapshots({
-            rule_annual_rate: lookedUpRate.annual_rate,
-            rule_service_life: lookedUpRate.service_life_years,
-            rule_chart_of_account_id: lookedUpRate.chart_of_account_id,
+            rule_annual_rate: selectedRate.annual_rate,
+            rule_service_life: selectedRate.service_life_years,
+            rule_chart_of_account_id: selectedRate.chart_of_account_id,
         });
-        setLookedUpRate(null);
-        setLookupNotFound(false);
+        setSuggestedRates([]);
+        setSelectedSuggestionId(null);
+        setSuggestNotFound(false);
 
         toast({
             title: 'Regra aplicada',
-            description: 'Campos preenchidos com a taxa encontrada. Você ainda pode editá-los.',
+            description: 'Vida útil, taxa e plano preenchidos. NCM/CEST mantidos do formulário.',
             status: 'success',
             duration: 3000,
             isClosable: true,
@@ -766,11 +778,13 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                                 override_reason: formData.override_reason,
                             }}
                             onChange={handleDepreciationFieldChange}
-                            lookedUpRate={lookedUpRate}
-                            lookupNotFound={lookupNotFound}
-                            isLookingUp={isLookingUp}
+                            suggestedRates={suggestedRates}
+                            selectedSuggestionId={selectedSuggestionId}
+                            onSelectSuggestion={setSelectedSuggestionId}
+                            suggestNotFound={suggestNotFound}
+                            isSuggesting={isSuggesting}
                             appliedSnapshots={appliedSnapshots}
-                            onLookup={handleLookupDepreciationRate}
+                            onSuggest={handleSuggestDepreciationRates}
                             onApplyRate={handleApplyDepreciationRate}
                         />
                         <ButtonGroup w="full" mt={8} display="flex" justifyContent="flex-end">

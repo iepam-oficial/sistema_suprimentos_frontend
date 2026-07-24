@@ -22,6 +22,7 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { SearchIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { ImportDepreciationRatesDialog } from './ImportDepreciationRatesDialog';
 import { DataTable } from '@/components/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import type { DepreciationRateDTO } from '@ti-assistant/contracts';
@@ -55,6 +56,7 @@ export default function DepreciationRatesPage() {
   const [activeFilter, setActiveFilter] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const router = useRouter();
   const toast = useToast();
 
@@ -136,8 +138,13 @@ export default function DepreciationRatesPage() {
 
   const columns: ColumnDef<DepreciationRateDTO>[] = [
     {
+      accessorKey: 'description',
+      header: 'Descrição',
+    },
+    {
       accessorKey: 'ncm',
       header: 'NCM',
+      cell: ({ row }) => row.original.ncm ?? '-',
     },
     {
       accessorKey: 'cest',
@@ -210,13 +217,18 @@ export default function DepreciationRatesPage() {
       <VStack spacing={4} align="stretch">
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Heading size="lg">Taxas de Depreciação</Heading>
-          <Button
-            colorScheme="blue"
-            leftIcon={<AddIcon />}
-            onClick={() => router.push('/depreciation-rates/add')}
-          >
-            Nova Regra
-          </Button>
+          <HStack spacing={2}>
+            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+              Importar JSON
+            </Button>
+            <Button
+              colorScheme="blue"
+              leftIcon={<AddIcon />}
+              onClick={() => router.push('/depreciation-rates/add')}
+            >
+              Nova Regra
+            </Button>
+          </HStack>
         </Box>
 
         <Card>
@@ -276,6 +288,12 @@ export default function DepreciationRatesPage() {
           </CardBody>
         </Card>
       </VStack>
+
+      <ImportDepreciationRatesDialog
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={loadRates}
+      />
     </Box>
   );
 }

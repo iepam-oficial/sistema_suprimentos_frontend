@@ -37,12 +37,13 @@ async function fillCurrencyInput(driver: WebDriver, input: WebElement, value: nu
 }
 
 async function selectPaymentMethod(driver: WebDriver, label: string): Promise<void> {
-  const checkbox = await driver.findElement(
-    By.xpath(`//label[contains(.,'${label}')]/preceding::input[@type='checkbox'][1] | //label[contains(.,'${label}')]//input[@type='checkbox']`),
+  const labelEl = await driver.findElement(
+    By.xpath(`//label[contains(.,'${label}')]`),
   );
+  const checkbox = await labelEl.findElement(By.css('input[type="checkbox"]'));
   const checked = await checkbox.isSelected();
   if (!checked) {
-    await checkbox.click();
+    await labelEl.click();
   }
 }
 
