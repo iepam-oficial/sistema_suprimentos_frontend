@@ -1,5 +1,3 @@
-import type { ChartOfAccountDTO } from './finance.dto';
-
 export const DepreciationMethod = {
   LINEAR: 'LINEAR',
 } as const;
@@ -12,8 +10,6 @@ export interface DepreciationRateDTO {
   description: string;
   ncm?: string | null;
   cest?: string | null;
-  chart_of_account_id?: string | null;
-  chart_of_account?: Pick<ChartOfAccountDTO, 'codigo' | 'nome'> | null;
   service_life_years: number;
   annual_rate: number;
   priority: number;
@@ -28,7 +24,6 @@ export interface CreateDepreciationRateInput {
   description: string;
   ncm?: string | null;
   cest?: string;
-  chart_of_account_id?: string | null;
   service_life_years: number;
   annual_rate: number;
   priority?: number;
@@ -41,7 +36,6 @@ export interface UpdateDepreciationRateInput {
   description?: string;
   ncm?: string | null;
   cest?: string | null;
-  chart_of_account_id?: string | null;
   service_life_years?: number;
   annual_rate?: number;
   priority?: number;
