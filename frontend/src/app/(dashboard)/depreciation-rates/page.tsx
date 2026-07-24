@@ -43,12 +43,6 @@ function formatVigencia(from: string, to?: string | null): string {
   return `${start} — ${formatDate(to)}`;
 }
 
-function formatPlano(rate: DepreciationRateDTO): string {
-  const account = rate.chart_of_account;
-  if (!account) return rate.chart_of_account_id;
-  return `${account.codigo} — ${account.nome}`;
-}
-
 export default function DepreciationRatesPage() {
   const [rates, setRates] = useState<DepreciationRateDTO[]>([]);
   const [ncmInput, setNcmInput] = useState('');
@@ -150,11 +144,6 @@ export default function DepreciationRatesPage() {
       accessorKey: 'cest',
       header: 'CEST',
       cell: ({ row }) => row.original.cest || '-',
-    },
-    {
-      id: 'plano',
-      header: 'Plano',
-      cell: ({ row }) => formatPlano(row.original),
     },
     {
       accessorKey: 'service_life_years',

@@ -8,9 +8,6 @@ import {
   AlertIcon,
   AlertTitle,
   Button,
-  FormControl,
-  FormErrorMessage,
-  FormLabel,
   HStack,
   Modal,
   ModalBody,
@@ -19,7 +16,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Select,
   SimpleGrid,
   Stat,
   StatLabel,
@@ -29,8 +25,6 @@ import {
 } from '@chakra-ui/react';
 import { Upload } from 'lucide-react';
 import type { DepreciationImportResultDTO } from '@ti-assistant/contracts';
-import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
-import type { ChartOfAccount } from '@/features/financeiro/types';
 import { importDepreciationRates } from '@/features/inventory/api/depreciationRateApi';
 import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
 
@@ -76,21 +70,15 @@ export function ImportDepreciationRatesDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([]);
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
-  const [defaultChartOfAccountId, setDefaultChartOfAccountId] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [chartError, setChartError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [result, setResult] = useState<DepreciationImportResultDTO | null>(null);
 
   const resetForm = () => {
-    setDefaultChartOfAccountId('');
     setSelectedFile(null);
     setFileError(null);
-    setChartError(null);
     setImportError(null);
     setResult(null);
     if (fileInputRef.current) {
@@ -100,22 +88,7 @@ export function ImportDepreciationRatesDialog({
 
   useEffect(() => {
     if (!isOpen) return;
-
     resetForm();
-
-    const loadAccounts = async () => {
-      setIsLoadingAccounts(true);
-      try {
-        const accounts = await fetchChartOfAccounts('ATIVO');
-        setChartOfAccounts(accounts);
-      } catch {
-        setImportError('Não foi possível carregar os planos de contas.');
-      } finally {
-        setIsLoadingAccounts(false);
-      }
-    };
-
-    void loadAccounts();
   }, [isOpen]);
 
   const handleClose = () => {
@@ -145,14 +118,8 @@ export function ImportDepreciationRatesDialog({
 
   const handleImport = async () => {
     setImportError(null);
-    setChartError(null);
     setFileError(null);
     setResult(null);
-
-    if (!defaultChartOfAccountId) {
-      setChartError('Plano de contas padrão é obrigatório.');
-      return;
-    }
 
     if (!selectedFile) {
       setFileError('Selecione um arquivo JSON.');
@@ -174,10 +141,7 @@ export function ImportDepreciationRatesDialog({
         throw new Error('O arquivo não contém linhas para importar.');
       }
 
-      const importResult = await importDepreciationRates(token, {
-        rows,
-        default_chart_of_account_id: defaultChartOfAccountId,
-      });
+      const importResult = await importDepreciationRates(token, { rows });
 
       setResult(importResult);
       setSelectedFile(null);
@@ -199,10 +163,7 @@ export function ImportDepreciationRatesDialog({
     }
   };
 
-  const canImport = Boolean(
-    defaultChartOfAccountId && selectedFile && !fileError && !isImporting
-  );
-
+  const canImport = Boolean(selectedFile && !fileError && !isImporting);
   const detailPreview = result?.details?.slice(0, MAX_DETAIL_ROWS) ?? [];
 
   return (
@@ -217,26 +178,6 @@ export function ImportDepreciationRatesDialog({
               Envie um arquivo JSON com as regras de depreciação. O arquivo pode ser um
               array de objetos ou um objeto com o campo <b>rows</b>.
             </Text>
-
-            <FormControl isRequired isInvalid={!!chartError}>
-              <FormLabel>Plano de contas padrão</FormLabel>
-              <Select
-                placeholder="Selecione o plano de contas padrão"
-                value={defaultChartOfAccountId}
-                onChange={(e) => {
-                  setDefaultChartOfAccountId(e.target.value);
-                  setChartError(null);
-                }}
-                isDisabled={isLoadingAccounts || isImporting}
-              >
-                {chartOfAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.codigo} — {account.nome}
-                  </option>
-                ))}
-              </Select>
-              <FormErrorMessage>{chartError}</FormErrorMessage>
-            </FormControl>
 
             <input
               ref={fileInputRef}

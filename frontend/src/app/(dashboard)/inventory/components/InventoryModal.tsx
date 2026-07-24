@@ -119,17 +119,12 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         );
 
     const snapshotsFromItem = (data: any): AppliedSnapshots | null => {
-        if (
-            data?.rule_annual_rate == null &&
-            data?.rule_service_life == null &&
-            data?.rule_chart_of_account_id == null
-        ) {
+        if (data?.rule_annual_rate == null && data?.rule_service_life == null) {
             return null;
         }
         return {
             rule_annual_rate: data.rule_annual_rate != null ? Number(data.rule_annual_rate) : null,
             rule_service_life: data.rule_service_life != null ? Number(data.rule_service_life) : null,
-            rule_chart_of_account_id: data.rule_chart_of_account_id ?? null,
         };
     };
 
@@ -360,14 +355,12 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
             ...prev,
             service_life: String(selectedRate.service_life_years),
             annual_rate: String(selectedRate.annual_rate),
-            chart_of_account_id: selectedRate.chart_of_account_id,
             override_reason: '',
         }));
         setApplyDepreciationRateId(selectedRate.id);
         setAppliedSnapshots({
             rule_annual_rate: selectedRate.annual_rate,
             rule_service_life: selectedRate.service_life_years,
-            rule_chart_of_account_id: selectedRate.chart_of_account_id,
         });
         setSuggestedRates([]);
         setSelectedSuggestionId(null);
@@ -375,7 +368,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
 
         toast({
             title: 'Regra aplicada',
-            description: 'Vida útil, taxa e plano preenchidos. NCM/CEST mantidos do formulário.',
+            description: 'Vida útil e taxa preenchidas. Plano de contas do item permanece inalterado.',
             status: 'success',
             duration: 3000,
             isClosable: true,

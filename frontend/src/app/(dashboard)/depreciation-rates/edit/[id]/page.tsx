@@ -14,7 +14,6 @@ import {
   Heading,
   HStack,
   Input,
-  Select,
   SimpleGrid,
   Spinner,
   Switch,
@@ -23,8 +22,6 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import type { DepreciationRateDTO, UpdateDepreciationRateInput } from '@ti-assistant/contracts';
-import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
-import type { ChartOfAccount } from '@/features/financeiro/types';
 import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
 import {
   fetchDepreciationRateById,
@@ -36,7 +33,6 @@ interface FormState {
   description: string;
   ncm: string;
   cest: string;
-  chart_of_account_id: string;
   service_life_years: string;
   annual_rate: string;
   priority: string;
@@ -54,7 +50,6 @@ function formFromRate(rate: DepreciationRateDTO): FormState {
     description: rate.description,
     ncm: rate.ncm ?? '',
     cest: rate.cest ?? '',
-    chart_of_account_id: rate.chart_of_account_id,
     service_life_years: String(rate.service_life_years),
     annual_rate: String(rate.annual_rate),
     priority: String(rate.priority),
@@ -68,10 +63,6 @@ function validateForm(data: FormState): Record<string, string> {
 
   if (!data.description.trim()) {
     errors.description = 'Descrição é obrigatória';
-  }
-
-  if (!data.chart_of_account_id) {
-    errors.chart_of_account_id = 'Plano de contas é obrigatório';
   }
 
   const serviceLife = Number(data.service_life_years);
@@ -112,7 +103,6 @@ function buildUpdatePayload(formData: FormState): UpdateDepreciationRateInput {
   const payload: UpdateDepreciationRateInput = {
     description: formData.description.trim(),
     ncm: formData.ncm.trim() || null,
-    chart_of_account_id: formData.chart_of_account_id,
     service_life_years: Number(formData.service_life_years),
     annual_rate: Number(formData.annual_rate),
     effective_from: formData.effective_from,
@@ -135,7 +125,6 @@ export default function EditDepreciationRatePage() {
 
   const [formData, setFormData] = useState<FormState | null>(null);
   const [active, setActive] = useState(true);
-  const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -149,14 +138,10 @@ export default function EditDepreciationRatePage() {
         throw new Error('Token não encontrado');
       }
 
-      const [rate, accounts] = await Promise.all([
-        fetchDepreciationRateById(token, id),
-        fetchChartOfAccounts('ATIVO'),
-      ]);
+      const rate = await fetchDepreciationRateById(token, id);
 
       setFormData(formFromRate(rate));
       setActive(rate.active);
-      setChartOfAccounts(accounts);
     } catch (error) {
       if (error instanceof RateLimitError) {
         router.push('/rate-limit');
@@ -350,22 +335,6 @@ export default function EditDepreciationRatePage() {
                       placeholder="Opcional"
                     />
                     <FormErrorMessage>{errors.cest}</FormErrorMessage>
-                  </FormControl>
-
-                  <FormControl isRequired isInvalid={!!errors.chart_of_account_id}>
-                    <FormLabel>Plano de Contas</FormLabel>
-                    <Select
-                      placeholder="Selecione o plano de contas"
-                      value={formData.chart_of_account_id}
-                      onChange={(e) => updateField('chart_of_account_id', e.target.value)}
-                    >
-                      {chartOfAccounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.codigo} — {account.nome}
-                        </option>
-                      ))}
-                    </Select>
-                    <FormErrorMessage>{errors.chart_of_account_id}</FormErrorMessage>
                   </FormControl>
 
                   <FormControl isRequired isInvalid={!!errors.service_life_years}>

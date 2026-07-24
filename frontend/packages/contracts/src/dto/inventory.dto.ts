@@ -47,7 +47,6 @@ export interface InventoryItemDTO {
   override_reason?: string | null;
   rule_service_life?: number | null;
   rule_annual_rate?: number | null;
-  rule_chart_of_account_id?: string | null;
   location?: LocationDTO;
   user?: UserDTO;
   category: CategoryLabelDTO | { label: string };

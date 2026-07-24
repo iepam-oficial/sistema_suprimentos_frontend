@@ -18,7 +18,6 @@ import type { DepreciationRateDTO } from '@ti-assistant/contracts'
 export interface AppliedSnapshots {
     rule_annual_rate: number | null
     rule_service_life: number | null
-    rule_chart_of_account_id: string | null
 }
 
 export interface DepreciationFieldValues {
@@ -51,34 +50,20 @@ function deriveServiceLife(annualRate: number): number {
 }
 
 export function computeDepreciationOverride(
-    values: Pick<DepreciationFieldValues, 'annual_rate' | 'service_life' | 'chart_of_account_id'>,
+    values: Pick<DepreciationFieldValues, 'annual_rate' | 'service_life'>,
     snapshots: AppliedSnapshots | null,
 ): boolean {
     if (!snapshots) return false
 
-    const { rule_annual_rate, rule_service_life, rule_chart_of_account_id } = snapshots
-    if (
-        rule_annual_rate == null &&
-        rule_service_life == null &&
-        rule_chart_of_account_id == null
-    ) {
+    const { rule_annual_rate, rule_service_life } = snapshots
+    if (rule_annual_rate == null && rule_service_life == null) {
         return false
     }
 
     const annualRate = values.annual_rate ? parseFloat(values.annual_rate) : null
     const serviceLife = values.service_life ? parseInt(values.service_life, 10) : null
 
-    return (
-        annualRate !== rule_annual_rate ||
-        serviceLife !== rule_service_life ||
-        (values.chart_of_account_id || null) !== (rule_chart_of_account_id || null)
-    )
-}
-
-function formatPlano(rate: DepreciationRateDTO): string {
-    const account = rate.chart_of_account
-    if (!account) return rate.chart_of_account_id
-    return `${account.codigo} — ${account.nome}`
+    return annualRate !== rule_annual_rate || serviceLife !== rule_service_life
 }
 
 function formatNcmCest(rate: DepreciationRateDTO): string {
@@ -169,7 +154,7 @@ export function DepreciationConfigFields({
 
                     {suggestNotFound && (
                         <Text fontSize="sm" color="orange.600">
-                            Nenhuma regra encontrada para este NCM/CEST. Preencha vida útil, taxa e plano manualmente.
+                            Nenhuma regra encontrada para este NCM/CEST. Preencha vida útil e taxa manualmente.
                         </Text>
                     )}
 
@@ -214,7 +199,6 @@ export function DepreciationConfigFields({
                                             Vida útil: {rate.service_life_years} anos · Taxa anual:{' '}
                                             {rate.annual_rate.toFixed(2)}%
                                         </Text>
-                                        <Text fontSize="sm">Plano: {formatPlano(rate)}</Text>
                                     </Box>
                                 )
                             })}

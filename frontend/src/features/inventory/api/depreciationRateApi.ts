@@ -11,7 +11,6 @@ export interface DepreciationRateFilters {
   q?: string;
   ncm?: string;
   cest?: string;
-  chart_of_account_id?: string;
   active?: boolean;
 }
 
@@ -41,7 +40,6 @@ function buildQueryString(params: {
   q?: string;
   ncm?: string;
   cest?: string;
-  chart_of_account_id?: string;
   active?: boolean;
   onDate?: string;
 }): string {
@@ -150,7 +148,6 @@ export async function importDepreciationRates(
   token: string,
   payload: {
     rows: unknown[];
-    default_chart_of_account_id: string;
     effective_from?: string;
   }
 ): Promise<DepreciationImportResultDTO> {
