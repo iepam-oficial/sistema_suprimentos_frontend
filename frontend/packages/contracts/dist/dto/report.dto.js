@@ -13,7 +13,6 @@ exports.VALID_REPORT_SLUGS = [
     'service-orders',
     'alerts-by-level',
     'supply-requests',
-    'quotes-by-status',
 ];
 function parseReportFilters(query) {
     return {

@@ -13,7 +13,6 @@ export * from './dto/finance.dto';
 export * from './dto/fiscal.dto';
 export * from './dto/reference-data.dto';
 export * from './dto/operations.dto';
-export * from './dto/quote.dto';
 export * from './dto/alert.dto';
 export * from './dto/report.dto';
 export * from './dto/purchase.dto';

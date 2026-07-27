@@ -1,4 +1,4 @@
-export type ReportSlug = 'executive-summary' | 'inventory-overview' | 'supplies-stock' | 'consumption-by-sector' | 'purchases-by-batch' | 'service-orders' | 'alerts-by-level' | 'supply-requests' | 'quotes-by-status';
+export type ReportSlug = 'executive-summary' | 'inventory-overview' | 'supplies-stock' | 'consumption-by-sector' | 'purchases-by-batch' | 'service-orders' | 'alerts-by-level' | 'supply-requests';
 export declare const VALID_REPORT_SLUGS: ReportSlug[];
 export interface ReportFilters {
     timeRange: string;
