@@ -294,6 +294,7 @@ export default function SuppliesPage() {
                     onCreate={handleCreate}
                     onEdit={handleEdit}
                     onNewBatch={onBatchOpen}
+                    onSupplyUpdated={handleInternalCodeGenerated}
                 />
                 {isManager && (
                     <NewBatchModal
