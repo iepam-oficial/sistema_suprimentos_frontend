@@ -45,6 +45,7 @@ import {
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiAlertTriangle, FiPackage } from 'react-icons/fi';
 import { Filter } from 'lucide-react';
 import { SupplyModal } from '@/features/catalog/components/SupplyModal';
+import { SupplyInternalCodeDisplay } from '@/features/catalog/components/SupplyInternalCodeDisplay';
 import { createSupply } from '@/features/catalog/api/catalogApi';
 
 import { NewBatchModal } from './components/NewBatchModal';
@@ -71,9 +72,15 @@ export default function SuppliesPage() {
     const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
     const { user } = useUser();
     const isManager = !!user && ['ADMIN', 'MANAGER'].includes(user.role);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('@ti-assistant:token') : null;
     const { colorMode } = useColorMode();
     const router = useRouter();
     const isMobile = useBreakpointValue({ base: true, md: false });
+
+    const handleInternalCodeGenerated = (updated: Supply) => {
+        setSupplies((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
+        setSelectedSupply((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+    };
 
     const drawerBg = useColorModeValue('white', 'gray.800');
     const drawerBorder = useColorModeValue('gray.200', 'gray.600');
@@ -439,8 +446,33 @@ export default function SuppliesPage() {
                                         bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.4)' : 'gray.50',
                                     }}
                                 >
+                                    <Td
+                                        py={1.5}
+                                        px={2}
+                                        color={colorMode === 'dark' ? 'white' : 'gray.800'}
+                                        fontSize="sm"
+                                        maxW="200px"
+                                    >
+                                        <Box>
+                                            <Text
+                                                color={colorMode === 'dark' ? 'white' : 'gray.800'}
+                                                fontSize="sm"
+                                                isTruncated
+                                            >
+                                                {supply.name}
+                                            </Text>
+                                            {isManager && token && (
+                                                <SupplyInternalCodeDisplay
+                                                    supplyId={supply.id}
+                                                    internalCode={supply.internal_code}
+                                                    token={token}
+                                                    onGenerated={handleInternalCodeGenerated}
+                                                    variant="list"
+                                                />
+                                            )}
+                                        </Box>
+                                    </Td>
                                     {[
-                                        { value: supply.name },
                                         { value: supply.description },
                                         { value: supply.available_quantity },
                                         { value: supply.minimum_quantity },
@@ -575,6 +607,7 @@ export default function SuppliesPage() {
                         onSubmit={selectedSupply ? handleEdit : handleCreate}
                         categories={categories}
                         initialData={selectedSupply || undefined}
+                        onInternalCodeGenerated={handleInternalCodeGenerated}
                     />
                     <NewBatchModal
                         isOpen={isBatchOpen}
