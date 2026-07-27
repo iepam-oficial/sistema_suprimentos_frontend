@@ -128,10 +128,25 @@ export interface SaveInventoryLineInput {
 export interface SaveInventoryLinesInput {
     lines: SaveInventoryLineInput[];
 }
-export type ResolveDiscrepancyAction = 'accept' | 'notify_supplier' | 'acknowledge';
+export type ResolveDiscrepancyAction = 'accept' | 'notify_supplier';
 export interface ResolveDiscrepancyInput {
     action: ResolveDiscrepancyAction;
     justification?: string;
+}
+export interface ResolveDiscrepanciesBatchInput {
+    action: ResolveDiscrepancyAction;
+    discrepancy_ids: string[];
+    justification?: string;
+}
+export interface ResolveDiscrepancyBatchFailure {
+    discrepancy_id: string;
+    code: string;
+    message: string;
+}
+export interface ResolveDiscrepanciesBatchResult {
+    receipt: GoodsReceiptDTO;
+    succeeded_ids: string[];
+    failed: ResolveDiscrepancyBatchFailure[];
 }
 export interface NfeParseLineDTO {
     line_number: number;

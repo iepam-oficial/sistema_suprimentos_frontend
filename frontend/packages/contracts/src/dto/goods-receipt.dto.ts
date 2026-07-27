@@ -150,12 +150,29 @@ export interface SaveInventoryLinesInput {
 
 export type ResolveDiscrepancyAction =
   | 'accept'
-  | 'notify_supplier'
-  | 'acknowledge';
+  | 'notify_supplier';
 
 export interface ResolveDiscrepancyInput {
   action: ResolveDiscrepancyAction;
   justification?: string;
+}
+
+export interface ResolveDiscrepanciesBatchInput {
+  action: ResolveDiscrepancyAction; // 'accept' | 'notify_supplier'
+  discrepancy_ids: string[];
+  justification?: string;
+}
+
+export interface ResolveDiscrepancyBatchFailure {
+  discrepancy_id: string;
+  code: string; // e.g. 'NOT_FOUND' | 'ALREADY_RESOLVED' | 'CRITICAL_NOT_ALLOWED' | 'NOT_IN_RECEIPT' | 'PERSIST_ERROR'
+  message: string;
+}
+
+export interface ResolveDiscrepanciesBatchResult {
+  receipt: GoodsReceiptDTO;
+  succeeded_ids: string[];
+  failed: ResolveDiscrepancyBatchFailure[];
 }
 
 export interface NfeParseLineDTO {

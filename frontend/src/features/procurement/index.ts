@@ -66,6 +66,7 @@ export {
   fetchGoodsReceiptById,
   finalizeGoodsReceipt,
   resolveGoodsReceiptDiscrepancy,
+  resolveGoodsReceiptDiscrepanciesBatch,
   runGoodsReceiptComparison,
   saveInventoryLines,
   savePhysicalLines,

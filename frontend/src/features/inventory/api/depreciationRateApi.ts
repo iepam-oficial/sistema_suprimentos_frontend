@@ -12,6 +12,15 @@ export interface DepreciationRateFilters {
   ncm?: string;
   cest?: string;
   active?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface DepreciationRateListResponse {
+  items: DepreciationRateDTO[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -41,6 +50,8 @@ function buildQueryString(params: {
   ncm?: string;
   cest?: string;
   active?: boolean;
+  page?: number;
+  limit?: number;
   onDate?: string;
 }): string {
   const searchParams = new URLSearchParams();
@@ -55,13 +66,32 @@ function buildQueryString(params: {
 export async function fetchDepreciationRates(
   token: string,
   filters: DepreciationRateFilters = {}
-): Promise<DepreciationRateDTO[]> {
-  const query = buildQueryString(filters);
+): Promise<DepreciationRateListResponse> {
+  const query = buildQueryString({
+    q: filters.q,
+    ncm: filters.ncm,
+    cest: filters.cest,
+    active: filters.active,
+    page: filters.page ?? 1,
+    limit: filters.limit ?? 100,
+  });
   const response = await fetch(`/api/depreciation-rates${query}`, {
     headers: authHeaders(token),
   });
-  const data = await handleResponse<DepreciationRateDTO[]>(response);
-  return Array.isArray(data) ? data : [];
+  const data = await handleResponse<DepreciationRateListResponse | DepreciationRateDTO[]>(
+    response
+  );
+
+  if (Array.isArray(data)) {
+    return { items: data, total: data.length, page: 1, limit: data.length || 100 };
+  }
+
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    total: typeof data.total === 'number' ? data.total : 0,
+    page: typeof data.page === 'number' ? data.page : filters.page ?? 1,
+    limit: typeof data.limit === 'number' ? data.limit : filters.limit ?? 100,
+  };
 }
 
 export async function fetchDepreciationRateById(

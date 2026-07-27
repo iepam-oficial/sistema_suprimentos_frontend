@@ -3,6 +3,8 @@ import type {
   ConfirmInvoiceLinesInput,
   CreateGoodsReceiptInput,
   GoodsReceiptDTO,
+  ResolveDiscrepanciesBatchInput,
+  ResolveDiscrepanciesBatchResult,
   ResolveDiscrepancyInput,
   SaveInventoryLinesInput,
   SavePhysicalLinesInput,
@@ -173,6 +175,22 @@ export async function resolveGoodsReceiptDiscrepancy(
     }
   );
   return handleResponse<GoodsReceiptDTO>(response);
+}
+
+export async function resolveGoodsReceiptDiscrepanciesBatch(
+  token: string,
+  receiptId: string,
+  input: ResolveDiscrepanciesBatchInput
+): Promise<ResolveDiscrepanciesBatchResult> {
+  const response = await fetch(
+    `/api/goods-receipts/${encodeURIComponent(receiptId)}/discrepancies/resolve-batch`,
+    {
+      method: 'POST',
+      headers: jsonHeaders(token),
+      body: JSON.stringify(input),
+    }
+  );
+  return handleResponse<ResolveDiscrepanciesBatchResult>(response);
 }
 
 export async function directorApproveGoodsReceipt(

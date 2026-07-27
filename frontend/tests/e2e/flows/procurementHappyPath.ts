@@ -120,6 +120,20 @@ async function fillInlineSupplyCreate(driver: WebDriver): Promise<string> {
   }, 30000);
 
   await waitForText(driver, uniqueName, 15000);
+
+  // Feedback visual: linha vinculada mostra check e esconde "Novo suprimento".
+  await driver.wait(async () => {
+    const linkedChecks = await driver.findElements(
+      By.xpath("//*[@aria-label='Suprimento vinculado']"),
+    );
+    return linkedChecks.length > 0;
+  }, 15000);
+
+  const createButtons = await driver.findElements(
+    By.xpath("//button[contains(.,'Novo suprimento')]"),
+  );
+  expect(createButtons.length).toBe(0);
+
   return uniqueName;
 }
 
@@ -133,6 +147,8 @@ export async function runGoodsReceipt(
     expectCriticalBlocked?: boolean;
     /** When true, creates a new supply via "Novo suprimento" during classification. */
     inlineCreateSupply?: boolean;
+    /** Stop on Divergências step without logout (for follow-up UI assertions). */
+    stopAtDiscrepancies?: boolean;
   },
 ): Promise<string> {
   let goodsReceiptId = '';
@@ -168,6 +184,11 @@ export async function runGoodsReceipt(
     await clickByText(driver, 'Salvar classificação e comparar');
 
     await clickByText(driver, 'Divergências');
+
+    if (options.stopAtDiscrepancies) {
+      await waitForText(driver, 'selecionadas');
+      return;
+    }
 
     if (options.expectCriticalBlocked) {
       await waitForText(driver, 'Crítica');

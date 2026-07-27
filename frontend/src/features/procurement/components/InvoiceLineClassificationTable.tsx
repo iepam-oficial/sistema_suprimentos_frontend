@@ -52,6 +52,15 @@ export interface LineClassificationState {
   inventory?: InventoryLineFormData;
 }
 
+type SupplyLineVisualState = 'none' | 'incomplete' | 'complete';
+
+function getSupplyLineVisualState(
+  state: LineClassificationState | undefined
+): SupplyLineVisualState {
+  if (!state || state.destination_type !== 'SUPPLY') return 'none';
+  return state.supply_id?.trim() ? 'complete' : 'incomplete';
+}
+
 interface InvoiceLineClassificationTableProps {
   lines: GoodsReceiptInvoiceLineDTO[];
   classifications: LineClassificationState[];
@@ -116,6 +125,15 @@ export function InvoiceLineClassificationTable({
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const mutedColor = useColorModeValue('gray.600', 'gray.400');
   const detailBg = useColorModeValue('gray.50', 'gray.700');
+  const completeBg = useColorModeValue('green.50', 'green.900');
+  const incompleteBg = useColorModeValue('yellow.50', 'yellow.900');
+  const warningColor = useColorModeValue('yellow.700', 'yellow.200');
+
+  const bgForVisualState = (visual: SupplyLineVisualState): string | undefined => {
+    if (visual === 'complete') return completeBg;
+    if (visual === 'incomplete') return incompleteBg;
+    return undefined;
+  };
   const toast = useToast();
   const [subcategoriesByCategory, setSubcategoriesByCategory] = useState<
     Record<string, SubcategoryDTO[]>
@@ -273,9 +291,10 @@ export function InvoiceLineClassificationTable({
             const state = classificationById.get(line.id);
             const isSupply = state?.destination_type === 'SUPPLY';
             const isInventory = state?.destination_type === 'INVENTORY';
+            const visualState = getSupplyLineVisualState(state);
 
             return (
-              <Tr key={line.id}>
+              <Tr key={line.id} bg={bgForVisualState(visualState)}>
                 <Td>{line.line_number}</Td>
                 <Td maxW="240px">
                   <Text fontSize="sm" noOfLines={2}>
@@ -321,13 +340,15 @@ export function InvoiceLineClassificationTable({
         const state = classificationById.get(line.id);
         if (!state || state.destination_type === 'UNCLASSIFIED') return null;
 
+        const visualState = getSupplyLineVisualState(state);
+
         return (
           <Box
             key={`detail-${line.id}`}
             p={4}
             borderTopWidth="1px"
             borderColor={borderColor}
-            bg={detailBg}
+            bg={bgForVisualState(visualState) ?? detailBg}
           >
             <Text fontSize="sm" fontWeight="semibold" mb={3}>
               Linha {line.line_number}: {line.description}
@@ -346,6 +367,7 @@ export function InvoiceLineClassificationTable({
                     <CatalogItemAutocomplete
                       value={state.supply_label ?? ''}
                       isDisabled={disabled}
+                      isLinked={visualState === 'complete'}
                       placeholder="Buscar suprimento no catálogo"
                       onChange={(value) =>
                         updateLine(line.id, { supply_label: value, supply_id: undefined })
@@ -359,16 +381,23 @@ export function InvoiceLineClassificationTable({
                       }}
                     />
                   </Box>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    leftIcon={<Plus size={16} />}
-                    isDisabled={disabled}
-                    onClick={() => setCreateModalLineId(line.id)}
-                  >
-                    Novo suprimento
-                  </Button>
+                  {visualState === 'incomplete' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      leftIcon={<Plus size={16} />}
+                      isDisabled={disabled}
+                      onClick={() => setCreateModalLineId(line.id)}
+                    >
+                      Novo suprimento
+                    </Button>
+                  )}
                 </HStack>
+                {visualState === 'incomplete' && (
+                  <Text fontSize="xs" color={warningColor} mt={2}>
+                    Vincule um suprimento do catálogo.
+                  </Text>
+                )}
               </FormControl>
             )}
 
