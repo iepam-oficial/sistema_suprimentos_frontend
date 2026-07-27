@@ -41,4 +41,23 @@ describe('postLoginRedirect', () => {
       resolvePostLoginPath('DIRECTOR', { from: '/dashboard' }),
     ).toBe('/procurement/aprovacoes-sc')
   })
+
+  it('does not honor ?from=/quotes; falls back to role default', () => {
+    expect(resolvePostLoginPath('ADMIN', { from: '/quotes' })).toBe('/dashboard')
+    expect(resolvePostLoginPath('DIRECTOR', { from: '/quotes' })).toBe(
+      '/procurement/aprovacoes-sc',
+    )
+    expect(resolvePostLoginPath('COORDINATOR', { from: '/quotes' })).toBe(
+      '/procurement/solicitacoes',
+    )
+    expect(resolvePostLoginPath('EMPLOYEE', { from: '/quotes' })).toBe(
+      '/supply-requests',
+    )
+    expect(resolvePostLoginPath('TECHNICIAN', { from: '/quotes' })).toBe(
+      '/supply-requests',
+    )
+    expect(resolvePostLoginPath('SUPPORT', { from: '/quotes' })).toBe(
+      '/support-tickets',
+    )
+  })
 })
