@@ -30,6 +30,7 @@ import type { ChartOfAccount } from '@/features/financeiro/types';
 import { handleImageChange } from '@/utils/imageUtils';
 import { Image as ImageIcon } from 'lucide-react';
 import { ImageSourceDialog } from '@/features/catalog/components/ImageSourceDialog';
+import { SupplyInternalCodeDisplay } from '@/features/catalog/components/SupplyInternalCodeDisplay';
 import { fetchSubcategoriesByCategory, type CategoryDTO, type SubcategoryDTO } from '@/features/reference-data';
 
 interface SupplyModalProps {
@@ -43,6 +44,7 @@ interface SupplyModalProps {
         name?: string;
         description?: string;
     };
+    onInternalCodeGenerated?: (supply: Supply) => void;
 }
 
 function buildCreateFormData(prefill?: SupplyModalProps['prefill']) {
@@ -54,7 +56,7 @@ function buildCreateFormData(prefill?: SupplyModalProps['prefill']) {
     };
 }
 
-export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData, prefill }: SupplyModalProps) {
+export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData, prefill, onInternalCodeGenerated }: SupplyModalProps) {
     const [units, setUnits] = useState<{ id: string; name: string; symbol: string }[]>([]);
     const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([]);
     const [formData, setFormData] = useState<{ [key: string]: string | number }>(
@@ -64,11 +66,13 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
     const [previewUrl, setPreviewUrl] = useState<string>('');
     const [subcategories, setSubcategories] = useState<SubcategoryDTO[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [internalCode, setInternalCode] = useState(initialData?.internal_code ?? null);
     const toast = useToast();
     const inputFileRef = useRef<HTMLInputElement | null>(null);
     const [fileCapture, setFileCapture] = useState<'environment' | 'user' | undefined>(undefined);
     const [showImageChoice, setShowImageChoice] = useState(false);
     const leastDestructiveRef = useRef<HTMLButtonElement>(null);
+    const authToken = typeof window !== 'undefined' ? localStorage.getItem('@ti-assistant:token') || '' : '';
 
     const loadSubcategories = useCallback(async (categoryId: string) => {
         if (!categoryId) {
@@ -88,6 +92,7 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
     useEffect(() => {
         if (initialData) {
             setFormData(initializeFormData(initialData));
+            setInternalCode(initialData.internal_code ?? null);
             if (initialData.image_url) {
                 setPreviewUrl(initialData.image_url);
             }
@@ -96,6 +101,7 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
             }
         } else {
             setFormData(buildCreateFormData(prefill));
+            setInternalCode(null);
             setPreviewUrl('');
             setSubcategories([]);
         }
@@ -226,6 +232,21 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
                                     placeholder="Descrição do suprimento"
                                 />
                             </FormControl>
+
+                            {initialData && authToken && (
+                                <Box gridColumn="1 / -1">
+                                    <SupplyInternalCodeDisplay
+                                        supplyId={initialData.id}
+                                        internalCode={internalCode}
+                                        token={authToken}
+                                        variant="modal"
+                                        onGenerated={(dto) => {
+                                            setInternalCode(dto.internal_code ?? null);
+                                            onInternalCodeGenerated?.(dto as Supply);
+                                        }}
+                                    />
+                                </Box>
+                            )}
 
                             <FormControl isRequired gridColumn={{ base: 'auto', md: '1' }}>
                                 <FormLabel>Quantidade Mínima</FormLabel>
