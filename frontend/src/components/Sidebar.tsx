@@ -15,7 +15,6 @@ import {
   Package,
   ShoppingCart,
   Timer,
-  FileText,
   ChevronDown,
   ChevronRight,
   Search,
@@ -194,7 +193,6 @@ function useSidebarMenuModel() {
   ];
 
   const financeiroItems: NavItem[] = [
-    { icon: FileText, label: 'Cotações', href: '/quotes' },
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Timer, label: 'Gastos Extras', href: '/extra-expenses' }]
       : []),
