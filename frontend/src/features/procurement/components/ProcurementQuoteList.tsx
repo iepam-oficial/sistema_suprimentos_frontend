@@ -130,7 +130,9 @@ export function ProcurementQuoteList({
           <option value="">Todos</option>
           <option value="DRAFT">Rascunho</option>
           <option value="SENT">Enviada</option>
-          <option value="CLOSED">Encerrada</option>
+          <option value="AWAITING_APPROVAL">
+            {procurementQuoteStatusLabel('AWAITING_APPROVAL')}
+          </option>
           <option value="APPROVED">Aprovada</option>
           <option value="REJECTED">Rejeitada</option>
           <option value="CANCELLED">Cancelada</option>

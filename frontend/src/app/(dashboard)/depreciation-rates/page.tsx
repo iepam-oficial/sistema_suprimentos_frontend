@@ -9,19 +9,25 @@ import {
   CardBody,
   CardHeader,
   Heading,
+  HStack,
+  IconButton,
   Input,
   InputGroup,
   InputRightElement,
-  VStack,
   Select,
-  Badge,
-  Text,
-  HStack,
-  IconButton,
   Switch,
+  Text,
+  Tooltip,
+  VStack,
   useToast,
 } from '@chakra-ui/react';
-import { SearchIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import {
+  SearchIcon,
+  EditIcon,
+  AddIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@chakra-ui/icons';
 import { DataTable } from '@/components/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import type { DepreciationRateDTO } from '@ti-assistant/contracts';
@@ -30,6 +36,14 @@ import {
   setActiveDepreciationRate,
 } from '@/features/inventory/api/depreciationRateApi';
 import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
+import { DepreciationRatesImportPanel } from './DepreciationRatesImportPanel';
+
+function formatNcmDisplay(code?: string | null): string {
+  if (!code) return '-';
+  const digits = code.replace(/\D/g, '');
+  if (digits.length !== 8) return code;
+  return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`;
+}
 
 function formatDate(value?: string | null): string {
   if (!value) return '-';
@@ -42,17 +56,14 @@ function formatVigencia(from: string, to?: string | null): string {
   return `${start} — ${formatDate(to)}`;
 }
 
-function formatPlano(rate: DepreciationRateDTO): string {
-  const account = rate.chart_of_account;
-  if (!account) return rate.chart_of_account_id;
-  return `${account.codigo} — ${account.nome}`;
-}
-
 export default function DepreciationRatesPage() {
   const [rates, setRates] = useState<DepreciationRateDTO[]>([]);
-  const [ncmInput, setNcmInput] = useState('');
-  const [appliedNcm, setAppliedNcm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(100);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const router = useRouter();
@@ -66,9 +77,17 @@ export default function DepreciationRatesPage() {
         throw new Error('Token não encontrado');
       }
 
-      const filters: { ncm?: string; active?: boolean } = {};
-      if (appliedNcm.trim()) {
-        filters.ncm = appliedNcm.trim();
+      const filters: {
+        q?: string;
+        active?: boolean;
+        page: number;
+        limit: number;
+      } = {
+        page,
+        limit,
+      };
+      if (appliedSearch.trim()) {
+        filters.q = appliedSearch.trim();
       }
       if (activeFilter === 'true') {
         filters.active = true;
@@ -77,7 +96,11 @@ export default function DepreciationRatesPage() {
       }
 
       const data = await fetchDepreciationRates(token, filters);
-      setRates(data);
+      setRates(data.items);
+      setTotal(data.total);
+      if (data.page !== page) {
+        setPage(data.page);
+      }
     } catch (error) {
       if (error instanceof RateLimitError) {
         router.push('/rate-limit');
@@ -93,11 +116,30 @@ export default function DepreciationRatesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilter, appliedNcm, router, toast]);
+  }, [activeFilter, appliedSearch, limit, page, router, toast]);
 
   useEffect(() => {
     loadRates();
   }, [loadRates]);
+
+  const applySearch = () => {
+    setPage(1);
+    setAppliedSearch(searchInput);
+  };
+
+  const handleActiveFilterChange = (value: string) => {
+    setPage(1);
+    setActiveFilter(value);
+  };
+
+  const handleLimitChange = (value: string) => {
+    setPage(1);
+    setLimit(Number(value) || 100);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const rangeFrom = total === 0 ? 0 : (page - 1) * limit + 1;
+  const rangeTo = Math.min(page * limit, total);
 
   const handleToggleActive = async (rate: DepreciationRateDTO) => {
     setTogglingId(rate.id);
@@ -124,7 +166,10 @@ export default function DepreciationRatesPage() {
       }
       toast({
         title: 'Erro',
-        description: 'Não foi possível alterar o status da regra.',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível alterar o status da regra.',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -136,70 +181,100 @@ export default function DepreciationRatesPage() {
 
   const columns: ColumnDef<DepreciationRateDTO>[] = [
     {
+      accessorKey: 'description',
+      header: 'Descrição',
+      cell: ({ row }) => {
+        const description = row.original.description;
+        return (
+          <Tooltip label={description} hasArrow openDelay={300}>
+            <Text fontSize="sm" noOfLines={1} maxW="100%" cursor="default">
+              {description}
+            </Text>
+          </Tooltip>
+        );
+      },
+    },
+    {
       accessorKey: 'ncm',
       header: 'NCM',
+      size: 110,
+      cell: ({ row }) => (
+        <Text fontSize="sm" whiteSpace="nowrap">
+          {formatNcmDisplay(row.original.ncm)}
+        </Text>
+      ),
     },
     {
       accessorKey: 'cest',
       header: 'CEST',
-      cell: ({ row }) => row.original.cest || '-',
-    },
-    {
-      id: 'plano',
-      header: 'Plano',
-      cell: ({ row }) => formatPlano(row.original),
+      size: 90,
+      cell: ({ row }) => (
+        <Text fontSize="sm" color={row.original.cest ? undefined : 'gray.400'}>
+          {row.original.cest || '-'}
+        </Text>
+      ),
     },
     {
       accessorKey: 'service_life_years',
       header: 'Vida útil',
-      cell: ({ row }) => `${row.original.service_life_years} anos`,
+      size: 80,
+      cell: ({ row }) => (
+        <Text fontSize="sm" whiteSpace="nowrap">
+          {row.original.service_life_years} anos
+        </Text>
+      ),
     },
     {
       accessorKey: 'annual_rate',
       header: 'Taxa',
-      cell: ({ row }) => `${row.original.annual_rate.toFixed(2)}%`,
+      size: 70,
+      cell: ({ row }) => (
+        <Text fontSize="sm" whiteSpace="nowrap">
+          {row.original.annual_rate.toFixed(2)}%
+        </Text>
+      ),
     },
     {
       accessorKey: 'priority',
       header: 'Prioridade',
+      size: 80,
+      cell: ({ row }) => <Text fontSize="sm">{row.original.priority}</Text>,
     },
     {
       id: 'vigencia',
       header: 'Vigência',
-      cell: ({ row }) =>
-        formatVigencia(row.original.effective_from, row.original.effective_to),
+      size: 140,
+      cell: ({ row }) => (
+        <Text fontSize="sm" whiteSpace="nowrap">
+          {formatVigencia(row.original.effective_from, row.original.effective_to)}
+        </Text>
+      ),
     },
     {
       accessorKey: 'active',
       header: 'Ativo',
+      size: 70,
       cell: ({ row }) => (
-        <HStack spacing={3}>
-          <Badge colorScheme={row.original.active ? 'green' : 'gray'}>
-            {row.original.active ? 'Sim' : 'Não'}
-          </Badge>
-          <Switch
-            aria-label={
-              row.original.active ? 'Desativar regra' : 'Ativar regra'
-            }
-            isChecked={row.original.active}
-            isDisabled={togglingId === row.original.id}
-            onChange={() => handleToggleActive(row.original)}
-          />
-        </HStack>
+        <Switch
+          size="sm"
+          aria-label={row.original.active ? 'Desativar regra' : 'Ativar regra'}
+          isChecked={row.original.active}
+          isDisabled={togglingId === row.original.id}
+          onChange={() => handleToggleActive(row.original)}
+        />
       ),
     },
     {
       id: 'actions',
       header: 'Ações',
+      size: 60,
       cell: ({ row }) => (
         <IconButton
           aria-label="Editar regra"
           icon={<EditIcon />}
           size="sm"
           variant="ghost"
-          onClick={() =>
-            router.push(`/depreciation-rates/edit/${row.original.id}`)
-          }
+          onClick={() => router.push(`/depreciation-rates/edit/${row.original.id}`)}
         />
       ),
     },
@@ -219,6 +294,17 @@ export default function DepreciationRatesPage() {
           </Button>
         </Box>
 
+        <DepreciationRatesImportPanel
+          onImported={() => {
+            if (page === 1) {
+              void loadRates();
+            } else {
+              setPage(1);
+            }
+          }}
+          onRateLimited={() => router.push('/rate-limit')}
+        />
+
         <Card>
           <CardHeader>
             <Heading size="md">Buscar e Filtrar</Heading>
@@ -227,14 +313,14 @@ export default function DepreciationRatesPage() {
             <VStack spacing={4} align="stretch">
               <InputGroup>
                 <Input
-                  placeholder="Filtrar por NCM..."
-                  value={ncmInput}
+                  placeholder="Filtrar por NCM ou descrição..."
+                  value={searchInput}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setNcmInput(e.target.value)
+                    setSearchInput(e.target.value)
                   }
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      setAppliedNcm(ncmInput);
+                      applySearch();
                     }
                   }}
                 />
@@ -243,7 +329,7 @@ export default function DepreciationRatesPage() {
                     colorScheme="blue"
                     size="sm"
                     leftIcon={<SearchIcon />}
-                    onClick={() => setAppliedNcm(ncmInput)}
+                    onClick={applySearch}
                     isLoading={isLoading}
                   >
                     Buscar
@@ -253,7 +339,7 @@ export default function DepreciationRatesPage() {
               <Select
                 placeholder="Filtrar por status"
                 value={activeFilter}
-                onChange={(e) => setActiveFilter(e.target.value)}
+                onChange={(e) => handleActiveFilterChange(e.target.value)}
                 maxW="300px"
               >
                 <option value="true">Ativas</option>
@@ -271,7 +357,76 @@ export default function DepreciationRatesPage() {
             {rates.length === 0 && !isLoading ? (
               <Text color="gray.500">Nenhuma regra encontrada.</Text>
             ) : (
-              <DataTable columns={columns} data={rates} />
+              <VStack spacing={4} align="stretch" maxW="100%">
+                <Box
+                  maxW="100%"
+                  overflowX="hidden"
+                  sx={{
+                    '& .chakra-table__container': {
+                      overflowX: 'hidden',
+                      maxW: '100%',
+                    },
+                    '& table': {
+                      tableLayout: 'fixed',
+                      width: '100%',
+                    },
+                    '& th, & td': {
+                      px: 2,
+                      py: 1.5,
+                      fontSize: 'sm',
+                      overflow: 'hidden',
+                    },
+                    '& th:nth-of-type(1), & td:nth-of-type(1)': { width: '24%' },
+                    '& th:nth-of-type(2), & td:nth-of-type(2)': { width: '11%' },
+                    '& th:nth-of-type(3), & td:nth-of-type(3)': { width: '9%' },
+                    '& th:nth-of-type(4), & td:nth-of-type(4)': { width: '9%' },
+                    '& th:nth-of-type(5), & td:nth-of-type(5)': { width: '8%' },
+                    '& th:nth-of-type(6), & td:nth-of-type(6)': { width: '8%' },
+                    '& th:nth-of-type(7), & td:nth-of-type(7)': { width: '15%' },
+                    '& th:nth-of-type(8), & td:nth-of-type(8)': { width: '8%' },
+                    '& th:nth-of-type(9), & td:nth-of-type(9)': { width: '8%' },
+                  }}
+                >
+                  <DataTable columns={columns} data={rates} />
+                </Box>
+                <HStack justify="space-between" flexWrap="wrap" spacing={4}>
+                  <Text fontSize="sm" color="gray.600">
+                    Mostrando {rangeFrom}–{rangeTo} de {total}
+                  </Text>
+                  <HStack spacing={3}>
+                    <Select
+                      size="sm"
+                      maxW="110px"
+                      value={String(limit)}
+                      onChange={(e) => handleLimitChange(e.target.value)}
+                      aria-label="Itens por página"
+                    >
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                    </Select>
+                    <Button
+                      size="sm"
+                      leftIcon={<ChevronLeftIcon />}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      isDisabled={page <= 1 || isLoading}
+                    >
+                      Anterior
+                    </Button>
+                    <Text fontSize="sm" minW="80px" textAlign="center">
+                      {page} / {totalPages}
+                    </Text>
+                    <Button
+                      size="sm"
+                      rightIcon={<ChevronRightIcon />}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      isDisabled={page >= totalPages || isLoading}
+                    >
+                      Próxima
+                    </Button>
+                  </HStack>
+                </HStack>
+              </VStack>
             )}
           </CardBody>
         </Card>

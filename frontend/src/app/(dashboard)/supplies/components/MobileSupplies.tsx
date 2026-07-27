@@ -27,13 +27,15 @@ import {
 import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiAlertTriangle, FiPackage } from 'react-icons/fi';
 import { Supply } from '../utils/types';
 import type { SupplyVisibilityFilter } from '../utils/filterUtils';
-import { SupplyModal } from '../components/SupplyModal';
+import { SupplyModal } from '@/features/catalog/components/SupplyModal';
+import { SupplyInternalCodeDisplay } from '@/features/catalog/components/SupplyInternalCodeDisplay';
 import { useState } from 'react';
 import type { CreateSupplyInput } from '@/features/catalog/types';
+import type { CategoryDTO } from '@/features/reference-data';
 
 interface MobileSuppliesProps {
     supplies: Supply[];
-    categories: { id: string; label: string }[];
+    categories: CategoryDTO[];
     isManager?: boolean;
     onSearch: (term: string) => void;
     selectedCategory: string;
@@ -46,6 +48,8 @@ interface MobileSuppliesProps {
     onCreate: (data: CreateSupplyInput) => void;
     onEdit: (data: CreateSupplyInput) => void;
     onNewBatch?: () => void;
+    /** Parent should merge the updated supply into its list (T6 wiring). */
+    onSupplyUpdated?: (supply: Supply) => void;
 }
 
 export function MobileSupplies({
@@ -63,14 +67,28 @@ export function MobileSupplies({
     onCreate,
     onEdit,
     onNewBatch,
+    onSupplyUpdated,
 }: MobileSuppliesProps) {
     const { colorMode } = useColorMode();
     const { isOpen, onOpen, onClose } = useDisclosure();
     const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
     const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
+    const [codeOverrides, setCodeOverrides] = useState<Record<string, string>>({});
+    const token = typeof window !== 'undefined' ? localStorage.getItem('@ti-assistant:token') : null;
+
+    const handleInternalCodeGenerated = (updated: Supply) => {
+        if (updated.internal_code) {
+            setCodeOverrides((prev) => ({ ...prev, [updated.id]: updated.internal_code as string }));
+        }
+        setSelectedSupply((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+        onSupplyUpdated?.(updated);
+    };
 
     const handleOpenEdit = (supply: Supply) => {
-        setSelectedSupply(supply);
+        setSelectedSupply({
+            ...supply,
+            internal_code: codeOverrides[supply.id] ?? supply.internal_code,
+        });
         onOpen();
     };
 
@@ -158,6 +176,15 @@ export function MobileSupplies({
                                         <Text fontWeight="semibold" fontSize="sm" noOfLines={1} color={colorMode === 'dark' ? 'white' : 'gray.800'}>
                                             {supply.name}
                                         </Text>
+                                        {isManager && token && (
+                                            <SupplyInternalCodeDisplay
+                                                supplyId={supply.id}
+                                                internalCode={codeOverrides[supply.id] ?? supply.internal_code}
+                                                token={token}
+                                                onGenerated={handleInternalCodeGenerated}
+                                                variant="list"
+                                            />
+                                        )}
                                         {supply.description && (
                                             <Text fontSize="xs" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'} noOfLines={2} mt={0.5}>
                                                 {supply.description}
@@ -273,6 +300,7 @@ export function MobileSupplies({
                     onSubmit={selectedSupply ? onEdit : onCreate}
                     categories={categories}
                     initialData={selectedSupply || undefined}
+                    onInternalCodeGenerated={handleInternalCodeGenerated}
                 />
             )}
         </Box>

@@ -40,7 +40,6 @@ export type { PurchaseRequestListFilters } from './api/purchaseRequestApi';
 export {
   approveProcurementQuote,
   closeProcurementQuote,
-  CloseQuotePendingReviewError,
   createProcurementQuote,
   fetchProcurementQuoteById,
   fetchProcurementQuoteEvents,
@@ -49,11 +48,9 @@ export {
   markProposalReviewOk,
   requestProposalCorrection,
   sendProcurementQuote,
+  setQuoteSelectedPaymentMethod,
 } from './api/procurementQuoteApi';
-export type {
-  CloseQuotePendingSupplier,
-  ProcurementQuoteEventDTO,
-} from './api/procurementQuoteApi';
+export type { ProcurementQuoteEventDTO } from './api/procurementQuoteApi';
 
 export {
   createPurchaseOrder,
@@ -69,6 +66,7 @@ export {
   fetchGoodsReceiptById,
   finalizeGoodsReceipt,
   resolveGoodsReceiptDiscrepancy,
+  resolveGoodsReceiptDiscrepanciesBatch,
   runGoodsReceiptComparison,
   saveInventoryLines,
   savePhysicalLines,
@@ -99,7 +97,6 @@ export { QuoteTimelineDrawer } from './components/QuoteTimelineDrawer';
 export { ProposalPdfPreviewDrawer } from './components/ProposalPdfPreviewDrawer';
 export { ProposalCorrectionModal } from './components/ProposalCorrectionModal';
 export { ProposalReviewHistoryDrawer } from './components/ProposalReviewHistoryDrawer';
-export { CloseQuoteConfirmModal } from './components/CloseQuoteConfirmModal';
 export {
   getReviewBadge,
   getReviewBadgeLabel,

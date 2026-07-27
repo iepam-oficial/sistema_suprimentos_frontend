@@ -240,6 +240,7 @@ describe('compareDocuments', () => {
 
     expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'SC', field: 'product' })).toBe(true);
     const productDisc = result.find((d) => d.layer === 'SC' && d.field === 'product');
+    expect(productDisc?.expected_value).toBe('não consta na SC');
     expect(productDisc?.actual_value).toBe('Produto não solicitado');
   });
 
@@ -268,6 +269,9 @@ describe('compareDocuments', () => {
     expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'PHYSICAL', field: 'product' })).toBe(
       true,
     );
+    const productDisc = result.find((d) => d.layer === 'PHYSICAL' && d.field === 'product');
+    expect(productDisc?.expected_value).toBe('Produto não na NF');
+    expect(productDisc?.actual_value).toBe('não encontrado na NF');
   });
 
   it('returns only PHYSICAL divergence when NF matches PO but physical qty differs', () => {
@@ -282,5 +286,170 @@ describe('compareDocuments', () => {
     );
     expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'PO', field: 'quantity' })).toBe(false);
     expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'SC', field: 'quantity' })).toBe(false);
+  });
+
+  it('does not flag CRITICAL product when catalog names differ from NF but qty/price align', () => {
+    const input = baseInput({
+      purchaseRequestItems: [
+        { description: 'Cooler 775/1150/1155/1156/1151 DX C1', quantity: 2 },
+        { description: 'Memória DDR4 8GB', quantity: 4 },
+      ],
+      quoteProposal: {
+        total_value: 600,
+        freight: 0,
+        taxes: 0,
+        items: [
+          {
+            description: 'Cooler 775/1150/1155/1156/1151 DX C1',
+            quantity: 2,
+            unit_price: 50,
+            total_price: 100,
+          },
+          {
+            description: 'Memória DDR4 8GB',
+            quantity: 4,
+            unit_price: 125,
+            total_price: 500,
+          },
+        ],
+      },
+      purchaseOrder: {
+        supplier_name: 'Ferramentas ABC Ltda',
+        items: [
+          {
+            description: 'Cooler 775/1150/1155/1156/1151 DX C1',
+            quantity: 2,
+            unit_price: 50,
+            total_price: 100,
+          },
+          {
+            description: 'Memória DDR4 8GB',
+            quantity: 4,
+            unit_price: 125,
+            total_price: 500,
+          },
+        ],
+      },
+      invoiceLines: [
+        {
+          line_number: 1,
+          description: 'COOLER P/ PROCESSADOR DX-C1',
+          quantity: 2,
+          unit_price: 50,
+          total_price: 100,
+        },
+        {
+          line_number: 2,
+          description: 'MODULO MEMORIA DDR4 8GB 2666',
+          quantity: 4,
+          unit_price: 125,
+          total_price: 500,
+        },
+      ],
+      physicalLines: [
+        { description: 'Cooler 775/1150/1155/1156/1151 DX C1', quantity_received: 2 },
+        { description: 'Memória DDR4 8GB', quantity_received: 4 },
+      ],
+    });
+
+    const result = compareDocuments(input);
+
+    expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'PHYSICAL', field: 'product' })).toBe(
+      false,
+    );
+    expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'SC', field: 'product' })).toBe(false);
+    expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'PO', field: 'product' })).toBe(false);
+    expect(hasDiscrepancy(result, { severity: 'LOW', layer: 'PHYSICAL', field: 'description' })).toBe(
+      true,
+    );
+    expect(hasDiscrepancy(result, { severity: 'LOW', layer: 'SC', field: 'description' })).toBe(true);
+    expect(hasDiscrepancy(result, { severity: 'LOW', layer: 'PO', field: 'description' })).toBe(true);
+  });
+
+  it('matches by strong normalization when accents or punctuation differ', () => {
+    const input = baseInput({
+      invoiceLines: [
+        {
+          line_number: 1,
+          description: 'Parafuso sextavado M8!',
+          quantity: 10,
+          unit_price: 25.5,
+          total_price: 255,
+        },
+        {
+          line_number: 2,
+          description: 'Chave de fenda isolada',
+          quantity: 5,
+          unit_price: 100,
+          total_price: 500,
+        },
+      ],
+      physicalLines: [
+        { description: 'Parafuso sextavado M8', quantity_received: 10 },
+        { description: 'Chave de fenda isolada', quantity_received: 5 },
+      ],
+    });
+
+    const result = compareDocuments(input);
+
+    expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'PHYSICAL', field: 'product' })).toBe(
+      false,
+    );
+    expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'SC', field: 'product' })).toBe(false);
+  });
+
+  it('flags HIGH quantity after positional match when descriptions differ', () => {
+    const input = baseInput({
+      purchaseRequestItems: [
+        { description: 'Item A catalogo', quantity: 3 },
+        { description: 'Item B catalogo', quantity: 3 },
+      ],
+      quoteProposal: {
+        total_value: 180,
+        freight: 0,
+        taxes: 0,
+        items: [
+          { description: 'Item A catalogo', quantity: 3, unit_price: 30, total_price: 90 },
+          { description: 'Item B catalogo', quantity: 3, unit_price: 30, total_price: 90 },
+        ],
+      },
+      purchaseOrder: {
+        supplier_name: 'Ferramentas ABC Ltda',
+        items: [
+          { description: 'Item A catalogo', quantity: 3, unit_price: 30, total_price: 90 },
+          { description: 'Item B catalogo', quantity: 3, unit_price: 30, total_price: 90 },
+        ],
+      },
+      invoiceLines: [
+        {
+          line_number: 1,
+          description: 'PRODUTO A NF',
+          quantity: 2,
+          unit_price: 30,
+          total_price: 60,
+        },
+        {
+          line_number: 2,
+          description: 'PRODUTO B NF',
+          quantity: 3,
+          unit_price: 30,
+          total_price: 90,
+        },
+      ],
+      physicalLines: [
+        { description: 'Item A catalogo', quantity_received: 3 },
+        { description: 'Item B catalogo', quantity_received: 3 },
+      ],
+    });
+
+    const result = compareDocuments(input);
+
+    expect(hasDiscrepancy(result, { severity: 'CRITICAL', layer: 'PHYSICAL', field: 'product' })).toBe(
+      false,
+    );
+    expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'PHYSICAL', field: 'quantity' })).toBe(
+      true,
+    );
+    expect(hasDiscrepancy(result, { severity: 'HIGH', layer: 'PO', field: 'quantity' })).toBe(true);
   });
 });

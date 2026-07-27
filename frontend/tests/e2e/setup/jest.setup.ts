@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const rootEnvPath = path.resolve(__dirname, '../../../../.env.e2e');
+/** Repo root: frontend/tests/e2e/setup → ../../../../../.env.e2e */
+const rootEnvPath = path.resolve(__dirname, '../../../../../.env.e2e');
 if (fs.existsSync(rootEnvPath)) {
   const content = fs.readFileSync(rootEnvPath, 'utf8');
   for (const line of content.split('\n')) {

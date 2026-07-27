@@ -64,7 +64,7 @@ export function procurementQuoteStatusLabel(status: ProcurementQuoteStatus | str
   const labels: Record<string, string> = {
     DRAFT: 'Rascunho',
     SENT: 'Enviada',
-    CLOSED: 'Encerrada',
+    AWAITING_APPROVAL: 'Aguardando aprovação da diretoria',
     APPROVED: 'Aprovada',
     REJECTED: 'Rejeitada',
     CANCELLED: 'Cancelada',
@@ -76,7 +76,7 @@ export function procurementQuoteStatusColor(status: ProcurementQuoteStatus | str
   const colors: Record<string, string> = {
     DRAFT: 'gray',
     SENT: 'blue',
-    CLOSED: 'purple',
+    AWAITING_APPROVAL: 'purple',
     APPROVED: 'green',
     REJECTED: 'red',
     CANCELLED: 'orange',

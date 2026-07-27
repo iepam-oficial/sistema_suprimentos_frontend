@@ -1,6 +1,6 @@
 import type { AllocationStatus, DepreciationMethod, InventoryStatus } from '../enums';
 import type { ChartOfAccountDTO } from './finance.dto';
-import type { FiscalCestDTO, FiscalNcmDTO } from './fiscal.dto';
+import type { FiscalNcmDTO } from './fiscal.dto';
 import type { UserDTO } from './user.dto';
 import type { CategoryDTO, LocationDTO } from './reference-data.dto';
 
@@ -38,9 +38,7 @@ export interface InventoryItemDTO {
   ncm?: string | null;
   cest?: string | null;
   ncm_id?: string | null;
-  cest_id?: string | null;
   fiscal_ncm?: Pick<FiscalNcmDTO, 'id' | 'code' | 'description'> | null;
-  fiscal_cest?: Pick<FiscalCestDTO, 'id' | 'code' | 'description'> | null;
   annual_rate?: number | null;
   depreciation_rate_id?: string | null;
   depreciation_method?: DepreciationMethod | null;
@@ -49,7 +47,6 @@ export interface InventoryItemDTO {
   override_reason?: string | null;
   rule_service_life?: number | null;
   rule_annual_rate?: number | null;
-  rule_chart_of_account_id?: string | null;
   location?: LocationDTO;
   user?: UserDTO;
   category: CategoryLabelDTO | { label: string };

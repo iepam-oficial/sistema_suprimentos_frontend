@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Input,
+  InputGroup,
+  InputRightElement,
   ListItem,
   Spinner,
   Text,
   useColorModeValue,
 } from '@chakra-ui/react';
+import { Check } from 'lucide-react';
 import type { CatalogSearchResultDTO } from '@ti-assistant/contracts';
 import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
 import { useCatalogSearch } from '../hooks/useCatalogSearch';
@@ -26,6 +29,8 @@ interface CatalogItemAutocompleteProps {
   onSelect: (selection: CatalogSelection) => void;
   placeholder?: string;
   isDisabled?: boolean;
+  /** Quando true, mostra um check à direita indicando vínculo confirmado */
+  isLinked?: boolean;
 }
 
 export function CatalogItemAutocomplete({
@@ -34,6 +39,7 @@ export function CatalogItemAutocomplete({
   onSelect,
   placeholder = 'Descrição do item',
   isDisabled = false,
+  isLinked = false,
 }: CatalogItemAutocompleteProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,18 +81,25 @@ export function CatalogItemAutocomplete({
 
   return (
     <Box w="full">
-      <Input
-        ref={inputRef}
-        size="sm"
-        value={value}
-        placeholder={placeholder}
-        isDisabled={isDisabled}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setShowSuggestions(true);
-        }}
-        onFocus={() => setShowSuggestions(true)}
-      />
+      <InputGroup size="sm">
+        <Input
+          ref={inputRef}
+          value={value}
+          placeholder={placeholder}
+          isDisabled={isDisabled}
+          pr={isLinked ? 8 : undefined}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setShowSuggestions(true);
+          }}
+          onFocus={() => setShowSuggestions(true)}
+        />
+        {isLinked && (
+          <InputRightElement pointerEvents="none" aria-label="Suprimento vinculado">
+            <Check size={16} color="var(--chakra-colors-green-500)" />
+          </InputRightElement>
+        )}
+      </InputGroup>
 
       <AnchoredDropdownList
         anchorRef={inputRef}

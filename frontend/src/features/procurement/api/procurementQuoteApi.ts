@@ -1,6 +1,5 @@
 import type {
   ApproveProcurementQuoteInput,
-  CloseProcurementQuoteInput,
   CreateProcurementQuoteInput,
   ProcurementQuoteDTO,
   ProcurementQuoteProposalReviewDTO,
@@ -158,60 +157,17 @@ export async function sendProcurementQuote(
 }
 
 /**
- * Fornecedor pendente retornado no corpo do erro 409 de {@link closeProcurementQuote}.
- */
-export interface CloseQuotePendingSupplier {
-  invite_id: string;
-  supplier_name: string;
-  reason: string;
-}
-
-/**
- * Lançado por {@link closeProcurementQuote} quando o backend responde 409
- * (existem propostas sem "Revisão OK"). Expõe a lista `pending_suppliers`
- * extraída do JSON de erro para que a UI ofereça confirmação explícita e
- * reenvie o close com `confirm_exclude_pending: true`.
- */
-export class CloseQuotePendingReviewError extends Error {
-  readonly pending_suppliers: CloseQuotePendingSupplier[];
-
-  constructor(message: string, pendingSuppliers: CloseQuotePendingSupplier[]) {
-    super(message);
-    this.name = 'CloseQuotePendingReviewError';
-    this.pending_suppliers = pendingSuppliers;
-  }
-}
-
-/**
  * Encerra a cotação e calcula o ranking.
- *
- * Em caso de 409 (propostas sem "Revisão OK" e `confirm_exclude_pending`
- * ausente/false), lança {@link CloseQuotePendingReviewError} contendo
- * `pending_suppliers`. O chamador deve capturar esse erro, exibir o modal de
- * confirmação e reenviar com `{ confirm_exclude_pending: true }`.
+ * Requer ≥ 2 propostas com Revisão OK e nenhuma proposta enviada pendente de revisão.
  */
 export async function closeProcurementQuote(
   token: string,
-  id: string,
-  body?: CloseProcurementQuoteInput
+  id: string
 ): Promise<ProcurementQuoteDTO> {
   const response = await fetch(`/api/procurement-quotes/${encodeURIComponent(id)}/close`, {
     method: 'POST',
-    headers: body ? jsonHeaders(token) : authHeaders(token),
-    body: body ? JSON.stringify(body) : undefined,
+    headers: authHeaders(token),
   });
-
-  if (response.status === 409) {
-    const errData = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      message?: string;
-      pending_suppliers?: CloseQuotePendingSupplier[];
-    };
-    throw new CloseQuotePendingReviewError(
-      errData.error ?? errData.message ?? 'Existem propostas sem revisão OK',
-      errData.pending_suppliers ?? []
-    );
-  }
 
   return handleResponse<ProcurementQuoteDTO>(response);
 }
@@ -278,5 +234,21 @@ export async function approveProcurementQuote(
     headers: jsonHeaders(token),
     body: JSON.stringify(input),
   });
+  return handleResponse<ProcurementQuoteDTO>(response);
+}
+
+export async function setQuoteSelectedPaymentMethod(
+  token: string,
+  id: string,
+  payment_method_code: string,
+): Promise<ProcurementQuoteDTO> {
+  const response = await fetch(
+    `/api/procurement-quotes/${encodeURIComponent(id)}/selected-payment-method`,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders(token),
+      body: JSON.stringify({ payment_method_code }),
+    },
+  );
   return handleResponse<ProcurementQuoteDTO>(response);
 }

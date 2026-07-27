@@ -72,9 +72,11 @@ export default function PortalCotacaoPage() {
 
   const [totalValue, setTotalValue] = useState(0);
   const [deliveryDays, setDeliveryDays] = useState(0);
-  const [paymentDays, setPaymentDays] = useState(0);
   const [freight, setFreight] = useState(0);
   const [taxes, setTaxes] = useState(0);
+  const [selectedPaymentCodes, setSelectedPaymentCodes] = useState<string[]>([]);
+  const [boletoGraceDays, setBoletoGraceDays] = useState(0);
+  const [boletoInstallments, setBoletoInstallments] = useState(0);
   const [proposalItems, setProposalItems] = useState<SubmitProcurementProposalItemInput[]>([]);
 
   const loadInvite = useCallback(async () => {
@@ -92,11 +94,15 @@ export default function PortalCotacaoPage() {
           total_price: item.total_price,
         }));
         setDeliveryDays(proposal.delivery_days);
-        setPaymentDays(proposal.payment_days);
         setFreight(proposal.freight);
         setTaxes(proposal.taxes);
         setProposalItems(items);
         setTotalValue(sumProposalItemsTotal(items));
+        setSelectedPaymentCodes(
+          (proposal.payment_methods ?? []).map((m) => m.code),
+        );
+        setBoletoGraceDays(proposal.boleto_grace_days ?? 0);
+        setBoletoInstallments(proposal.boleto_installments ?? 0);
       } else {
         setProposalItems(buildInitialItems(data));
       }
@@ -212,7 +218,6 @@ export default function PortalCotacaoPage() {
       const suggestions = await extractPortalQuotePdf(token, file);
 
       if (suggestions.delivery_days != null) setDeliveryDays(suggestions.delivery_days);
-      if (suggestions.payment_days != null) setPaymentDays(suggestions.payment_days);
       if (suggestions.freight != null) setFreight(suggestions.freight);
       if (suggestions.taxes != null) setTaxes(suggestions.taxes);
 
@@ -224,7 +229,6 @@ export default function PortalCotacaoPage() {
       const hasFields =
         suggestions.total_value != null ||
         suggestions.delivery_days != null ||
-        suggestions.payment_days != null ||
         suggestions.freight != null ||
         suggestions.taxes != null ||
         (suggestions.items != null && suggestions.items.length > 0);
@@ -291,19 +295,68 @@ export default function PortalCotacaoPage() {
     }
   };
 
+  const buildProposalPayload = () => {
+    const methods = context?.available_payment_methods ?? [];
+    const needsBoleto = methods.some(
+      (m) => selectedPaymentCodes.includes(m.code) && m.requires_boleto_terms,
+    );
+    return {
+      total_value: totalValue,
+      delivery_days: deliveryDays,
+      freight,
+      taxes,
+      items: proposalItems,
+      payment_method_codes: selectedPaymentCodes,
+      boleto_grace_days: needsBoleto ? boletoGraceDays : null,
+      boleto_installments: needsBoleto ? boletoInstallments : null,
+    };
+  };
+
+  const validatePaymentBeforeSubmit = (): string | null => {
+    if (selectedPaymentCodes.length === 0) {
+      return 'Selecione ao menos uma forma de pagamento.';
+    }
+    const methods = context?.available_payment_methods ?? [];
+    const needsBoleto = methods.some(
+      (m) => selectedPaymentCodes.includes(m.code) && m.requires_boleto_terms,
+    );
+    if (needsBoleto) {
+      if (
+        !Number.isInteger(boletoGraceDays) ||
+        boletoGraceDays < 1 ||
+        boletoGraceDays > 365
+      ) {
+        return 'Informe a carência do boleto a prazo (1 a 365 dias).';
+      }
+      if (
+        !Number.isInteger(boletoInstallments) ||
+        boletoInstallments < 1 ||
+        boletoInstallments > 12
+      ) {
+        return 'Informe o número de parcelas (1 a 12).';
+      }
+    }
+    return null;
+  };
+
   const handleSubmitProposal = async () => {
+    const validationError = validatePaymentBeforeSubmit();
+    if (validationError) {
+      toast({
+        title: 'Formas de pagamento',
+        description: validationError,
+        status: 'warning',
+        duration: 4000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
       setActionLoading(true);
       const proposal = await submitPortalQuoteProposal(
         token,
-        {
-          total_value: totalValue,
-          delivery_days: deliveryDays,
-          payment_days: paymentDays,
-          freight,
-          taxes,
-          items: proposalItems,
-        },
+        buildProposalPayload(),
         selectedProposalPdf ?? undefined,
       );
 
@@ -334,18 +387,23 @@ export default function PortalCotacaoPage() {
   };
 
   const handleReviseProposal = async () => {
+    const validationError = validatePaymentBeforeSubmit();
+    if (validationError) {
+      toast({
+        title: 'Formas de pagamento',
+        description: validationError,
+        status: 'warning',
+        duration: 4000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
       setActionLoading(true);
       const proposal = await revisePortalQuoteProposal(
         token,
-        {
-          total_value: totalValue,
-          delivery_days: deliveryDays,
-          payment_days: paymentDays,
-          freight,
-          taxes,
-          items: proposalItems,
-        },
+        buildProposalPayload(),
         selectedProposalPdf ?? undefined,
       );
 
@@ -439,13 +497,18 @@ export default function PortalCotacaoPage() {
             extractLoading={extractLoading}
             totalValue={totalValue}
             deliveryDays={deliveryDays}
-            paymentDays={paymentDays}
             freight={freight}
             taxes={taxes}
+            availablePaymentMethods={context.available_payment_methods ?? []}
+            selectedPaymentCodes={selectedPaymentCodes}
+            boletoGraceDays={boletoGraceDays}
+            boletoInstallments={boletoInstallments}
             onDeliveryDaysChange={setDeliveryDays}
-            onPaymentDaysChange={setPaymentDays}
             onFreightChange={setFreight}
             onTaxesChange={setTaxes}
+            onSelectedPaymentCodesChange={setSelectedPaymentCodes}
+            onBoletoGraceDaysChange={setBoletoGraceDays}
+            onBoletoInstallmentsChange={setBoletoInstallments}
             onPdfSelect={handlePdfSelect}
           />
           <PortalQuoteProposalItemsTable items={proposalItems} onUpdateItem={updateItem} />

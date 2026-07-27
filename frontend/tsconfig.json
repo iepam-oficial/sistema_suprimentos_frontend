@@ -37,7 +37,10 @@
     ".next-build-gate/types/**/*.ts",
     "/tmp/next-build-gate-sidebar/types/**/*.ts",
     "/tmp/next-build-gate-sidebar-576749/types/**/*.ts",
-    ".next-validate/types/**/*.ts"
+    ".next-validate/types/**/*.ts",
+    "/tmp/t12-next-build-check/types/**/*.ts",
+    ".t12-build-check/types/**/*.ts",
+    ".t12-build-check/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

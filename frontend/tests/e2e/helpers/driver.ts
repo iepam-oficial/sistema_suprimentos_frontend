@@ -1,5 +1,6 @@
 import { Builder, By, until, type WebDriver } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome';
+import remote from 'selenium-webdriver/remote';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -17,7 +18,12 @@ export async function createDriver(): Promise<WebDriver> {
   if (remoteUrl) {
     builder.usingServer(remoteUrl);
   }
-  return builder.build();
+  const driver = await builder.build();
+  // Permite sendKeys de caminho local no Grid remoto (upload de NF).
+  if (remoteUrl) {
+    driver.setFileDetector(new remote.FileDetector());
+  }
+  return driver;
 }
 
 export async function quitDriver(driver: WebDriver | undefined): Promise<void> {

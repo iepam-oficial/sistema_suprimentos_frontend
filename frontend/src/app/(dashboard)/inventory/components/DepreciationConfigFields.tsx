@@ -18,7 +18,6 @@ import type { DepreciationRateDTO } from '@ti-assistant/contracts'
 export interface AppliedSnapshots {
     rule_annual_rate: number | null
     rule_service_life: number | null
-    rule_chart_of_account_id: string | null
 }
 
 export interface DepreciationFieldValues {
@@ -36,11 +35,13 @@ interface DepreciationConfigFieldsProps {
     onDepreciableChange: (checked: boolean) => void
     values: DepreciationFieldValues
     onChange: (field: keyof DepreciationFieldValues, value: string) => void
-    lookedUpRate: DepreciationRateDTO | null
-    lookupNotFound: boolean
-    isLookingUp: boolean
+    suggestedRates: DepreciationRateDTO[]
+    selectedSuggestionId: string | null
+    onSelectSuggestion: (id: string) => void
+    suggestNotFound: boolean
+    isSuggesting: boolean
     appliedSnapshots: AppliedSnapshots | null
-    onLookup: () => void
+    onSuggest: () => void
     onApplyRate: () => void
 }
 
@@ -49,34 +50,27 @@ function deriveServiceLife(annualRate: number): number {
 }
 
 export function computeDepreciationOverride(
-    values: Pick<DepreciationFieldValues, 'annual_rate' | 'service_life' | 'chart_of_account_id'>,
+    values: Pick<DepreciationFieldValues, 'annual_rate' | 'service_life'>,
     snapshots: AppliedSnapshots | null,
 ): boolean {
     if (!snapshots) return false
 
-    const { rule_annual_rate, rule_service_life, rule_chart_of_account_id } = snapshots
-    if (
-        rule_annual_rate == null &&
-        rule_service_life == null &&
-        rule_chart_of_account_id == null
-    ) {
+    const { rule_annual_rate, rule_service_life } = snapshots
+    if (rule_annual_rate == null && rule_service_life == null) {
         return false
     }
 
     const annualRate = values.annual_rate ? parseFloat(values.annual_rate) : null
     const serviceLife = values.service_life ? parseInt(values.service_life, 10) : null
 
-    return (
-        annualRate !== rule_annual_rate ||
-        serviceLife !== rule_service_life ||
-        (values.chart_of_account_id || null) !== (rule_chart_of_account_id || null)
-    )
+    return annualRate !== rule_annual_rate || serviceLife !== rule_service_life
 }
 
-function formatPlano(rate: DepreciationRateDTO): string {
-    const account = rate.chart_of_account
-    if (!account) return rate.chart_of_account_id
-    return `${account.codigo} — ${account.nome}`
+function formatNcmCest(rate: DepreciationRateDTO): string {
+    const parts: string[] = []
+    if (rate.ncm) parts.push(`NCM ${rate.ncm}`)
+    if (rate.cest) parts.push(`CEST ${rate.cest}`)
+    return parts.length > 0 ? parts.join(' · ') : 'Sem NCM/CEST'
 }
 
 export function DepreciationConfigFields({
@@ -84,11 +78,13 @@ export function DepreciationConfigFields({
     onDepreciableChange,
     values,
     onChange,
-    lookedUpRate,
-    lookupNotFound,
-    isLookingUp,
+    suggestedRates,
+    selectedSuggestionId,
+    onSelectSuggestion,
+    suggestNotFound,
+    isSuggesting,
     appliedSnapshots,
-    onLookup,
+    onSuggest,
     onApplyRate,
 }: DepreciationConfigFieldsProps) {
     const hasOverride = computeDepreciationOverride(values, appliedSnapshots)
@@ -148,38 +144,75 @@ export function DepreciationConfigFields({
                             size="sm"
                             colorScheme="blue"
                             variant="outline"
-                            onClick={onLookup}
-                            isLoading={isLookingUp}
-                            loadingText="Buscando..."
+                            onClick={onSuggest}
+                            isLoading={isSuggesting}
+                            loadingText="Sugerindo..."
                         >
-                            Buscar taxa
+                            Sugerir
                         </Button>
                     </HStack>
 
-                    {lookupNotFound && (
+                    {suggestNotFound && (
                         <Text fontSize="sm" color="orange.600">
-                            Nenhuma regra encontrada para este NCM/CEST. Preencha vida útil, taxa e plano manualmente.
+                            Nenhuma regra encontrada para este NCM/CEST. Preencha vida útil e taxa manualmente.
                         </Text>
                     )}
 
-                    {lookedUpRate && (
-                        <Box
-                            p={3}
-                            borderWidth="1px"
-                            borderRadius="md"
-                            bg="gray.50"
-                            _dark={{ bg: 'whiteAlpha.100' }}
-                        >
-                            <Text fontSize="sm" fontWeight="semibold" mb={2}>
-                                Regra encontrada
+                    {suggestedRates.length > 0 && (
+                        <Stack spacing={2}>
+                            <Text fontSize="sm" fontWeight="semibold">
+                                Regras sugeridas — selecione uma e clique em Aplicar
                             </Text>
-                            <Text fontSize="sm">Plano: {formatPlano(lookedUpRate)}</Text>
-                            <Text fontSize="sm">Vida útil: {lookedUpRate.service_life_years} anos</Text>
-                            <Text fontSize="sm">Taxa anual: {lookedUpRate.annual_rate.toFixed(2)}%</Text>
-                            <Button size="sm" colorScheme="green" mt={3} onClick={onApplyRate}>
-                                Aplicar
-                            </Button>
-                        </Box>
+                            {suggestedRates.map((rate) => {
+                                const isSelected = selectedSuggestionId === rate.id
+                                return (
+                                    <Box
+                                        key={rate.id}
+                                        p={3}
+                                        borderWidth="2px"
+                                        borderRadius="md"
+                                        borderColor={isSelected ? 'blue.500' : 'gray.200'}
+                                        bg={isSelected ? 'blue.50' : 'gray.50'}
+                                        _dark={{
+                                            bg: isSelected ? 'blue.900' : 'whiteAlpha.100',
+                                            borderColor: isSelected ? 'blue.400' : 'whiteAlpha.300',
+                                        }}
+                                        cursor="pointer"
+                                        onClick={() => onSelectSuggestion(rate.id)}
+                                        role="radio"
+                                        aria-checked={isSelected}
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault()
+                                                onSelectSuggestion(rate.id)
+                                            }
+                                        }}
+                                    >
+                                        <Text fontSize="sm" fontWeight="semibold" mb={1}>
+                                            {rate.description}
+                                        </Text>
+                                        <Text fontSize="sm" color="gray.600" _dark={{ color: 'gray.300' }}>
+                                            {formatNcmCest(rate)}
+                                        </Text>
+                                        <Text fontSize="sm">
+                                            Vida útil: {rate.service_life_years} anos · Taxa anual:{' '}
+                                            {rate.annual_rate.toFixed(2)}%
+                                        </Text>
+                                    </Box>
+                                )
+                            })}
+                            <Box>
+                                <Button
+                                    size="sm"
+                                    colorScheme="green"
+                                    onClick={onApplyRate}
+                                    isDisabled={!selectedSuggestionId}
+                                >
+                                    Aplicar
+                                </Button>
+                            </Box>
+                        </Stack>
                     )}
 
                     <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>

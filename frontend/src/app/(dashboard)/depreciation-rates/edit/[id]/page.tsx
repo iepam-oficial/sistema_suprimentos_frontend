@@ -14,7 +14,6 @@ import {
   Heading,
   HStack,
   Input,
-  Select,
   SimpleGrid,
   Spinner,
   Switch,
@@ -23,8 +22,6 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import type { DepreciationRateDTO, UpdateDepreciationRateInput } from '@ti-assistant/contracts';
-import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
-import type { ChartOfAccount } from '@/features/financeiro/types';
 import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
 import {
   fetchDepreciationRateById,
@@ -33,9 +30,9 @@ import {
 } from '@/features/inventory/api/depreciationRateApi';
 
 interface FormState {
+  description: string;
   ncm: string;
   cest: string;
-  chart_of_account_id: string;
   service_life_years: string;
   annual_rate: string;
   priority: string;
@@ -50,9 +47,9 @@ function toDateInputValue(value?: string | null): string {
 
 function formFromRate(rate: DepreciationRateDTO): FormState {
   return {
-    ncm: rate.ncm,
+    description: rate.description,
+    ncm: rate.ncm ?? '',
     cest: rate.cest ?? '',
-    chart_of_account_id: rate.chart_of_account_id,
     service_life_years: String(rate.service_life_years),
     annual_rate: String(rate.annual_rate),
     priority: String(rate.priority),
@@ -64,12 +61,8 @@ function formFromRate(rate: DepreciationRateDTO): FormState {
 function validateForm(data: FormState): Record<string, string> {
   const errors: Record<string, string> = {};
 
-  if (!data.ncm.trim()) {
-    errors.ncm = 'NCM é obrigatório';
-  }
-
-  if (!data.chart_of_account_id) {
-    errors.chart_of_account_id = 'Plano de contas é obrigatório';
+  if (!data.description.trim()) {
+    errors.description = 'Descrição é obrigatória';
   }
 
   const serviceLife = Number(data.service_life_years);
@@ -108,8 +101,8 @@ function validateForm(data: FormState): Record<string, string> {
 
 function buildUpdatePayload(formData: FormState): UpdateDepreciationRateInput {
   const payload: UpdateDepreciationRateInput = {
-    ncm: formData.ncm.trim(),
-    chart_of_account_id: formData.chart_of_account_id,
+    description: formData.description.trim(),
+    ncm: formData.ncm.trim() || null,
     service_life_years: Number(formData.service_life_years),
     annual_rate: Number(formData.annual_rate),
     effective_from: formData.effective_from,
@@ -132,7 +125,6 @@ export default function EditDepreciationRatePage() {
 
   const [formData, setFormData] = useState<FormState | null>(null);
   const [active, setActive] = useState(true);
-  const [chartOfAccounts, setChartOfAccounts] = useState<ChartOfAccount[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -146,14 +138,10 @@ export default function EditDepreciationRatePage() {
         throw new Error('Token não encontrado');
       }
 
-      const [rate, accounts] = await Promise.all([
-        fetchDepreciationRateById(token, id),
-        fetchChartOfAccounts('ATIVO'),
-      ]);
+      const rate = await fetchDepreciationRateById(token, id);
 
       setFormData(formFromRate(rate));
       setActive(rate.active);
-      setChartOfAccounts(accounts);
     } catch (error) {
       if (error instanceof RateLimitError) {
         router.push('/rate-limit');
@@ -319,12 +307,22 @@ export default function EditDepreciationRatePage() {
             <form onSubmit={handleSubmit}>
               <VStack spacing={4}>
                 <SimpleGrid columns={2} spacing={4} width="100%">
-                  <FormControl isRequired isInvalid={!!errors.ncm}>
+                  <FormControl isRequired isInvalid={!!errors.description}>
+                    <FormLabel>Descrição</FormLabel>
+                    <Input
+                      value={formData.description}
+                      onChange={(e) => updateField('description', e.target.value)}
+                      placeholder="Ex: Máquinas automáticas"
+                    />
+                    <FormErrorMessage>{errors.description}</FormErrorMessage>
+                  </FormControl>
+
+                  <FormControl isInvalid={!!errors.ncm}>
                     <FormLabel>NCM</FormLabel>
                     <Input
                       value={formData.ncm}
                       onChange={(e) => updateField('ncm', e.target.value)}
-                      placeholder="Ex: 8471.30.12"
+                      placeholder="Opcional — Ex: 8471.30.12"
                     />
                     <FormErrorMessage>{errors.ncm}</FormErrorMessage>
                   </FormControl>
@@ -337,22 +335,6 @@ export default function EditDepreciationRatePage() {
                       placeholder="Opcional"
                     />
                     <FormErrorMessage>{errors.cest}</FormErrorMessage>
-                  </FormControl>
-
-                  <FormControl isRequired isInvalid={!!errors.chart_of_account_id}>
-                    <FormLabel>Plano de Contas</FormLabel>
-                    <Select
-                      placeholder="Selecione o plano de contas"
-                      value={formData.chart_of_account_id}
-                      onChange={(e) => updateField('chart_of_account_id', e.target.value)}
-                    >
-                      {chartOfAccounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {account.codigo} — {account.nome}
-                        </option>
-                      ))}
-                    </Select>
-                    <FormErrorMessage>{errors.chart_of_account_id}</FormErrorMessage>
                   </FormControl>
 
                   <FormControl isRequired isInvalid={!!errors.service_life_years}>

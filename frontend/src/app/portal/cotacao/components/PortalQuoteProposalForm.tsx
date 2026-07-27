@@ -6,6 +6,8 @@ import {
   AlertDescription,
   AlertIcon,
   Button,
+  Checkbox,
+  CheckboxGroup,
   FormControl,
   FormHelperText,
   FormLabel,
@@ -13,10 +15,12 @@ import {
   Input,
   NumberInput,
   NumberInputField,
+  Stack,
   Text,
   VStack,
 } from '@chakra-ui/react';
 import { Upload } from 'lucide-react';
+import type { PaymentMethodDTO } from '@ti-assistant/contracts';
 import { CurrencyInput } from '@/components/CurrencyInput';
 import { useGlassTokens } from '@/components/layout';
 import { formatBRL } from './portalQuoteUtils';
@@ -27,13 +31,18 @@ interface PortalQuoteProposalFormProps {
   extractLoading: boolean;
   totalValue: number;
   deliveryDays: number;
-  paymentDays: number;
   freight: number;
   taxes: number;
+  availablePaymentMethods: PaymentMethodDTO[];
+  selectedPaymentCodes: string[];
+  boletoGraceDays: number;
+  boletoInstallments: number;
   onDeliveryDaysChange: (value: number) => void;
-  onPaymentDaysChange: (value: number) => void;
   onFreightChange: (value: number) => void;
   onTaxesChange: (value: number) => void;
+  onSelectedPaymentCodesChange: (codes: string[]) => void;
+  onBoletoGraceDaysChange: (value: number) => void;
+  onBoletoInstallmentsChange: (value: number) => void;
   onPdfSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -43,17 +52,26 @@ export function PortalQuoteProposalForm({
   extractLoading,
   totalValue,
   deliveryDays,
-  paymentDays,
   freight,
   taxes,
+  availablePaymentMethods,
+  selectedPaymentCodes,
+  boletoGraceDays,
+  boletoInstallments,
   onDeliveryDaysChange,
-  onPaymentDaysChange,
   onFreightChange,
   onTaxesChange,
+  onSelectedPaymentCodesChange,
+  onBoletoGraceDaysChange,
+  onBoletoInstallmentsChange,
   onPdfSelect,
 }: PortalQuoteProposalFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutedColor, headingColor } = useGlassTokens();
+
+  const needsBoletoTerms = availablePaymentMethods.some(
+    (m) => selectedPaymentCodes.includes(m.code) && m.requires_boleto_terms,
+  );
 
   return (
     <VStack align="stretch" spacing={3} px={1}>
@@ -124,20 +142,57 @@ export function PortalQuoteProposalForm({
             <NumberInputField />
           </NumberInput>
         </FormControl>
-        <FormControl flex="1" minW="100px" size="sm">
-          <FormLabel fontSize="xs">Pagamento (dias)</FormLabel>
-          <NumberInput
-            size="sm"
-            min={0}
-            value={paymentDays}
-            onChange={(_, value) =>
-              onPaymentDaysChange(Number.isFinite(value) ? Math.round(value) : 0)
-            }
-          >
-            <NumberInputField />
-          </NumberInput>
-        </FormControl>
       </HStack>
+
+      <FormControl size="sm" isRequired>
+        <FormLabel fontSize="xs">Formas de pagamento aceitas</FormLabel>
+        <CheckboxGroup
+          value={selectedPaymentCodes}
+          onChange={(values) => onSelectedPaymentCodesChange(values.map(String))}
+        >
+          <Stack spacing={1}>
+            {availablePaymentMethods.map((method) => (
+              <Checkbox key={method.code} value={method.code} size="sm">
+                {method.label}
+              </Checkbox>
+            ))}
+          </Stack>
+        </CheckboxGroup>
+      </FormControl>
+
+      {needsBoletoTerms && (
+        <HStack spacing={3} align="flex-start" flexWrap="wrap">
+          <FormControl flex="1" minW="140px" size="sm" isRequired>
+            <FormLabel fontSize="xs">Carência (dias após NF/entrega)</FormLabel>
+            <NumberInput
+              size="sm"
+              min={1}
+              max={365}
+              value={boletoGraceDays || ''}
+              onChange={(_, value) =>
+                onBoletoGraceDaysChange(Number.isFinite(value) ? Math.round(value) : 0)
+              }
+            >
+              <NumberInputField />
+            </NumberInput>
+          </FormControl>
+          <FormControl flex="1" minW="120px" size="sm" isRequired>
+            <FormLabel fontSize="xs">Nº de parcelas iguais</FormLabel>
+            <NumberInput
+              size="sm"
+              min={1}
+              max={12}
+              value={boletoInstallments || ''}
+              onChange={(_, value) =>
+                onBoletoInstallmentsChange(Number.isFinite(value) ? Math.round(value) : 0)
+              }
+            >
+              <NumberInputField />
+            </NumberInput>
+            <FormHelperText fontSize="xs">Vencimentos a cada 30 dias</FormHelperText>
+          </FormControl>
+        </HStack>
+      )}
 
       <HStack spacing={3}>
         <FormControl flex="1" size="sm">

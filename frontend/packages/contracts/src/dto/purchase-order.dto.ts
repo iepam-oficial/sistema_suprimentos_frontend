@@ -25,10 +25,15 @@ export interface PurchaseOrderDTO {
   items: PurchaseOrderItemDTO[];
   supplier?: SupplierRefDTO;
   quote_display_code?: string;
+  payment_method_code?: string | null;
+  payment_method_label?: string | null;
+  boleto_grace_days?: number | null;
+  boleto_installments?: number | null;
 }
 
 export interface CreatePurchaseOrderInput {
   procurement_quote_id: string;
+  payment_method_code?: string;
 }
 
 export interface PurchaseOrderListResult {

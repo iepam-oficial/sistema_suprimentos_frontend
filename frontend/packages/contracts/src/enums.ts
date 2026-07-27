@@ -117,7 +117,7 @@ export type PurchaseRequestPriority =
 export const ProcurementQuoteStatus = {
   DRAFT: 'DRAFT',
   SENT: 'SENT',
-  CLOSED: 'CLOSED',
+  AWAITING_APPROVAL: 'AWAITING_APPROVAL',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   CANCELLED: 'CANCELLED',

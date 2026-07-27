@@ -1,5 +1,6 @@
 import type {
   CreateSupplyBatchInput,
+  CreateSupplyInput,
   StockMovement,
   SupplyBatchDTO,
   SupplyDTO,
@@ -61,9 +62,60 @@ export async function searchSupplies(
     throw new Error('Erro ao buscar suprimentos');
   }
 
-  const results = (await response.json()) as SupplyDTO[];
-  const term = q.toLowerCase();
-  return results.filter((supply) => supply.name.toLowerCase().includes(term));
+  return response.json();
+}
+
+export async function createSupply(
+  token: string,
+  input: CreateSupplyInput,
+): Promise<SupplyDTO> {
+  const response = await fetch('/api/supplies', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let message = 'Erro ao criar suprimento';
+    try {
+      const body = (await response.json()) as { error?: string; message?: string };
+      message = body.error || body.message || message;
+    } catch {
+      // keep default message
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
+export async function generateSupplyInternalCode(
+  token: string,
+  id: string,
+): Promise<SupplyDTO> {
+  const response = await fetch(`/api/supplies/${id}/generate-internal-code`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    let message = 'Erro ao gerar código interno';
+    try {
+      const body = (await response.json()) as { error?: string; message?: string };
+      message = body.error || body.message || message;
+    } catch {
+      // keep default message
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
 }
 
 export async function fetchSupplyBatches(token: string): Promise<SupplyBatchDTO[]> {

@@ -1,10 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
   Badge,
   Box,
   Button,
+  Checkbox,
   FormControl,
   FormLabel,
   HStack,
@@ -29,11 +36,16 @@ import { Minus, Plus } from 'lucide-react';
 import type {
   GoodsReceiptDTO,
   GoodsReceiptDiscrepancyDTO,
+  ResolveDiscrepancyAction,
   SavePhysicalLineInput,
   SuggestedInvoiceLineDTO,
   SuggestedInvoiceMetadataDTO,
 } from '@ti-assistant/contracts';
-import { GoodsReceiptStatus, ReceiptLineDestination } from '@ti-assistant/contracts';
+import {
+  DiscrepancySeverity,
+  GoodsReceiptStatus,
+  ReceiptLineDestination,
+} from '@ti-assistant/contracts';
 import type { CategoryDTO, LocationDTO } from '@/features/reference-data';
 import { fetchCategories, fetchLocations } from '@/features/reference-data';
 import { createClientKey } from '@/utils/clientKey';
@@ -41,6 +53,7 @@ import {
   classifyInvoiceLines,
   directorApproveGoodsReceipt,
   finalizeGoodsReceipt,
+  resolveGoodsReceiptDiscrepanciesBatch,
   resolveGoodsReceiptDiscrepancy,
   runGoodsReceiptComparison,
   saveInventoryLines,
@@ -129,6 +142,13 @@ function hasComparisonRun(receipt: GoodsReceiptDTO): boolean {
   return receipt.document_comparison_at != null;
 }
 
+function isDiscrepancySelectable(
+  d: GoodsReceiptDiscrepancyDTO,
+  isReadOnly: boolean
+): boolean {
+  return !isReadOnly && !d.resolved_at && d.severity !== DiscrepancySeverity.CRITICAL;
+}
+
 function inferInitialStep(receipt: GoodsReceiptDTO): number {
   if (receipt.status === GoodsReceiptStatus.APPROVED) return 4;
   if (
@@ -150,6 +170,52 @@ function inferInitialStep(receipt: GoodsReceiptDTO): number {
   return 0;
 }
 
+/** Stable key so polling (new array refs) does not reset local draft state. */
+function invoiceLinesSyncKey(receipt: GoodsReceiptDTO): string {
+  return receipt.invoice_lines
+    .map(
+      (l) =>
+        [
+          l.id,
+          l.destination_type,
+          l.supply_id ?? '',
+          l.ai_suggested_supply_id ?? '',
+          l.ai_confidence ?? '',
+          l.description,
+          l.quantity,
+        ].join(':')
+    )
+    .join('|');
+}
+
+function physicalLinesSyncKey(receipt: GoodsReceiptDTO): string {
+  if (receipt.physical_lines.length > 0) {
+    return receipt.physical_lines
+      .map(
+        (l) =>
+          [
+            l.id,
+            l.description,
+            l.quantity_received,
+            l.supply_id ?? '',
+            l.pr_item_id ?? '',
+          ].join(':')
+      )
+      .join('|');
+  }
+
+  const poItems = receipt.purchase_order?.items ?? [];
+  if (poItems.length > 0) {
+    return `po|${poItems
+      .map((item) =>
+        [item.id ?? '', item.description, item.quantity, item.pr_item_id ?? ''].join(':')
+      )
+      .join('|')}`;
+  }
+
+  return 'empty';
+}
+
 export function GoodsReceiptWizard({
   receipt,
   onReceiptUpdated,
@@ -168,11 +234,52 @@ export function GoodsReceiptWizard({
   const [locations, setLocations] = useState<LocationDTO[]>([]);
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [resolveJustification, setResolveJustification] = useState<Record<string, string>>({});
+  const [selectedDiscrepancyIds, setSelectedDiscrepancyIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [bulkJustification, setBulkJustification] = useState('');
+  const [bulkConfirmAction, setBulkConfirmAction] = useState<ResolveDiscrepancyAction | null>(
+    null
+  );
+  const bulkCancelRef = useRef<HTMLButtonElement>(null);
 
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const mutedColor = useColorModeValue('gray.600', 'gray.400');
   const summaryBg = useColorModeValue('gray.50', 'gray.700');
   const isReadOnly = receipt.status === GoodsReceiptStatus.APPROVED;
+
+  const selectableDiscrepancies = useMemo(
+    () => receipt.discrepancies.filter((d) => isDiscrepancySelectable(d, isReadOnly)),
+    [receipt.discrepancies, isReadOnly]
+  );
+  const selectableIds = useMemo(
+    () => selectableDiscrepancies.map((d) => d.id),
+    [selectableDiscrepancies]
+  );
+  const allSelectableSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedDiscrepancyIds.has(id));
+  const someSelectableSelected = selectableIds.some((id) => selectedDiscrepancyIds.has(id));
+  const supplierEmail = receipt.purchase_order?.supplier?.email?.trim() ?? '';
+  const hasSupplierEmail = supplierEmail.length > 0;
+
+  const physicalSyncKey = useMemo(() => physicalLinesSyncKey(receipt), [receipt]);
+  const invoiceSyncKey = useMemo(() => invoiceLinesSyncKey(receipt), [receipt]);
+
+  useEffect(() => {
+    setSelectedDiscrepancyIds((prev) => {
+      const eligible = new Set(selectableIds);
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (eligible.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      }
+      return changed || next.size !== prev.size ? next : prev;
+    });
+  }, [selectableIds]);
 
   useEffect(() => {
     if (receipt.physical_lines.length > 0) {
@@ -202,13 +309,17 @@ export function GoodsReceiptWizard({
     }
 
     setPhysicalLines([{ key: createClientKey(), description: '', quantity_received: 1 }]);
-  }, [receipt.physical_lines, receipt.purchase_order?.items]);
+    // Sync only when server content changes; ignore new array refs from polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- physicalSyncKey captures relevant fields
+  }, [physicalSyncKey]);
 
   useEffect(() => {
     if (receipt.invoice_lines.length > 0) {
       setClassifications(buildClassificationsFromReceipt(receipt.invoice_lines));
     }
-  }, [receipt.invoice_lines]);
+    // Sync only when server content changes; ignore new array refs from polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- invoiceSyncKey captures relevant fields
+  }, [invoiceSyncKey]);
 
   useEffect(() => {
     const token = localStorage.getItem('@ti-assistant:token');
@@ -235,6 +346,11 @@ export function GoodsReceiptWizard({
         (l) => l.destination_type === ReceiptLineDestination.UNCLASSIFIED
       ).length,
     [receipt.invoice_lines]
+  );
+
+  const draftUnclassifiedCount = useMemo(
+    () => classifications.filter((c) => c.destination_type === 'UNCLASSIFIED').length,
+    [classifications]
   );
 
   const canFinalize = useMemo(() => {
@@ -554,7 +670,7 @@ export function GoodsReceiptWizard({
   };
 
   const handleResolveDiscrepancy = useCallback(
-    async (discrepancy: GoodsReceiptDiscrepancyDTO, action: 'accept' | 'notify_supplier' | 'acknowledge') => {
+    async (discrepancy: GoodsReceiptDiscrepancyDTO, action: 'accept' | 'notify_supplier') => {
       const token = getToken();
       if (!token) return;
 
@@ -570,6 +686,12 @@ export function GoodsReceiptWizard({
           }
         );
         onReceiptUpdated(updated);
+        setSelectedDiscrepancyIds((prev) => {
+          if (!prev.has(discrepancy.id)) return prev;
+          const next = new Set(prev);
+          next.delete(discrepancy.id);
+          return next;
+        });
         toast({ title: 'Divergência resolvida', status: 'success', duration: 3000, isClosable: true });
       } catch (err) {
         toast({
@@ -584,6 +706,86 @@ export function GoodsReceiptWizard({
       }
     },
     [onReceiptUpdated, receipt.id, resolveJustification, toast]
+  );
+
+  const toggleDiscrepancySelection = useCallback((id: string, checked: boolean) => {
+    setSelectedDiscrepancyIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAllDiscrepancies = useCallback(
+    (checked: boolean) => {
+      setSelectedDiscrepancyIds(checked ? new Set(selectableIds) : new Set());
+    },
+    [selectableIds]
+  );
+
+  const handleBulkResolve = useCallback(
+    async (action: ResolveDiscrepancyAction) => {
+      const token = getToken();
+      if (!token) return;
+
+      const discrepancyIds = [...selectedDiscrepancyIds];
+      if (discrepancyIds.length === 0) return;
+
+      setBulkConfirmAction(null);
+      setSubmitting(true);
+      try {
+        const result = await resolveGoodsReceiptDiscrepanciesBatch(token, receipt.id, {
+          action,
+          discrepancy_ids: discrepancyIds,
+          justification: bulkJustification.trim() || undefined,
+        });
+        onReceiptUpdated(result.receipt);
+
+        const succeeded = result.succeeded_ids.length;
+        const failed = result.failed.length;
+        toast({
+          title:
+            failed === 0
+              ? `${succeeded} divergência(s) resolvida(s)`
+              : `${succeeded} resolvida(s), ${failed} falha(s)`,
+          status: failed === 0 ? 'success' : 'warning',
+          duration: 5000,
+          isClosable: true,
+        });
+
+        const failedEligible = new Set(
+          result.failed
+            .map((f) => f.discrepancy_id)
+            .filter((id) => {
+              const d = result.receipt.discrepancies.find((x) => x.id === id);
+              return d != null && isDiscrepancySelectable(d, isReadOnly);
+            })
+        );
+        setSelectedDiscrepancyIds(failedEligible);
+        if (failed === 0) {
+          setBulkJustification('');
+        }
+      } catch (err) {
+        toast({
+          title: 'Erro ao resolver divergências em lote',
+          description: err instanceof Error ? err.message : 'Tente novamente.',
+          status: 'error',
+          duration: 4000,
+          isClosable: true,
+        });
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [
+      bulkJustification,
+      isReadOnly,
+      onReceiptUpdated,
+      receipt.id,
+      selectedDiscrepancyIds,
+      toast,
+    ]
   );
 
   const handleDirectorApprove = async () => {
@@ -695,74 +897,147 @@ export function GoodsReceiptWizard({
       );
     }
 
+    const selectedCount = selectedDiscrepancyIds.size;
+    const bulkNotifyDisabled =
+      isReadOnly || submitting || selectedCount === 0 || !hasSupplierEmail;
+    const bulkAcceptDisabled = isReadOnly || submitting || selectedCount === 0;
+
     return (
       <VStack align="stretch" spacing={4}>
-        {receipt.discrepancies.map((d) => (
-          <Box
-            key={d.id}
-            p={4}
-            borderWidth="1px"
-            borderColor={borderColor}
-            borderRadius="md"
-            bg={summaryBg}
-          >
-            <HStack justify="space-between" mb={2}>
-              <Badge colorScheme={discrepancySeverityColor(d.severity)}>
-                {discrepancySeverityLabel(d.severity)}
-              </Badge>
-              <Text fontSize="xs" color={mutedColor}>
-                {discrepancyLayerLabel(d.layer)} · {d.field}
-              </Text>
-            </HStack>
-            <Text fontSize="sm" mb={1}>
-              Esperado: {d.expected_value ?? '—'}
-            </Text>
-            <Text fontSize="sm" mb={2}>
-              Encontrado: {d.actual_value ?? '—'}
-            </Text>
-            {d.resolved_at ? (
-              <Badge colorScheme="green">Resolvida</Badge>
-            ) : (
-              <VStack align="stretch" spacing={2} mt={2}>
-                <Textarea
+        <Box
+          p={3}
+          borderWidth="1px"
+          borderColor={borderColor}
+          borderRadius="md"
+          bg={summaryBg}
+        >
+          <VStack align="stretch" spacing={3}>
+            <HStack justify="space-between" flexWrap="wrap" gap={2}>
+              <HStack spacing={3}>
+                <Checkbox
+                  data-testid="gr-discrepancy-select-all"
+                  isChecked={allSelectableSelected}
+                  isIndeterminate={someSelectableSelected && !allSelectableSelected}
+                  isDisabled={isReadOnly || submitting || selectableIds.length === 0}
+                  onChange={(e) => toggleSelectAllDiscrepancies(e.target.checked)}
+                >
+                  Marcar todos
+                </Checkbox>
+                <Text fontSize="sm" color={mutedColor}>
+                  {selectedCount} selecionadas
+                </Text>
+              </HStack>
+              <HStack flexWrap="wrap" spacing={2}>
+                <Button
                   size="sm"
-                  placeholder="Justificativa (opcional)"
-                  value={resolveJustification[d.id] ?? ''}
-                  onChange={(e) =>
-                    setResolveJustification((prev) => ({ ...prev, [d.id]: e.target.value }))
-                  }
-                  isDisabled={isReadOnly || submitting}
-                />
-                <HStack flexWrap="wrap">
-                  <Button
-                    size="xs"
-                    colorScheme="green"
-                    isDisabled={isReadOnly || submitting}
-                    onClick={() => handleResolveDiscrepancy(d, 'accept')}
-                  >
-                    Aceitar
-                  </Button>
-                  <Button
-                    size="xs"
-                    colorScheme="blue"
-                    isDisabled={isReadOnly || submitting}
-                    onClick={() => handleResolveDiscrepancy(d, 'acknowledge')}
-                  >
-                    Reconhecer
-                  </Button>
-                  <Button
-                    size="xs"
-                    colorScheme="orange"
-                    isDisabled={isReadOnly || submitting}
-                    onClick={() => handleResolveDiscrepancy(d, 'notify_supplier')}
-                  >
-                    Notificar fornecedor
-                  </Button>
-                </HStack>
-              </VStack>
+                  colorScheme="green"
+                  data-testid="gr-discrepancy-bulk-accept"
+                  isDisabled={bulkAcceptDisabled}
+                  isLoading={submitting}
+                  onClick={() => setBulkConfirmAction('accept')}
+                >
+                  Aceitar selecionadas
+                </Button>
+                <Button
+                  size="sm"
+                  colorScheme="orange"
+                  data-testid="gr-discrepancy-bulk-notify"
+                  isDisabled={bulkNotifyDisabled}
+                  isLoading={submitting}
+                  onClick={() => setBulkConfirmAction('notify_supplier')}
+                >
+                  Notificar fornecedor
+                </Button>
+              </HStack>
+            </HStack>
+            {!hasSupplierEmail && (
+              <Text fontSize="xs" color={mutedColor}>
+                Fornecedor sem e-mail cadastrado
+              </Text>
             )}
-          </Box>
-        ))}
+            <Textarea
+              size="sm"
+              placeholder="Justificativa compartilhada (opcional)"
+              value={bulkJustification}
+              onChange={(e) => setBulkJustification(e.target.value)}
+              isDisabled={isReadOnly || submitting}
+              data-testid="gr-discrepancy-bulk-justification"
+            />
+          </VStack>
+        </Box>
+
+        {receipt.discrepancies.map((d) => {
+          const selectable = isDiscrepancySelectable(d, isReadOnly);
+          return (
+            <Box
+              key={d.id}
+              p={4}
+              borderWidth="1px"
+              borderColor={borderColor}
+              borderRadius="md"
+              bg={summaryBg}
+            >
+              <HStack align="flex-start" spacing={3}>
+                <Checkbox
+                  mt={1}
+                  data-testid={`gr-discrepancy-checkbox-${d.id}`}
+                  isChecked={selectedDiscrepancyIds.has(d.id)}
+                  isDisabled={!selectable || submitting}
+                  onChange={(e) => toggleDiscrepancySelection(d.id, e.target.checked)}
+                />
+                <Box flex={1}>
+                  <HStack justify="space-between" mb={2}>
+                    <Badge colorScheme={discrepancySeverityColor(d.severity)}>
+                      {discrepancySeverityLabel(d.severity)}
+                    </Badge>
+                    <Text fontSize="xs" color={mutedColor}>
+                      {discrepancyLayerLabel(d.layer)} · {d.field}
+                    </Text>
+                  </HStack>
+                  <Text fontSize="sm" mb={1}>
+                    Esperado: {d.expected_value ?? '—'}
+                  </Text>
+                  <Text fontSize="sm" mb={2}>
+                    Encontrado: {d.actual_value ?? '—'}
+                  </Text>
+                  {d.resolved_at ? (
+                    <Badge colorScheme="green">Resolvida</Badge>
+                  ) : (
+                    <VStack align="stretch" spacing={2} mt={2}>
+                      <Textarea
+                        size="sm"
+                        placeholder="Justificativa (opcional)"
+                        value={resolveJustification[d.id] ?? ''}
+                        onChange={(e) =>
+                          setResolveJustification((prev) => ({ ...prev, [d.id]: e.target.value }))
+                        }
+                        isDisabled={isReadOnly || submitting}
+                      />
+                      <HStack flexWrap="wrap">
+                        <Button
+                          size="xs"
+                          colorScheme="green"
+                          isDisabled={isReadOnly || submitting}
+                          onClick={() => handleResolveDiscrepancy(d, 'accept')}
+                        >
+                          Aceitar
+                        </Button>
+                        <Button
+                          size="xs"
+                          colorScheme="orange"
+                          isDisabled={isReadOnly || submitting}
+                          onClick={() => handleResolveDiscrepancy(d, 'notify_supplier')}
+                        >
+                          Notificar fornecedor
+                        </Button>
+                      </HStack>
+                    </VStack>
+                  )}
+                </Box>
+              </HStack>
+            </Box>
+          );
+        })}
 
         {receipt.status === GoodsReceiptStatus.PENDING_DIRECTOR &&
           !receipt.director_approved_at &&
@@ -775,6 +1050,44 @@ export function GoodsReceiptWizard({
               Aprovar como diretor
             </Button>
           )}
+
+        <AlertDialog
+          isOpen={bulkConfirmAction != null}
+          leastDestructiveRef={bulkCancelRef}
+          onClose={() => setBulkConfirmAction(null)}
+        >
+          <AlertDialogOverlay>
+            <AlertDialogContent>
+              <AlertDialogHeader fontSize="lg" fontWeight="bold">
+                {bulkConfirmAction === 'notify_supplier'
+                  ? 'Notificar fornecedor'
+                  : 'Aceitar divergências'}
+              </AlertDialogHeader>
+              <AlertDialogBody>
+                {bulkConfirmAction === 'notify_supplier'
+                  ? `Confirmar notificação de ${selectedCount} divergência(s)? Será enviado um único e-mail ao fornecedor.`
+                  : `Confirmar aceite de ${selectedCount} divergência(s) selecionada(s)?`}
+              </AlertDialogBody>
+              <AlertDialogFooter>
+                <Button ref={bulkCancelRef} onClick={() => setBulkConfirmAction(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  colorScheme={bulkConfirmAction === 'notify_supplier' ? 'orange' : 'green'}
+                  ml={3}
+                  data-testid="gr-discrepancy-bulk-confirm"
+                  onClick={() => {
+                    if (bulkConfirmAction) {
+                      void handleBulkResolve(bulkConfirmAction);
+                    }
+                  }}
+                >
+                  Confirmar
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialogOverlay>
+        </AlertDialog>
       </VStack>
     );
   };
@@ -1151,9 +1464,9 @@ export function GoodsReceiptWizard({
           >
             Buscar sugestões IA de suprimento
           </Button>
-          {unclassifiedCount > 0 && (
+          {draftUnclassifiedCount > 0 && (
             <Text fontSize="sm" color="orange.500">
-              {unclassifiedCount} linha(s) ainda não classificada(s).
+              {draftUnclassifiedCount} linha(s) ainda não classificada(s).
             </Text>
           )}
           <InvoiceLineClassificationTable

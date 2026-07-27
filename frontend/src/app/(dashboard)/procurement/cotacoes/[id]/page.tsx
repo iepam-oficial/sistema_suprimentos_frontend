@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -10,6 +10,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  Select,
   Spinner,
   Table,
   Tbody,
@@ -32,9 +33,6 @@ import type {
 import { ProposalReviewStatus, QuoteInviteStatus } from '@ti-assistant/contracts';
 import {
   closeProcurementQuote,
-  CloseQuoteConfirmModal,
-  CloseQuotePendingReviewError,
-  type CloseQuotePendingSupplier,
   fetchProcurementQuoteById,
   getReviewBadge,
   markProposalReviewOk,
@@ -47,6 +45,7 @@ import {
   QuoteOriginSection,
   QuoteTimelineDrawer,
   sendProcurementQuote,
+  setQuoteSelectedPaymentMethod,
   usePollingRefresh,
 } from '@/features/procurement';
 
@@ -87,9 +86,6 @@ export default function ProcurementQuoteDetailPage() {
     inviteId: string;
     supplierName: string;
   } | null>(null);
-  const [pendingSuppliers, setPendingSuppliers] = useState<
-    CloseQuotePendingSupplier[]
-  >([]);
 
   const {
     isOpen: isTimelineOpen,
@@ -110,11 +106,6 @@ export default function ProcurementQuoteDetailPage() {
     isOpen: isHistoryOpen,
     onOpen: onHistoryOpen,
     onClose: onHistoryClose,
-  } = useDisclosure();
-  const {
-    isOpen: isCloseConfirmOpen,
-    onOpen: onCloseConfirmOpen,
-    onClose: onCloseConfirmClose,
   } = useDisclosure();
 
   const bgColor = useColorModeValue('white', 'gray.700');
@@ -176,8 +167,7 @@ export default function ProcurementQuoteDetailPage() {
     }
   }, [authorized, loadQuote]);
 
-  const blockingOverlayOpen =
-    isPdfOpen || isCorrectionOpen || isHistoryOpen || isCloseConfirmOpen;
+  const blockingOverlayOpen = isPdfOpen || isCorrectionOpen || isHistoryOpen;
 
   usePollingRefresh({
     enabled: authorized && !blockingOverlayOpen && !actionLoading,
@@ -229,11 +219,6 @@ export default function ProcurementQuoteDetailPage() {
       });
       loadQuote();
     } catch (err) {
-      if (err instanceof CloseQuotePendingReviewError) {
-        setPendingSuppliers(err.pending_suppliers);
-        onCloseConfirmOpen();
-        return;
-      }
       toast({
         title: 'Erro ao encerrar',
         description: err instanceof Error ? err.message : 'Tente novamente.',
@@ -297,11 +282,6 @@ export default function ProcurementQuoteDetailPage() {
     setHistoryInvite(null);
   };
 
-  const handleCloseConfirmSuccess = () => {
-    setPendingSuppliers([]);
-    loadQuote();
-  };
-
   const handleOpenPdf = (supplierName: string, pdfUrl: string) => {
     setPdfPreview({ supplierName, pdfUrl });
     onPdfOpen();
@@ -311,6 +291,32 @@ export default function ProcurementQuoteDetailPage() {
     onPdfClose();
     setPdfPreview(null);
   };
+
+  const closeGate = useMemo(() => {
+    const invites = quote?.invites ?? [];
+    const reviewOkCount = invites.filter(
+      (invite) =>
+        invite.proposal != null &&
+        invite.proposal_review_status === ProposalReviewStatus.REVIEW_OK,
+    ).length;
+    const pendingReviewNames = invites
+      .filter(
+        (invite) =>
+          invite.proposal != null &&
+          invite.proposal_review_status !== ProposalReviewStatus.REVIEW_OK &&
+          invite.status !== QuoteInviteStatus.DECLINED &&
+          invite.status !== QuoteInviteStatus.EXPIRED,
+      )
+      .map((invite) => invite.supplier?.name ?? 'Fornecedor');
+    const canCloseRanking = reviewOkCount >= 2 && pendingReviewNames.length === 0;
+    let helper: string | null = null;
+    if (pendingReviewNames.length > 0) {
+      helper = `Revise as propostas de: ${pendingReviewNames.join(', ')}.`;
+    } else if (reviewOkCount < 2) {
+      helper = `São necessárias pelo menos 2 propostas com Revisão OK (atual: ${reviewOkCount}).`;
+    }
+    return { canCloseRanking, helper, reviewOkCount };
+  }, [quote]);
 
   if (!authorized) {
     return null;
@@ -387,15 +393,23 @@ export default function ProcurementQuoteDetailPage() {
               </Button>
             )}
             {isManager && quote.status === 'SENT' && (
-              <Button
-                colorScheme="purple"
-                size="sm"
-                onClick={handleClose}
-                isLoading={actionLoading}
-                loadingText="Encerrando..."
-              >
-                Encerrar e calcular ranking
-              </Button>
+              <VStack align="flex-end" spacing={1}>
+                <Button
+                  colorScheme="purple"
+                  size="sm"
+                  onClick={handleClose}
+                  isLoading={actionLoading}
+                  loadingText="Encerrando..."
+                  isDisabled={!closeGate.canCloseRanking}
+                >
+                  Encerrar e calcular ranking
+                </Button>
+                {closeGate.helper && (
+                  <Text fontSize="xs" color={mutedColor} maxW="320px" textAlign="right">
+                    {closeGate.helper}
+                  </Text>
+                )}
+              </VStack>
             )}
           </HStack>
         </HStack>
@@ -415,6 +429,68 @@ export default function ProcurementQuoteDetailPage() {
           </Text>
         </Box>
 
+        {isDirector &&
+          quote.status === 'APPROVED' &&
+          (quote.winner_invite?.proposal?.payment_methods?.length ?? 0) > 0 && (
+            <Box>
+              <Heading size="sm" mb={2} color={headingColor}>
+                Forma de pagamento do pedido
+              </Heading>
+              <HStack maxW="420px" align="flex-end">
+                <Select
+                  size="sm"
+                  placeholder="Selecionar forma aceita pelo fornecedor"
+                  value={quote.selected_payment_method_code ?? ''}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    if (!code) return;
+                    const token = localStorage.getItem('@ti-assistant:token');
+                    if (!token) return;
+                    try {
+                      setActionLoading(true);
+                      const updated = await setQuoteSelectedPaymentMethod(
+                        token,
+                        quote.id,
+                        code,
+                      );
+                      setQuote(updated);
+                      toast({
+                        title: 'Forma de pagamento definida',
+                        status: 'success',
+                        duration: 3000,
+                        isClosable: true,
+                      });
+                    } catch (err) {
+                      toast({
+                        title: 'Erro ao definir pagamento',
+                        description:
+                          err instanceof Error ? err.message : 'Tente novamente.',
+                        status: 'error',
+                        duration: 4000,
+                        isClosable: true,
+                      });
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }}
+                >
+                  {(quote.winner_invite?.proposal?.payment_methods ?? []).map(
+                    (method) => (
+                      <option key={method.code} value={method.code}>
+                        {method.label}
+                      </option>
+                    ),
+                  )}
+                </Select>
+              </HStack>
+              {quote.selected_payment_method_label && (
+                <Text fontSize="xs" color={mutedColor} mt={1}>
+                  Atual: {quote.selected_payment_method_label}
+                </Text>
+              )}
+            </Box>
+          )}
+
         <Divider />
 
         <Box>
@@ -430,6 +506,7 @@ export default function ProcurementQuoteDetailPage() {
                   <Th>Revisão</Th>
                   <Th>Proposta</Th>
                   <Th>Valor total</Th>
+                  <Th>Pagamento</Th>
                   <Th>PDF</Th>
                   {isManager && <Th>Ações</Th>}
                 </Tr>
@@ -474,6 +551,26 @@ export default function ProcurementQuoteDetailPage() {
                               style: 'currency',
                               currency: 'BRL',
                             })
+                          : '—'}
+                      </Td>
+                      <Td color={textColor} fontSize="sm" maxW="220px">
+                        {invite.proposal?.payment_methods?.length
+                          ? (
+                              <>
+                                {(invite.proposal.payment_methods ?? [])
+                                  .map((m) => m.label)
+                                  .join(', ')}
+                                {invite.proposal.payment_methods.some(
+                                  (m) => m.requires_boleto_terms,
+                                ) &&
+                                  invite.proposal.boleto_grace_days != null && (
+                                    <Text fontSize="xs" color={mutedColor}>
+                                      Carência {invite.proposal.boleto_grace_days}d ·{' '}
+                                      {invite.proposal.boleto_installments}x
+                                    </Text>
+                                  )}
+                              </>
+                            )
                           : '—'}
                       </Td>
                       <Td>
@@ -590,14 +687,6 @@ export default function ProcurementQuoteDetailPage() {
         supplierName={historyInvite?.supplierName}
         isOpen={isHistoryOpen}
         onClose={handleHistoryClose}
-      />
-
-      <CloseQuoteConfirmModal
-        quoteId={quoteId}
-        pendingSuppliers={pendingSuppliers}
-        isOpen={isCloseConfirmOpen}
-        onClose={onCloseConfirmClose}
-        onSuccess={handleCloseConfirmSuccess}
       />
     </Box>
   );
