@@ -74,24 +74,6 @@ export async function GET(request: Request) {
 
         const suppliers = await suppliersResponse.json()
 
-        // Busca dados de cotações
-        const quotesResponse = await fetch(`${baseUrl}/quotes`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-
-        if (quotesResponse.status === 429) {
-            const message = await quotesResponse.text();
-            console.log('[API][dashboard][GET] Rate limit exceeded', message);
-            return NextResponse.json(
-                { error: 'Rate limit exceeded', details: message },
-                { status: 429 }
-            );
-        }
-
-        const quotes = await quotesResponse.json()
-
         // Busca dados de requisições de suprimentos
         const supplyRequestsResponse = await fetch(`${baseUrl}/supply-requests`, {
             headers: {
@@ -157,8 +139,6 @@ export async function GET(request: Request) {
             consumptionTrends,
             averageDeliveryTimeTrends,
             totalSuppliers: Array.isArray(suppliers) ? suppliers.length : 0,
-            totalQuotes: Array.isArray(quotes) ? quotes.length : 0,
-            pendingQuotes: Array.isArray(quotes) ? quotes.filter((q: any) => q.status === 'PENDING').length : 0,
             totalSupplyRequests: Array.isArray(supplyRequests) ? supplyRequests.length : 0,
             pendingSupplyRequests: Array.isArray(supplyRequests) ? supplyRequests.filter((sr: any) => sr.status === 'PENDENTE').length : 0,
         }

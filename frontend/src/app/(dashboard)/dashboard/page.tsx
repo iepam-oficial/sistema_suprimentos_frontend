@@ -45,8 +45,6 @@ interface DashboardStats {
   consumptionTrends: { date: string; quantity: number }[]
   averageDeliveryTimeTrends: { date: string; averageDays: number }[]
   totalSuppliers: number
-  totalQuotes: number
-  pendingQuotes: number
   totalSupplyRequests: number
   pendingSupplyRequests: number
   approvedOrdersMonthlyInventoryValue: number
@@ -264,7 +262,7 @@ export default function DashboardPage() {
           <Heading size="sm" mb={2} color={textColor} fontWeight="bold" letterSpacing="tight">
             Suprimentos
           </Heading>
-          <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} spacing={3}>
+          <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
             <Card
               bg={cardBg}
               border="1px solid"
@@ -290,36 +288,6 @@ export default function DashboardPage() {
                   <StatHelpText fontSize="sm" color={textSecondary}>
                     <StatArrow type="increase" />
                     Total de fornecedores
-                  </StatHelpText>
-                </Stat>
-              </CardBody>
-            </Card>
-
-            <Card
-              bg={cardBg}
-              border="1px solid"
-              borderColor={cardBorder}
-              shadow="md"
-              _hover={{ transform: 'translateY(-1px)', shadow: 'lg' }}
-              transition="all 0.2s"
-              cursor="pointer"
-              onClick={() => router.push('/quotes')}
-            >
-              <CardBody p={4}>
-                <HStack spacing={2} mb={2}>
-                  <Box p={2} borderRadius="full" bgGradient="linear(to-r, purple.500, violet.500)" color="white">
-                    <FileText size={20} />
-                  </Box>
-                  <VStack align="start" spacing={0}>
-                    <Text fontSize="md" fontWeight="bold" color={textColor}>Cotações</Text>
-                    <Text fontSize="xs" color={textSecondary}>Propostas comerciais</Text>
-                  </VStack>
-                </HStack>
-                <Stat>
-                  <StatNumber fontSize="2xl" fontWeight="bold" color={textColor}>{stats.totalQuotes}</StatNumber>
-                  <StatHelpText fontSize="sm" color={textSecondary}>
-                    <StatArrow type={stats.pendingQuotes > 0 ? 'increase' : 'decrease'} />
-                    {stats.pendingQuotes} pendentes
                   </StatHelpText>
                 </Stat>
               </CardBody>
