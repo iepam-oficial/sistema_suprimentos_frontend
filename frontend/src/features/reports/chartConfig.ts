@@ -3,7 +3,6 @@ import type { ChartRow, ChartType, ReportSlug } from './types';
 const COMPOSITION_SLUGS: ReportSlug[] = [
   'alerts-by-level',
   'supply-requests',
-  'quotes-by-status',
 ];
 
 const HORIZONTAL_SLUGS: ReportSlug[] = [
