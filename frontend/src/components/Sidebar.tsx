@@ -221,6 +221,7 @@ function useSidebarMenuModel() {
     ...(!isEmployee ? [{ label: 'Fornecedores', href: '/settings/suppliers' }] : []),
     ...(!isEmployee ? [{ label: 'Planos de Conta', href: '/chart-of-accounts' }] : []),
     ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
+    ...(isAdmin ? [{ label: 'Códigos internos', href: '/settings/catalog-codes' }] : []),
   ];
 
   const comprasItems: NavItem[] = [
