@@ -19,6 +19,8 @@ interface PoloComparisonChartProps {
   metric: PoloMetric;
   onMetricChange: (metric: PoloMetric) => void;
   loading: boolean;
+  /** Drill-down level 1 (EFD-23): clicking a bar filters the dashboard inline by polo. */
+  onItemClick?: (item: NamedValueDTO) => void;
 }
 
 const METRIC_LABELS: Record<PoloMetric, string> = {
@@ -32,7 +34,13 @@ function chartHeightFor(rows: number): number {
   return Math.max(240, Math.min(rows, 8) * 34 + 40);
 }
 
-export function PoloComparisonChart({ data, metric, onMetricChange, loading }: PoloComparisonChartProps) {
+export function PoloComparisonChart({
+  data,
+  metric,
+  onMetricChange,
+  loading,
+  onItemClick,
+}: PoloComparisonChartProps) {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const cardBg = useColorModeValue('white', 'gray.800');
   const labelColor = useColorModeValue('gray.500', 'gray.400');
@@ -52,6 +60,7 @@ export function PoloComparisonChart({ data, metric, onMetricChange, loading }: P
   const chartData = rows.map((row) => ({
     name: row.label,
     value: row.value,
+    id: row.id,
   }));
   const chartHeight = chartHeightFor(chartData.length);
   const metricLabel = METRIC_LABELS[metric];
@@ -126,7 +135,19 @@ export function PoloComparisonChart({ data, metric, onMetricChange, loading }: P
                 contentStyle={tooltipStyle}
                 formatter={(value: number) => [formatBRL(value), metricLabel]}
               />
-              <Bar dataKey="value" name={metricLabel} fill={barColor} radius={[0, 4, 4, 0]} />
+              <Bar
+                dataKey="value"
+                name={metricLabel}
+                fill={barColor}
+                radius={[0, 4, 4, 0]}
+                cursor={onItemClick ? 'pointer' : undefined}
+                onClick={
+                  onItemClick
+                    ? (bar: { id: string | null; name: string; value: number }) =>
+                        onItemClick({ id: bar.id, label: bar.name, value: bar.value })
+                    : undefined
+                }
+              />
             </BarChart>
           </ResponsiveContainer>
         </Box>

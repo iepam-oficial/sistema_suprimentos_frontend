@@ -9,11 +9,13 @@ import { colorForIndex } from '../lib/chartColors';
 interface ExpensesByCategoryChartProps {
   data: NamedValueDTO[] | undefined;
   loading: boolean;
+  /** Drill-down level 2 (EFD-23): clicking a slice filters the dashboard inline by categoria. */
+  onItemClick?: (item: NamedValueDTO) => void;
 }
 
 const CHART_HEIGHT = 260;
 
-export function ExpensesByCategoryChart({ data, loading }: ExpensesByCategoryChartProps) {
+export function ExpensesByCategoryChart({ data, loading, onItemClick }: ExpensesByCategoryChartProps) {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const cardBg = useColorModeValue('white', 'gray.800');
   const labelColor = useColorModeValue('gray.500', 'gray.400');
@@ -27,7 +29,7 @@ export function ExpensesByCategoryChart({ data, loading }: ExpensesByCategoryCha
   };
 
   const rows = (data ?? []).filter((row) => row.value > 0);
-  const chartData = rows.map((row) => ({ name: row.label, value: row.value }));
+  const chartData = rows.map((row) => ({ name: row.label, value: row.value, id: row.id }));
 
   return (
     <Box borderWidth="1px" borderColor={borderColor} borderRadius="md" bg={cardBg} p={3}>
@@ -69,6 +71,13 @@ export function ExpensesByCategoryChart({ data, loading }: ExpensesByCategoryCha
                 innerRadius="45%"
                 outerRadius="75%"
                 paddingAngle={1}
+                cursor={onItemClick ? 'pointer' : undefined}
+                onClick={
+                  onItemClick
+                    ? (slice: { id: string | null; name: string; value: number }) =>
+                        onItemClick({ id: slice.id, label: slice.name, value: slice.value })
+                    : undefined
+                }
               >
                 {chartData.map((entry, index) => (
                   <Cell key={entry.name} fill={colorForIndex(index)} />

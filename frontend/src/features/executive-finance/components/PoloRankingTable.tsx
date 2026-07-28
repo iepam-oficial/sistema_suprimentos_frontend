@@ -21,6 +21,8 @@ import { formatBRL } from '@/utils/money';
 interface PoloRankingTableProps {
   data: PoloRankingRowDTO[] | undefined;
   loading: boolean;
+  /** Drill-down level 1 (EFD-23): clicking a row filters the dashboard inline by polo. */
+  onRowClick?: (row: PoloRankingRowDTO) => void;
 }
 
 const MAX_HEIGHT = 280;
@@ -31,7 +33,7 @@ function scoreColorScheme(score: number): string {
   return 'red';
 }
 
-export function PoloRankingTable({ data, loading }: PoloRankingTableProps) {
+export function PoloRankingTable({ data, loading, onRowClick }: PoloRankingTableProps) {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const cardBg = useColorModeValue('white', 'gray.800');
   const labelColor = useColorModeValue('gray.500', 'gray.400');
@@ -83,7 +85,12 @@ export function PoloRankingTable({ data, loading }: PoloRankingTableProps) {
             </Thead>
             <Tbody>
               {rows.map((row) => (
-                <Tr key={row.locationId ?? row.polo} _hover={{ bg: rowHoverBg }}>
+                <Tr
+                  key={row.locationId ?? row.polo}
+                  _hover={{ bg: rowHoverBg }}
+                  cursor={onRowClick ? 'pointer' : undefined}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
                   <Td fontSize="xs">{row.polo}</Td>
                   <Td fontSize="xs" isNumeric>{formatBRL(row.expenses)}</Td>
                   <Td fontSize="xs" isNumeric>{formatBRL(row.purchasesValue)}</Td>

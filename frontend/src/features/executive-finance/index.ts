@@ -6,6 +6,13 @@ export {
 } from './hooks/useExecutiveFinanceDashboard';
 export type { UseExecutiveFinanceDashboardResult } from './hooks/useExecutiveFinanceDashboard';
 
+export { useExecutiveDrilldown } from './hooks/useExecutiveDrilldown';
+export type {
+  DrilldownChip,
+  DrilldownDimension,
+  UseExecutiveDrilldownResult,
+} from './hooks/useExecutiveDrilldown';
+
 export {
   ExecutiveFinanceFilters,
   getDefaultExecutiveFinanceFilters,
@@ -21,3 +28,4 @@ export { PatrimonyByCategoryChart } from './components/PatrimonyByCategoryChart'
 export { TopSuppliersTable } from './components/TopSuppliersTable';
 export { PoloRankingTable } from './components/PoloRankingTable';
 export { ExecutiveFinanceAlertsPanel } from './components/ExecutiveFinanceAlertsPanel';
+export { DrilldownBreadcrumb } from './components/DrilldownBreadcrumb';

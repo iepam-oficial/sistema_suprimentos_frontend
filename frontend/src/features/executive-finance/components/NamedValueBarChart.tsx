@@ -19,6 +19,8 @@ interface NamedValueBarChartProps {
   loading: boolean;
   emptyLabel?: string;
   valueLabel?: string;
+  /** Optional drill-down click (EFD-23) — wired only where a level makes sense (e.g. setor). */
+  onItemClick?: (item: NamedValueDTO) => void;
 }
 
 function chartHeightFor(rows: number): number {
@@ -31,6 +33,7 @@ export function NamedValueBarChart({
   loading,
   emptyLabel = 'Sem dados no período selecionado',
   valueLabel = 'Valor',
+  onItemClick,
 }: NamedValueBarChartProps) {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const cardBg = useColorModeValue('white', 'gray.800');
@@ -47,7 +50,7 @@ export function NamedValueBarChart({
   };
 
   const rows = data ?? [];
-  const chartData = rows.map((row) => ({ name: row.label, value: row.value }));
+  const chartData = rows.map((row) => ({ name: row.label, value: row.value, id: row.id }));
   const chartHeight = chartHeightFor(chartData.length);
 
   return (
@@ -106,7 +109,19 @@ export function NamedValueBarChart({
                 contentStyle={tooltipStyle}
                 formatter={(value: number) => [formatBRL(value), valueLabel]}
               />
-              <Bar dataKey="value" name={valueLabel} fill={barColor} radius={[0, 4, 4, 0]} />
+              <Bar
+                dataKey="value"
+                name={valueLabel}
+                fill={barColor}
+                radius={[0, 4, 4, 0]}
+                cursor={onItemClick ? 'pointer' : undefined}
+                onClick={
+                  onItemClick
+                    ? (bar: { id: string | null; name: string; value: number }) =>
+                        onItemClick({ id: bar.id, label: bar.name, value: bar.value })
+                    : undefined
+                }
+              />
             </BarChart>
           </ResponsiveContainer>
         </Box>

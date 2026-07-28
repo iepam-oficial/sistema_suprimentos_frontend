@@ -19,6 +19,7 @@ import type { ExecutiveFinanceFilters as ExecutiveFinanceFiltersState } from '@t
 import { PoloMetric, UserRole } from '@ti-assistant/contracts';
 import { useAuthSession } from '@/features/identity';
 import {
+  DrilldownBreadcrumb,
   ExecutiveFinanceAlertsPanel,
   ExecutiveFinanceFilters,
   ExecutiveKpiCards,
@@ -32,6 +33,7 @@ import {
   SavingsEvolutionChart,
   TopSuppliersTable,
   getDefaultExecutiveFinanceFilters,
+  useExecutiveDrilldown,
   useExecutiveFinanceDashboard,
 } from '@/features/executive-finance';
 
@@ -52,6 +54,7 @@ export default function ExecutiveFinanceDashboardPage() {
   }, [authLoading, user, isDirector, router]);
 
   const { data, loading, error, isStale } = useExecutiveFinanceDashboard(filters);
+  const drilldown = useExecutiveDrilldown(filters, setFilters);
   const alerts = data?.alerts ?? [];
   const hasAlerts = alerts.length > 0;
 
@@ -96,6 +99,12 @@ export default function ExecutiveFinanceDashboardPage() {
 
       <ExecutiveFinanceFilters filters={filters} onChange={setFilters} />
 
+      <DrilldownBreadcrumb
+        chips={drilldown.chips}
+        onClear={drilldown.clearDimension}
+        onClearAll={drilldown.clearAll}
+      />
+
       <ExecutiveKpiCards kpis={data?.kpis ?? null} loading={loading} />
 
       <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={3}>
@@ -105,6 +114,7 @@ export default function ExecutiveFinanceDashboardPage() {
           metric={filters.poloMetric ?? PoloMetric.DESPESAS}
           onMetricChange={(poloMetric) => setFilters((prev) => ({ ...prev, poloMetric }))}
           loading={loading}
+          onItemClick={(item) => drilldown.handlePoloClick(item.id, item.label)}
         />
       </SimpleGrid>
 
@@ -118,8 +128,13 @@ export default function ExecutiveFinanceDashboardPage() {
                 loading={loading}
                 valueLabel="Compras"
                 emptyLabel="Sem compras por setor no período selecionado"
+                onItemClick={(item) => drilldown.handleSectorClick(item.id, item.label)}
               />
-              <ExpensesByCategoryChart data={data?.expensesByCategory} loading={loading} />
+              <ExpensesByCategoryChart
+                data={data?.expensesByCategory}
+                loading={loading}
+                onItemClick={(item) => drilldown.handleCategoryClick(item.id, item.label)}
+              />
             </SimpleGrid>
 
             <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={3}>
@@ -149,7 +164,11 @@ export default function ExecutiveFinanceDashboardPage() {
               <TopSuppliersTable data={data?.topSuppliers} loading={loading} />
             </SimpleGrid>
 
-            <PoloRankingTable data={data?.poloRanking} loading={loading} />
+            <PoloRankingTable
+              data={data?.poloRanking}
+              loading={loading}
+              onRowClick={(row) => drilldown.handlePoloClick(row.locationId, row.polo)}
+            />
           </VStack>
         </Box>
 
