@@ -40,14 +40,16 @@ export interface UpdateFiscalNcmInput {
 
 export interface CatalogSettingsDTO {
   id: string;
-  internal_code_prefix: string;
+  supply_domain_prefix: string;
+  inventory_domain_prefix: string;
   internal_code_padding: number;
   updated_by_id?: string | null;
   updated_at: string;
 }
 
 export interface UpdateCatalogSettingsInput {
-  internal_code_prefix: string;
+  supply_domain_prefix: string;
+  inventory_domain_prefix: string;
   internal_code_padding: number;
 }
 
