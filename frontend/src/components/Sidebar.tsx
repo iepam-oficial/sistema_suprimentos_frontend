@@ -156,6 +156,9 @@ function useSidebarMenuModel() {
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Home, label: 'Dashboard', href: '/dashboard' }]
       : []),
+    ...(user?.role === 'DIRECTOR'
+      ? [{ icon: BarChart, label: 'Dashboard Financeiro', href: '/dashboard/financeiro' }]
+      : []),
   ];
 
   const estoqueItems: NavItem[] = [
