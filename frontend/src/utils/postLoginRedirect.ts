@@ -20,7 +20,7 @@ const ROLE_DEFAULT_PATH: Record<string, string> = {
   ADMIN: '/dashboard',
   MANAGER: '/dashboard',
   COORDINATOR: '/procurement/solicitacoes',
-  DIRECTOR: '/procurement/aprovacoes-sc',
+  DIRECTOR: '/dashboard/financeiro',
   EMPLOYEE: '/supply-requests',
   TECHNICIAN: '/supply-requests',
   ORGANIZER: '/supply-requests',
@@ -38,7 +38,7 @@ const ROLE_ALLOWED_FROM_PREFIXES: Record<string, readonly string[]> = {
   ADMIN: PROTECTED_PATH_PREFIXES,
   MANAGER: PROTECTED_PATH_PREFIXES,
   COORDINATOR: [...EMPLOYEE_SELF_SERVICE_PREFIXES, '/procurement'],
-  DIRECTOR: ['/procurement', '/events'],
+  DIRECTOR: ['/dashboard', '/procurement', '/events'],
   EMPLOYEE: EMPLOYEE_SELF_SERVICE_PREFIXES,
   TECHNICIAN: [
     '/supply-requests',
