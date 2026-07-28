@@ -1,4 +1,5 @@
 import { InventoryResponse, RateLimitResponse } from '@/app/interfaces';
+import type { InventoryItem } from '@/features/inventory/types';
 
 export const fetchItems = async (): Promise<RateLimitResponse | InventoryResponse[]> => {
   const token = localStorage.getItem('@ti-assistant:token');
@@ -64,6 +65,32 @@ export const deleteItem = async (id: string) => {
     },
   });
 };
+
+export async function generateInventoryInternalCode(
+  token: string,
+  id: string,
+): Promise<InventoryItem> {
+  const response = await fetch(`/api/inventory/${id}/generate-internal-code`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    let message = 'Erro ao gerar código interno';
+    try {
+      const body = (await response.json()) as { error?: string; message?: string };
+      message = body.error || body.message || message;
+    } catch {
+      // keep default message
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
 
 export const depreciateAll = async () => {
   const token = localStorage.getItem('@ti-assistant:token');
