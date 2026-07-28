@@ -6,6 +6,7 @@ export type AllocationStatus = InventoryAllocationDTO['status'];
 /** Item de inventário — alinhado ao contrato da API, sem campos internos */
 export interface InventoryItem {
   id: string;
+  internal_code?: string | null;
   item: string;
   name: string;
   model: string;

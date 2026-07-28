@@ -10,7 +10,8 @@ export const filterItems = (
         const matchesSearch =
             item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             item.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.serial_number.toLowerCase().includes(searchTerm.toLowerCase());
+            item.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (item.internal_code ?? '').toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchesCategory = !selectedCategory || item.category?.id === selectedCategory;
         const matchesSubcategory = !selectedSubcategory || item.subcategory?.id === selectedSubcategory;
