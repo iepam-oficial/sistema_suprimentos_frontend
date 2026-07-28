@@ -11,3 +11,5 @@ export {
   getDefaultExecutiveFinanceFilters,
 } from './components/ExecutiveFinanceFilters';
 export { ExecutiveKpiCards } from './components/ExecutiveKpiCards';
+export { FinancialEvolutionChart } from './components/FinancialEvolutionChart';
+export { PoloComparisonChart } from './components/PoloComparisonChart';

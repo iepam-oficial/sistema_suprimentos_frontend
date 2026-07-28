@@ -8,17 +8,20 @@ import {
   Box,
   Center,
   Heading,
+  SimpleGrid,
   Spinner,
   Text,
   VStack,
   useColorModeValue,
 } from '@chakra-ui/react';
 import type { ExecutiveFinanceFilters as ExecutiveFinanceFiltersState } from '@ti-assistant/contracts';
-import { UserRole } from '@ti-assistant/contracts';
+import { PoloMetric, UserRole } from '@ti-assistant/contracts';
 import { useAuthSession } from '@/features/identity';
 import {
   ExecutiveFinanceFilters,
   ExecutiveKpiCards,
+  FinancialEvolutionChart,
+  PoloComparisonChart,
   getDefaultExecutiveFinanceFilters,
   useExecutiveFinanceDashboard,
 } from '@/features/executive-finance';
@@ -84,7 +87,15 @@ export default function ExecutiveFinanceDashboardPage() {
 
       <ExecutiveKpiCards kpis={data?.kpis ?? null} loading={loading} />
 
-      {/* TODO(T11): Evolução Financeira + Comparativo entre Polos abaixo dos KPIs */}
+      <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={3}>
+        <FinancialEvolutionChart data={data?.financialEvolution} loading={loading} />
+        <PoloComparisonChart
+          data={data?.poloComparison}
+          metric={filters.poloMetric ?? PoloMetric.DESPESAS}
+          onMetricChange={(poloMetric) => setFilters((prev) => ({ ...prev, poloMetric }))}
+          loading={loading}
+        />
+      </SimpleGrid>
     </VStack>
   );
 }
