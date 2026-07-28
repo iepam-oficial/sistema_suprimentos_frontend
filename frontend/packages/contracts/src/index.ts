@@ -10,6 +10,7 @@ export * from './dto/catalog.dto';
 export * from './dto/support-ticket.dto';
 export * from './dto/event.dto';
 export * from './dto/finance.dto';
+export * from './dto/executive-finance.dto';
 export * from './dto/fiscal.dto';
 export * from './dto/reference-data.dto';
 export * from './dto/operations.dto';
