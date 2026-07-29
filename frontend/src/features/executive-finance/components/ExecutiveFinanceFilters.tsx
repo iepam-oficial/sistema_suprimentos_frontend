@@ -36,13 +36,10 @@ function toIsoDate(date: Date): string {
 }
 
 function locationLabel(location: LocationDTO): string {
-  return location.branch?.trim() || location.name;
-}
-
-function companyLabel(location: LocationDTO): string {
-  const legalName = location.legal_name?.trim();
-  if (!legalName) return location.name;
-  return location.cnpj ? `${legalName} — ${location.cnpj}` : legalName;
+  const branch = location.branch?.trim();
+  const name = location.name?.trim();
+  if (name && branch && name !== branch) return `${name} (${branch})`;
+  return name || branch || location.id;
 }
 
 interface FilterOptionsState {
@@ -82,15 +79,33 @@ export function ExecutiveFinanceFilters({ filters, onChange }: ExecutiveFinanceF
     let cancelled = false;
 
     async function loadOptions() {
-      const [locations, categories, sectors, suppliers, chartOfAccounts] = await Promise.all([
-        fetchLocations(token as string).catch(() => []),
-        fetchCategories(token as string).catch(() => []),
-        fetchSectors(token as string).catch(() => []),
-        fetchSuppliers(token as string).catch(() => []),
-        fetchChartOfAccounts().catch(() => []),
+      const settled = await Promise.allSettled([
+        fetchLocations(token as string),
+        fetchCategories(token as string),
+        fetchSectors(token as string),
+        fetchSuppliers(token as string),
+        fetchChartOfAccounts(),
       ]);
+
+      const [locations, categories, sectors, suppliers, chartOfAccounts] = settled.map(
+        (result, index) => {
+          if (result.status === 'fulfilled') return result.value;
+          console.error(
+            `[ExecutiveFinanceFilters] falha ao carregar opção #${index}`,
+            result.reason
+          );
+          return [];
+        }
+      );
+
       if (!cancelled) {
-        setOptions({ locations, categories, sectors, suppliers, chartOfAccounts });
+        setOptions({
+          locations: locations as LocationDTO[],
+          categories: categories as CategoryDTO[],
+          sectors: sectors as SectorDTO[],
+          suppliers: suppliers as SupplierDTO[],
+          chartOfAccounts: chartOfAccounts as ChartOfAccountDTO[],
+        });
       }
     }
 
@@ -105,7 +120,6 @@ export function ExecutiveFinanceFilters({ filters, onChange }: ExecutiveFinanceF
     filters.from === defaults.from &&
     filters.to === defaults.to &&
     !filters.locationId &&
-    !filters.companyLocationId &&
     !filters.chartOfAccountId &&
     !filters.categoryId &&
     !filters.sectorId &&
@@ -121,7 +135,7 @@ export function ExecutiveFinanceFilters({ filters, onChange }: ExecutiveFinanceF
       borderRadius="md"
       bg={useColorModeValue('gray.50', 'gray.900')}
     >
-      <SimpleGrid columns={{ base: 2, sm: 3, md: 4, lg: 9 }} spacing={2} alignItems="end">
+      <SimpleGrid columns={{ base: 2, sm: 3, md: 4, lg: 8 }} spacing={2} alignItems="end">
         <FormControl>
           <FormLabel fontSize="xs" color={labelColor} mb={1}>
             De
@@ -161,24 +175,6 @@ export function ExecutiveFinanceFilters({ filters, onChange }: ExecutiveFinanceF
             {options.locations.map((location) => (
               <option key={location.id} value={location.id}>
                 {locationLabel(location)}
-              </option>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl>
-          <FormLabel fontSize="xs" color={labelColor} mb={1}>
-            Empresa
-          </FormLabel>
-          <Select
-            {...selectProps}
-            value={filters.companyLocationId ?? ''}
-            onChange={(e) => set({ companyLocationId: e.target.value || undefined })}
-          >
-            <option value="">Todas</option>
-            {options.locations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {companyLabel(location)}
               </option>
             ))}
           </Select>

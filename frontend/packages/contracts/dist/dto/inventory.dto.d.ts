@@ -8,6 +8,7 @@ export type CategoryLabelDTO = CategoryDTO;
 export type { LocationDTO };
 export interface InventoryItemDTO {
     id: string;
+    internal_code?: string | null;
     item?: string;
     name: string;
     model: string;
