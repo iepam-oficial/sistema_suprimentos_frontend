@@ -17,6 +17,7 @@ describe('parseNfeXml', () => {
       quantity: 10,
       unit_price: 25.5,
       total_price: 255,
+      ncm: '73181500',
     });
     expect(result.lines[1]).toEqual({
       line_number: 2,
@@ -24,6 +25,7 @@ describe('parseNfeXml', () => {
       quantity: 5,
       unit_price: 100,
       total_price: 500,
+      ncm: '82054000',
     });
   });
 
@@ -65,5 +67,16 @@ describe('parseNfeXml', () => {
     const xml = '<?xml version="1.0"?><root><foo>bar</foo></root>';
     expect(() => parseNfeXml(xml)).toThrow(AppError);
     expect(() => parseNfeXml(xml)).toThrow('infNFe não encontrado');
+  });
+
+  it('parses lines without NCM when prod.NCM is absent', () => {
+    const xml = readFileSync(fixturePath, 'utf-8').replace(/<NCM>[^<]*<\/NCM>\s*/g, '');
+    const result = parseNfeXml(xml);
+
+    expect(result.lines).toHaveLength(2);
+    expect(result.lines[0]).not.toHaveProperty('ncm');
+    expect(result.lines[1]).not.toHaveProperty('ncm');
+    expect(result.lines[0].description).toBe('Parafuso sextavado M8');
+    expect(result.lines[1].description).toBe('Chave de fenda isolada');
   });
 });

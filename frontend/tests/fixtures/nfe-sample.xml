@@ -14,6 +14,7 @@
       <det nItem="1">
         <prod>
           <xProd>Parafuso sextavado M8</xProd>
+          <NCM>73181500</NCM>
           <qCom>10.0000</qCom>
           <vUnCom>25.5000</vUnCom>
           <vProd>255.00</vProd>
@@ -22,6 +23,7 @@
       <det nItem="2">
         <prod>
           <xProd>Chave de fenda isolada</xProd>
+          <NCM>82054000</NCM>
           <qCom>5.0000</qCom>
           <vUnCom>100.0000</vUnCom>
           <vProd>500.00</vProd>
