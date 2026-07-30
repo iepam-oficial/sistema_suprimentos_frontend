@@ -10,6 +10,7 @@ import {
 
 import { generateInventoryInternalCode } from '@/features/inventory/api/inventoryApi';
 import type { InventoryItem } from '@/features/inventory/types';
+import { isDottedHierarchicalInternalCode } from '@/utils/internalCode';
 
 interface InventoryInternalCodeDisplayProps {
   inventoryId: string;
@@ -47,11 +48,15 @@ export function InventoryInternalCodeDisplay({
     }
   };
 
+  const isDotted =
+    internalCode != null && isDottedHierarchicalInternalCode(internalCode);
+  const actionLabel = internalCode ? 'Atualizar código' : 'Gerar código';
+
   if (variant === 'modal') {
     return (
       <FormControl>
         <FormLabel>Código PAT</FormLabel>
-        {internalCode ? (
+        {isDotted ? (
           <Input isReadOnly value={internalCode} />
         ) : (
           <Button
@@ -60,14 +65,14 @@ export function InventoryInternalCodeDisplay({
             isLoading={isLoading}
             isDisabled={isLoading}
           >
-            Gerar código
+            {actionLabel}
           </Button>
         )}
       </FormControl>
     );
   }
 
-  if (internalCode) {
+  if (isDotted) {
     return (
       <Text fontSize="xs" color="gray.500" fontFamily="mono">
         {internalCode}
@@ -83,7 +88,7 @@ export function InventoryInternalCodeDisplay({
       isLoading={isLoading}
       isDisabled={isLoading}
     >
-      Gerar código
+      {actionLabel}
     </Button>
   );
 }
