@@ -35,7 +35,7 @@ import {
 function formatExample(prefix: string, padding: number): string {
   const safePadding = Number.isFinite(padding) && padding > 0 ? padding : 6;
   const safePrefix = prefix.trim() || 'XXX';
-  return `${safePrefix}-${String(1).padStart(safePadding, '0')}`;
+  return `${safePrefix}.MAT.LIM.${String(1).padStart(safePadding, '0')}`;
 }
 
 export default function CatalogCodesSettingsPage() {
