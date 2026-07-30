@@ -604,6 +604,8 @@ export function GoodsReceiptWizard({
         invoice_line_id: c.invoice_line_id,
         destination_type: c.destination_type as 'SUPPLY' | 'INVENTORY',
         supply_id: c.destination_type === 'SUPPLY' ? c.supply_id : undefined,
+        ncm_id: c.ncm_id ?? null,
+        supply_ncm_action: c.destination_type === 'SUPPLY' ? c.supply_ncm_action : undefined,
       }));
 
       let updated = await classifyInvoiceLines(token, receipt.id, { lines: classifyLines });

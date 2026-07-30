@@ -1,5 +1,6 @@
 import type { DiscrepancySeverity, GoodsReceiptStatus, ReceiptLineDestination } from '../enums';
 import type { SupplierRefDTO } from './catalog.dto';
+import type { FiscalNcmDTO } from './fiscal.dto';
 import type { PurchaseOrderItemDTO } from './purchase-order.dto';
 import type { UserRefDTO } from './user.dto';
 export interface GoodsReceiptPhysicalLineDTO {
@@ -22,6 +23,9 @@ export interface GoodsReceiptInvoiceLineDTO {
     supply_id?: string | null;
     ai_suggested_supply_id?: string | null;
     ai_confidence?: number | null;
+    ncm_from_invoice?: string | null;
+    ncm_id?: string | null;
+    fiscal_ncm?: Pick<FiscalNcmDTO, 'id' | 'code' | 'description'> | null;
 }
 export interface GoodsReceiptDiscrepancyDTO {
     id: string;
@@ -109,6 +113,8 @@ export interface ClassifyInvoiceLineInput {
     invoice_line_id: string;
     destination_type: ReceiptLineDestination;
     supply_id?: string;
+    ncm_id?: string | null;
+    supply_ncm_action?: 'KEEP_SUPPLY' | 'USE_LINE_NCM';
 }
 export interface ClassifyInvoiceLinesInput {
     lines: ClassifyInvoiceLineInput[];
@@ -154,6 +160,7 @@ export interface NfeParseLineDTO {
     quantity: number;
     unit_price: number;
     total_price: number;
+    ncm?: string;
 }
 export interface NfeParseResultDTO {
     nfe_access_key: string;
@@ -168,6 +175,7 @@ export interface SuggestedInvoiceLineDTO {
     quantity: number;
     unit_price: number;
     total_price: number;
+    ncm?: string;
 }
 export interface SuggestedInvoiceMetadataDTO {
     nfe_number?: string;
@@ -181,6 +189,7 @@ export interface ConfirmInvoiceLineInput {
     quantity: number;
     unit_price: number;
     total_price: number;
+    ncm?: string;
 }
 export interface ConfirmInvoiceLinesInput {
     lines: ConfirmInvoiceLineInput[];
