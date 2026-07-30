@@ -149,6 +149,8 @@ export async function runGoodsReceipt(
     inlineCreateSupply?: boolean;
     /** Stop on Divergências step without logout (for follow-up UI assertions). */
     stopAtDiscrepancies?: boolean;
+    /** Invoked right after the classification step renders, before saving it (e.g. NCM assertions). */
+    onClassificationReady?: (driver: WebDriver) => Promise<void>;
   },
 ): Promise<string> {
   let goodsReceiptId = '';
@@ -179,6 +181,10 @@ export async function runGoodsReceipt(
 
     if (options.inlineCreateSupply) {
       await fillInlineSupplyCreate(driver);
+    }
+
+    if (options.onClassificationReady) {
+      await options.onClassificationReady(driver);
     }
 
     await clickByText(driver, 'Salvar classificação e comparar');

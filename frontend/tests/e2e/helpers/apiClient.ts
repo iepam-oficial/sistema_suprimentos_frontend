@@ -98,10 +98,18 @@ export class E2eApiClient {
   }
 
   async getGoodsReceipt(id: string) {
-    return this.request<{ id: string; status: string; discrepancies: unknown[] }>(
-      'GET',
-      `/e2e/goods-receipts/${id}`,
-    );
+    return this.request<{
+      id: string;
+      status: string;
+      discrepancies: unknown[];
+      invoiceLines: Array<{
+        id: string;
+        description: string;
+        ncm_from_invoice: string | null;
+        ncm_id: string | null;
+        fiscalNcm: { code: string } | null;
+      }>;
+    }>('GET', `/e2e/goods-receipts/${id}`);
   }
 
   async getSupplyBalance(supplyId: string) {
@@ -109,6 +117,14 @@ export class E2eApiClient {
       'GET',
       `/e2e/supplies/${supplyId}/balance`,
     );
+  }
+
+  async getSupplyFiscal(supplyId: string) {
+    return this.request<{
+      id: string;
+      ncm_id: string | null;
+      fiscalNcm: { code: string } | null;
+    }>('GET', `/e2e/supplies/${supplyId}/fiscal`);
   }
 
   async getSupplyRequest(id: string) {

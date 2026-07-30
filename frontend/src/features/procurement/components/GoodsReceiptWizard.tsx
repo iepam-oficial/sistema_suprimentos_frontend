@@ -505,12 +505,13 @@ export function GoodsReceiptWizard({
 
     const lines = pendingInvoiceLines
       .filter((line) => line.description.trim() && line.quantity > 0)
-      .map(({ line_number, description, quantity, unit_price, total_price }) => ({
+      .map(({ line_number, description, quantity, unit_price, total_price, ncm }) => ({
         line_number,
         description: description.trim(),
         quantity,
         unit_price,
         total_price,
+        ...(ncm ? { ncm } : {}),
       }));
 
     if (lines.length === 0) {

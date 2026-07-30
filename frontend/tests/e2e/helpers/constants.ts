@@ -1,4 +1,6 @@
 export const E2E_ITEM_DESCRIPTION = 'Parafuso sextavado M8';
+/** NCM sugerido pelo stub de IA da NF; deve bater com o seed E2E (`ensureFiscalNcm`). */
+export const E2E_ITEM_NCM = '39191000';
 export const E2E_SUPPLIER_NAMES = [
   'Fornecedor E2E A',
   'Fornecedor E2E B',
