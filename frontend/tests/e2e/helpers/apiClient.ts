@@ -113,10 +113,25 @@ export class E2eApiClient {
   }
 
   async getSupplyBalance(supplyId: string) {
-    return this.request<{ balance: number; batches: unknown[] }>(
-      'GET',
-      `/e2e/supplies/${supplyId}/balance`,
-    );
+    return this.request<{
+      balance: number;
+      batches: Array<{ id: string; purchased_quantity: number; origin: string | null }>;
+    }>('GET', `/e2e/supplies/${supplyId}/balance`);
+  }
+
+  async getSupplyBatch(token: string, batchId: string) {
+    return this.authRequest<{
+      id: string;
+      origin?: string | null;
+      fiscal_incomplete?: boolean;
+      fiscal_lines?: Array<{
+        id?: string;
+        description: string;
+        cfop: string | null;
+        cst: string | null;
+        commercial_unit: string | null;
+      }>;
+    }>('GET', `/supply-batches/${batchId}`, token);
   }
 
   async getSupplyFiscal(supplyId: string) {

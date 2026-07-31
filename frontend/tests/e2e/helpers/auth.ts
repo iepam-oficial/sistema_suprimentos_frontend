@@ -6,7 +6,7 @@ import { waitForUrlContains } from './wait';
 
 const POST_LOGIN_PATH: Record<E2eRole, string> = {
   COORDINATOR: '/procurement/solicitacoes',
-  DIRECTOR: '/procurement/aprovacoes-sc',
+  DIRECTOR: '/dashboard/financeiro',
   MANAGER: '/dashboard',
   EMPLOYEE: '/supply-requests',
 };

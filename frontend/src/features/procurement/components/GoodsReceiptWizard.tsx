@@ -505,14 +505,52 @@ export function GoodsReceiptWizard({
 
     const lines = pendingInvoiceLines
       .filter((line) => line.description.trim() && line.quantity > 0)
-      .map(({ line_number, description, quantity, unit_price, total_price, ncm }) => ({
-        line_number,
-        description: description.trim(),
-        quantity,
-        unit_price,
-        total_price,
-        ...(ncm ? { ncm } : {}),
-      }));
+      .map((line) => {
+        const {
+          line_number,
+          description,
+          quantity,
+          unit_price,
+          total_price,
+          ncm,
+          commercial_unit,
+          cfop,
+          cst,
+          discount_value,
+          icms_base,
+          icms_value,
+          icms_rate,
+          icms_st_base,
+          icms_st_value,
+          ipi_value,
+          ipi_rate,
+          ibs_value,
+          cbs_value,
+          is_value,
+        } = line;
+        return {
+          line_number,
+          description: description.trim(),
+          quantity,
+          unit_price,
+          total_price,
+          ...(ncm ? { ncm } : {}),
+          ...(commercial_unit !== undefined ? { commercial_unit } : {}),
+          ...(cfop !== undefined ? { cfop } : {}),
+          ...(cst !== undefined ? { cst } : {}),
+          ...(discount_value !== undefined ? { discount_value } : {}),
+          ...(icms_base !== undefined ? { icms_base } : {}),
+          ...(icms_value !== undefined ? { icms_value } : {}),
+          ...(icms_rate !== undefined ? { icms_rate } : {}),
+          ...(icms_st_base !== undefined ? { icms_st_base } : {}),
+          ...(icms_st_value !== undefined ? { icms_st_value } : {}),
+          ...(ipi_value !== undefined ? { ipi_value } : {}),
+          ...(ipi_rate !== undefined ? { ipi_rate } : {}),
+          ...(ibs_value !== undefined ? { ibs_value } : {}),
+          ...(cbs_value !== undefined ? { cbs_value } : {}),
+          ...(is_value !== undefined ? { is_value } : {}),
+        };
+      });
 
     if (lines.length === 0) {
       toast({
