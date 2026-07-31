@@ -24,6 +24,9 @@ import {
   ListItem,
   Text,
   useColorModeValue,
+  Alert,
+  AlertIcon,
+  AlertDescription,
 } from '@chakra-ui/react';
 import { Paperclip } from 'lucide-react';
 import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
@@ -251,7 +254,7 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
         invoice_file_type: invoiceFileType,
       };
 
-      await createBatch(token, payload);
+      const created = await createBatch(token, payload);
 
       toast({
         title: 'Lote criado',
@@ -260,6 +263,17 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
         duration: 3000,
         isClosable: true,
       });
+
+      if (created.invoice_recommended) {
+        toast({
+          title: 'NF recomendada',
+          description:
+            'Anexe a nota fiscal depois para extrair e registrar os dados fiscais do lote.',
+          status: 'warning',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
 
       resetForm();
       onSuccess();
@@ -455,6 +469,16 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
 
               <FormControl>
                 <FormLabel>Nota Fiscal (NF)</FormLabel>
+                {!selectedInvoice && (
+                  <Alert status="warning" mb={2} borderRadius="md">
+                    <AlertIcon />
+                    <AlertDescription fontSize="sm">
+                      Recomendamos anexar a NF (XML, PDF ou imagem) para extrair e registrar
+                      automaticamente os dados fiscais do lote. A criação sem NF continua
+                      permitida.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <Button
                   leftIcon={<Paperclip size={18} />}
                   onClick={() => inputFileRef.current?.click()}
