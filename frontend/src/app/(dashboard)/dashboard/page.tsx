@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Alert,
   AlertIcon,
@@ -12,11 +13,19 @@ import {
   VStack,
   useColorModeValue,
 } from '@chakra-ui/react';
+import { ManagerOpsConsumptionPeriod } from '@ti-assistant/contracts';
 import { useAuthSession } from '@/features/identity';
 import {
   ManagerOpsAlertsPanel,
+  ManagerOpsCalendar,
+  ManagerOpsConsumptionChart,
   ManagerOpsInbox,
+  ManagerOpsKanban,
   ManagerOpsKpiCards,
+  ManagerOpsSpendChart,
+  ManagerOpsStockHealth,
+  ManagerOpsSuppliersTable,
+  ManagerOpsTopConsumed,
   useManagerOpsDashboard,
 } from '@/features/manager-ops';
 
@@ -53,7 +62,10 @@ function SectionStub({ title, note }: { title: string; note: string }) {
 
 export default function DashboardPage() {
   const { loading: authLoading } = useAuthSession();
-  const { data, loading, error, isStale } = useManagerOpsDashboard();
+  const [consumptionPeriod, setConsumptionPeriod] = useState<ManagerOpsConsumptionPeriod>(
+    ManagerOpsConsumptionPeriod.MONTH
+  );
+  const { data, loading, error, isStale } = useManagerOpsDashboard({ consumptionPeriod });
 
   const textColor = useColorModeValue('gray.800', 'white');
   const textSecondary = useColorModeValue('gray.500', 'gray.400');
@@ -116,17 +128,29 @@ export default function DashboardPage() {
           <VStack spacing={3} align="stretch">
             <ManagerOpsInbox items={data?.inbox ?? []} loading={loading} />
 
-            {/* T11: kanban de compras (solicitação → aprovação → cotação → PO → fornecedor → recebimento → concluído) */}
-            <SectionStub title="Kanban" note="Kanban de compras — implementado na T11" />
+            <ManagerOpsKanban columns={data?.kanban ?? []} loading={loading} />
 
-            {/* T11/T12: saúde do estoque (normal/atenção/crítico, lotes vencendo/vencidos, inativos) */}
-            <SectionStub title="Saúde do Estoque" note="Indicadores de saúde do estoque — implementado na T11/T12" />
+            <ManagerOpsStockHealth stockHealth={data?.stockHealth ?? null} loading={loading} />
 
-            {/* T12: calendário de vencimentos (lotes, prazos de requisição/cotação/PO, eventos) */}
-            <SectionStub title="Calendário" note="Calendário de vencimentos — implementado na T12" />
+            <ManagerOpsCalendar events={data?.calendar ?? []} loading={loading} />
 
-            {/* T12: gráficos de consumo por setor, top consumidos, gastos por mês, desempenho de fornecedores */}
-            <SectionStub title="Consumo e Gastos" note="Gráficos de consumo e gastos — implementado na T12" />
+            <Flex gap={3} align="stretch" direction={{ base: 'column', lg: 'row' }}>
+              <Box flex="1" minW="0">
+                <ManagerOpsConsumptionChart
+                  data={data?.consumptionBySector}
+                  loading={loading}
+                  period={consumptionPeriod}
+                  onPeriodChange={setConsumptionPeriod}
+                />
+              </Box>
+              <Box flex="1" minW="0">
+                <ManagerOpsTopConsumed data={data?.topConsumed} loading={loading} />
+              </Box>
+            </Flex>
+
+            <ManagerOpsSpendChart data={data?.spendByMonth} loading={loading} />
+
+            <ManagerOpsSuppliersTable data={data?.supplierPerformance} loading={loading} />
           </VStack>
         </Box>
 

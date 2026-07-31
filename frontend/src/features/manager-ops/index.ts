@@ -9,3 +9,10 @@ export type { UseManagerOpsDashboardResult } from './hooks/useManagerOpsDashboar
 export { ManagerOpsKpiCards } from './components/ManagerOpsKpiCards';
 export { ManagerOpsInbox } from './components/ManagerOpsInbox';
 export { ManagerOpsAlertsPanel } from './components/ManagerOpsAlertsPanel';
+export { ManagerOpsConsumptionChart } from './components/ManagerOpsConsumptionChart';
+export { ManagerOpsTopConsumed } from './components/ManagerOpsTopConsumed';
+export { ManagerOpsSpendChart } from './components/ManagerOpsSpendChart';
+export { ManagerOpsSuppliersTable } from './components/ManagerOpsSuppliersTable';
+export { ManagerOpsKanban } from './components/ManagerOpsKanban';
+export { ManagerOpsStockHealth } from './components/ManagerOpsStockHealth';
+export { ManagerOpsCalendar } from './components/ManagerOpsCalendar';
