@@ -29,37 +29,6 @@ import {
   useManagerOpsDashboard,
 } from '@/features/manager-ops';
 
-/** Stub for a section wired by a later task (kanban/stock-health/calendar/charts). */
-function SectionStub({ title, note }: { title: string; note: string }) {
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const labelColor = useColorModeValue('gray.500', 'gray.400');
-  const titleColor = useColorModeValue('gray.800', 'white');
-
-  return (
-    <Box>
-      <Heading size="sm" mb={2} color={titleColor} fontWeight="semibold">
-        {title}
-      </Heading>
-      <Box
-        borderWidth="1px"
-        borderStyle="dashed"
-        borderColor={borderColor}
-        borderRadius="md"
-        bg={cardBg}
-        minH="140px"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Text fontSize="sm" color={labelColor}>
-          {note}
-        </Text>
-      </Box>
-    </Box>
-  );
-}
-
 export default function DashboardPage() {
   const { loading: authLoading } = useAuthSession();
   const [consumptionPeriod, setConsumptionPeriod] = useState<ManagerOpsConsumptionPeriod>(
