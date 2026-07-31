@@ -1,6 +1,6 @@
 import type { MovementType, SupplyBatchOrigin, SupplyMovementType, SupplyTransactionType } from '../enums';
 import type { FiscalNcmDTO } from './fiscal.dto';
-import type { InvoiceLineFiscalSnapshot } from './invoice-fiscal.dto';
+import type { InvoiceLineFiscalSnapshot, InvoiceLineFiscalSnapshotInput } from './invoice-fiscal.dto';
 import type { CategoryDTO, SubcategoryDTO, UnitOfMeasureDTO } from './reference-data.dto';
 /** @deprecated Use CategoryDTO from reference-data */
 export type CategoryRefDTO = Pick<CategoryDTO, 'id' | 'value' | 'label' | 'created_at' | 'updated_at'>;
@@ -63,6 +63,10 @@ export interface SupplyBatchFiscalLineDTO extends InvoiceLineFiscalSnapshot {
 }
 /** Entidade de linha de NF vinculada a lote manual. */
 export type SupplyBatchInvoiceLineDTO = SupplyBatchFiscalLineDTO;
+/** PATCH dos campos fiscais de uma linha de NF do lote manual. */
+export interface PatchSupplyBatchInvoiceLineFiscalInput extends InvoiceLineFiscalSnapshotInput {
+    invoice_line_id: string;
+}
 export interface SupplyBatchDTO {
     id: string;
     supply_id: string;
