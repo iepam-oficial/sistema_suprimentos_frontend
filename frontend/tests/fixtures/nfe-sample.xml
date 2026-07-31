@@ -15,19 +15,57 @@
         <prod>
           <xProd>Parafuso sextavado M8</xProd>
           <NCM>73181500</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
           <qCom>10.0000</qCom>
           <vUnCom>25.5000</vUnCom>
           <vProd>255.00</vProd>
+          <vDesc>5.00</vDesc>
         </prod>
+        <imposto>
+          <ICMS>
+            <ICMS00>
+              <orig>0</orig>
+              <CST>00</CST>
+              <modBC>3</modBC>
+              <vBC>250.00</vBC>
+              <pICMS>18.00</pICMS>
+              <vICMS>45.00</vICMS>
+            </ICMS00>
+          </ICMS>
+          <IPI>
+            <IPITrib>
+              <CST>50</CST>
+              <pIPI>5.00</pIPI>
+              <vIPI>12.75</vIPI>
+            </IPITrib>
+          </IPI>
+        </imposto>
       </det>
       <det nItem="2">
         <prod>
           <xProd>Chave de fenda isolada</xProd>
           <NCM>82054000</NCM>
+          <CFOP>5405</CFOP>
+          <uCom>PC</uCom>
           <qCom>5.0000</qCom>
           <vUnCom>100.0000</vUnCom>
           <vProd>500.00</vProd>
         </prod>
+        <imposto>
+          <ICMS>
+            <ICMS10>
+              <orig>0</orig>
+              <CST>10</CST>
+              <modBC>3</modBC>
+              <vBC>500.00</vBC>
+              <pICMS>12.00</pICMS>
+              <vICMS>60.00</vICMS>
+              <vBCST>550.00</vBCST>
+              <vICMSST>66.00</vICMSST>
+            </ICMS10>
+          </ICMS>
+        </imposto>
       </det>
     </infNFe>
   </NFe>
