@@ -27,6 +27,7 @@ __exportStar(require("./dto/support-ticket.dto"), exports);
 __exportStar(require("./dto/event.dto"), exports);
 __exportStar(require("./dto/finance.dto"), exports);
 __exportStar(require("./dto/executive-finance.dto"), exports);
+__exportStar(require("./dto/manager-ops.dto"), exports);
 __exportStar(require("./dto/fiscal.dto"), exports);
 __exportStar(require("./dto/invoice-fiscal.dto"), exports);
 __exportStar(require("./dto/reference-data.dto"), exports);

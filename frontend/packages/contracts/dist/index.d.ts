@@ -11,6 +11,7 @@ export * from './dto/support-ticket.dto';
 export * from './dto/event.dto';
 export * from './dto/finance.dto';
 export * from './dto/executive-finance.dto';
+export * from './dto/manager-ops.dto';
 export * from './dto/fiscal.dto';
 export * from './dto/invoice-fiscal.dto';
 export * from './dto/reference-data.dto';
