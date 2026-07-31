@@ -1,6 +1,7 @@
 import type { DiscrepancySeverity, GoodsReceiptStatus, ReceiptLineDestination } from '../enums';
 import type { SupplierRefDTO } from './catalog.dto';
 import type { FiscalNcmDTO } from './fiscal.dto';
+import type { InvoiceLineFiscalSnapshot, InvoiceLineFiscalSnapshotInput } from './invoice-fiscal.dto';
 import type { PurchaseOrderItemDTO } from './purchase-order.dto';
 import type { UserRefDTO } from './user.dto';
 export interface GoodsReceiptPhysicalLineDTO {
@@ -11,7 +12,7 @@ export interface GoodsReceiptPhysicalLineDTO {
     supply_id?: string | null;
     pr_item_id?: string | null;
 }
-export interface GoodsReceiptInvoiceLineDTO {
+export interface GoodsReceiptInvoiceLineDTO extends InvoiceLineFiscalSnapshot {
     id: string;
     goods_receipt_id: string;
     line_number: number;
@@ -154,7 +155,7 @@ export interface ResolveDiscrepanciesBatchResult {
     succeeded_ids: string[];
     failed: ResolveDiscrepancyBatchFailure[];
 }
-export interface NfeParseLineDTO {
+export interface NfeParseLineDTO extends InvoiceLineFiscalSnapshotInput {
     line_number: number;
     description: string;
     quantity: number;
@@ -169,7 +170,7 @@ export interface NfeParseResultDTO {
     supplier_name?: string;
     lines: NfeParseLineDTO[];
 }
-export interface SuggestedInvoiceLineDTO {
+export interface SuggestedInvoiceLineDTO extends InvoiceLineFiscalSnapshotInput {
     line_number: number;
     description: string;
     quantity: number;
@@ -183,13 +184,16 @@ export interface SuggestedInvoiceMetadataDTO {
     nfe_access_key?: string;
     supplier_name?: string;
 }
-export interface ConfirmInvoiceLineInput {
+export interface ConfirmInvoiceLineInput extends InvoiceLineFiscalSnapshotInput {
     line_number: number;
     description: string;
     quantity: number;
     unit_price: number;
     total_price: number;
     ncm?: string;
+}
+export interface PatchGoodsReceiptInvoiceLineFiscalInput extends InvoiceLineFiscalSnapshotInput {
+    invoice_line_id: string;
 }
 export interface ConfirmInvoiceLinesInput {
     lines: ConfirmInvoiceLineInput[];

@@ -1,12 +1,13 @@
 import type { AllocationStatus, DepreciationMethod, InventoryStatus } from '../enums';
 import type { ChartOfAccountDTO } from './finance.dto';
 import type { FiscalNcmDTO } from './fiscal.dto';
+import type { InvoiceLineFiscalSnapshot } from './invoice-fiscal.dto';
 import type { UserDTO } from './user.dto';
 import type { CategoryDTO, LocationDTO } from './reference-data.dto';
 /** @deprecated Use CategoryDTO from reference-data */
 export type CategoryLabelDTO = CategoryDTO;
 export type { LocationDTO };
-export interface InventoryItemDTO {
+export interface InventoryItemDTO extends InvoiceLineFiscalSnapshot {
     id: string;
     internal_code?: string | null;
     item?: string;

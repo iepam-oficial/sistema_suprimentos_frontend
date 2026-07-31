@@ -28,6 +28,7 @@ __exportStar(require("./dto/event.dto"), exports);
 __exportStar(require("./dto/finance.dto"), exports);
 __exportStar(require("./dto/executive-finance.dto"), exports);
 __exportStar(require("./dto/fiscal.dto"), exports);
+__exportStar(require("./dto/invoice-fiscal.dto"), exports);
 __exportStar(require("./dto/reference-data.dto"), exports);
 __exportStar(require("./dto/operations.dto"), exports);
 __exportStar(require("./dto/alert.dto"), exports);

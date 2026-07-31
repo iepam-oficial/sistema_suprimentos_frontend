@@ -153,6 +153,11 @@ export declare const ReceiptLineDestination: {
     readonly INVENTORY: "INVENTORY";
 };
 export type ReceiptLineDestination = (typeof ReceiptLineDestination)[keyof typeof ReceiptLineDestination];
+export declare const SupplyBatchOrigin: {
+    readonly MANUAL: "MANUAL";
+    readonly PROCUREMENT: "PROCUREMENT";
+};
+export type SupplyBatchOrigin = (typeof SupplyBatchOrigin)[keyof typeof SupplyBatchOrigin];
 export { TicketStatus, PriorityLevel, SupportTicketKind, } from './dto/support-ticket.dto';
 export { EventType, EventStatus } from './dto/event.dto';
 export { ChartOfAccountType } from './dto/finance.dto';

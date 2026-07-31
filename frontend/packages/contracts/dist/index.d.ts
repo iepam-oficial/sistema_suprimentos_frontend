@@ -12,6 +12,7 @@ export * from './dto/event.dto';
 export * from './dto/finance.dto';
 export * from './dto/executive-finance.dto';
 export * from './dto/fiscal.dto';
+export * from './dto/invoice-fiscal.dto';
 export * from './dto/reference-data.dto';
 export * from './dto/operations.dto';
 export * from './dto/alert.dto';

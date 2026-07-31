@@ -211,6 +211,14 @@ export const ReceiptLineDestination = {
 export type ReceiptLineDestination =
   (typeof ReceiptLineDestination)[keyof typeof ReceiptLineDestination];
 
+export const SupplyBatchOrigin = {
+  MANUAL: 'MANUAL',
+  PROCUREMENT: 'PROCUREMENT',
+} as const;
+
+export type SupplyBatchOrigin =
+  (typeof SupplyBatchOrigin)[keyof typeof SupplyBatchOrigin];
+
 export {
   TicketStatus,
   PriorityLevel,
