@@ -153,7 +153,7 @@ function useSidebarMenuModel() {
   };
 
   const menuItems: NavItem[] = [
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(user && ['ADMIN', 'MANAGER', 'DIRECTOR'].includes(user.role)
       ? [{ icon: Home, label: 'Dashboard', href: '/dashboard' }]
       : []),
     ...(user?.role === 'DIRECTOR'
