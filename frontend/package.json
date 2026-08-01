@@ -12,7 +12,10 @@
     "test:coverage": "jest --coverage",
     "test:e2e": "jest --config jest.e2e.config.js",
     "test:e2e:headed": "E2E_HEADLESS=0 jest --config jest.e2e.config.js",
-    "test:e2e:ci": "E2E_HEADLESS=1 jest --config jest.e2e.config.js"
+    "test:e2e:ci": "E2E_HEADLESS=1 jest --config jest.e2e.config.js",
+    "test:e2e:cypress": "cypress open",
+    "test:e2e:cypress:ci": "cypress run --browser chrome",
+    "test:e2e:cypress:headed": "cypress run --headed --browser chrome"
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
