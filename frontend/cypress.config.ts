@@ -37,6 +37,13 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       loadRootEnvE2e();
 
+      on('before:browser:launch', (browser, launchOptions) => {
+        if (browser.family === 'chromium' && browser.name !== 'electron') {
+          launchOptions.args.push('--no-sandbox', '--disable-dev-shm-usage');
+        }
+        return launchOptions;
+      });
+
       config.baseUrl = process.env.E2E_BASE_URL ?? config.baseUrl ?? 'http://localhost:3002';
       config.env = {
         ...config.env,
