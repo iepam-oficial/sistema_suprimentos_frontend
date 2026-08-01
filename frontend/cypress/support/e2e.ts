@@ -1,3 +1,4 @@
+import './commands';
 import { shouldSkipE2E } from './constants';
 
 if (shouldSkipE2E()) {
