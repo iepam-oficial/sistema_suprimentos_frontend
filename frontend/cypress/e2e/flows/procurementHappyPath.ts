@@ -22,7 +22,8 @@ import { submitAllPortalProposals } from './portalQuoteProposal';
 
 /** Marca a 1ª linha como Suprimento e garante vínculo no catálogo (save habilitado). */
 function classifyFirstInvoiceLineAsSupply(): void {
-  cy.waitForText('Classificação');
+  // Stepper tab "Classificação" is always in DOM — wait for step body instead.
+  cy.contains('Classifique cada linha da NF', { timeout: 90000 }).should('be.visible');
 
   // Sugestões IA (fuzzy stub) pré-preenchem supply_id; destino continua UNCLASSIFIED até o check.
   cy.contains('button', 'Buscar sugestões IA de suprimento', { timeout: 20000 })
@@ -42,11 +43,16 @@ function classifyFirstInvoiceLineAsSupply(): void {
   // Fallback: se a sugestão não vinculou, seleciona o suprimento seed do e2eReset.
   cy.get('body').then(($body) => {
     if ($body.text().includes('Vincule um suprimento')) {
+      cy.intercept('GET', '**/api/procurement/catalog-search**').as('catalogSearchClassify');
       cy.get('input[placeholder="Buscar suprimento no catálogo"]')
         .clear()
         .type(E2E_ITEM_DESCRIPTION.slice(0, Math.min(8, E2E_ITEM_DESCRIPTION.length)));
-      cy.wait(600);
-      cy.contains('ul li', E2E_ITEM_DESCRIPTION, { timeout: 15000 }).trigger('mousedown');
+      cy.wait('@catalogSearchClassify', { timeout: 60000 })
+        .its('response.statusCode')
+        .should('eq', 200);
+      cy.contains('ul li', E2E_ITEM_DESCRIPTION, { timeout: 30000 })
+        .should('be.visible')
+        .trigger('mousedown');
     }
   });
 
@@ -190,17 +196,25 @@ export function runGoodsReceipt(options: {
   });
   cy.clickByText('Enviar e continuar');
   cy.waitForText('Revise as linhas', 90000);
+  cy.intercept('POST', '**/api/goods-receipts/*/confirm-invoice-lines').as('confirmInvoiceLines');
   cy.clickByText('Confirmar linhas');
+  cy.wait('@confirmInvoiceLines', { timeout: 90000 })
+    .its('response.statusCode')
+    .should('be.oneOf', [200, 201]);
 
   if (options.inlineCreateSupply) {
-    cy.waitForText('Classificação');
+    // Do NOT waitForText('Classificação') — the stepper tab label matches early.
+    cy.contains('Classifique cada linha da NF', { timeout: 90000 }).should('be.visible');
+    // Chakra Checkbox hides the native input — click the visible label so React onChange fires.
     cy.contains('th', 'Suprimento')
       .closest('table')
       .find('tbody tr')
       .first()
-      .find('input[type="checkbox"]')
+      .find('label.chakra-checkbox')
       .eq(0)
-      .check({ force: true });
+      .should('be.visible')
+      .click();
+    cy.contains('button', 'Novo suprimento', { timeout: 20000 }).should('be.visible');
     fillInlineSupplyCreate();
   } else {
     classifyFirstInvoiceLineAsSupply();
@@ -220,7 +234,13 @@ export function runGoodsReceipt(options: {
 
   if (options.expectCriticalBlocked) {
     cy.waitForText('Crítica');
-    cy.findByTestId('gr-finalize').should('be.disabled');
+    // gr-finalize lives on the Finalizar step (not Divergências).
+    getByXPath("//button[contains(.,'Finalizar') and not(contains(.,'recebimento'))]", {
+      timeout: 20000,
+    })
+      .should('be.visible')
+      .click();
+    cy.findByTestId('gr-finalize', { timeout: 30000 }).should('be.disabled');
     cy.logout();
     return cy.then(() => state.goodsReceiptId);
   }
@@ -250,7 +270,7 @@ export function runGoodsReceipt(options: {
       .should('be.visible')
       .click();
     cy.findByTestId('gr-finalize', { timeout: 60000 }).should('be.enabled').click();
-    cy.waitForText('Finalizado');
+    cy.waitForText('Finalizado', 90000);
   }
 
   cy.logout();
@@ -345,14 +365,17 @@ export function runProcurementHappyPath(
   cy.loginAs('MANAGER');
   // Direct wizard URL (same as "Disparar cotação") — avoids soft-nav flakes from fila-compras.
   cy.then(() => {
+    expect(result.purchaseRequestId, 'purchaseRequestId before quote wizard').to.match(
+      /^[0-9a-f-]{36}$/i,
+    );
     cy.visit(`/procurement/cotacoes?newQuote=${result.purchaseRequestId}`, {
       timeout: 180000,
     });
   });
-  cy.url({ timeout: 60000 }).should('include', 'newQuote=');
+  cy.url({ timeout: 60000 }).should('match', /newQuote=[0-9a-f-]{36}/i);
   cy.contains('Carregando solicitações e fornecedores', { timeout: 90000 }).should('not.exist');
   cy.contains(/Nova cotação|Solicitação|Fornecedores/, { timeout: 90000 }).should('be.visible');
-  cy.contains('button', 'Próximo', { timeout: 60000 }).should('be.visible').and('be.enabled').click();
+  cy.contains('button', 'Próximo', { timeout: 90000 }).should('be.visible').and('be.enabled').click();
   E2E_SUPPLIER_NAMES.forEach((supplierName) => {
     cy.contains('label', supplierName).then(($label) => {
       const $checkbox = $label.find('input[type="checkbox"]');

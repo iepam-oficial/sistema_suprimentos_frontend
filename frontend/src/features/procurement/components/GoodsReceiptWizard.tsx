@@ -568,7 +568,8 @@ export function GoodsReceiptWizard({
       const metadata =
         pendingInvoiceMetadata.nfe_number ||
         pendingInvoiceMetadata.nfe_series ||
-        pendingInvoiceMetadata.nfe_access_key
+        pendingInvoiceMetadata.nfe_access_key ||
+        pendingInvoiceMetadata.supplier_name
           ? pendingInvoiceMetadata
           : undefined;
 

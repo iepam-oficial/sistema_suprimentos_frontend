@@ -86,12 +86,15 @@ export function fillGoodsReceiptPhysicalLine(
   quantity = '10',
 ): void {
   cy.contains('Registre os itens recebidos fisicamente', { timeout: 60000 }).should('be.visible');
+  cy.intercept('GET', '**/api/procurement/catalog-search**').as('catalogSearchPhysical');
   cy.get('input[placeholder="Descrição do item"]', { timeout: 60000 })
     .should('be.visible')
     .clear()
     .type(description.slice(0, Math.min(8, description.length)));
-  cy.wait(600);
-  cy.contains('ul li', description, { timeout: 15000 }).trigger('mousedown');
+  cy.wait('@catalogSearchPhysical', { timeout: 60000 })
+    .its('response.statusCode')
+    .should('eq', 200);
+  cy.contains('ul li', description, { timeout: 30000 }).should('be.visible').trigger('mousedown');
   cy.wait(300);
   cy.get('table tbody tr')
     .first()
