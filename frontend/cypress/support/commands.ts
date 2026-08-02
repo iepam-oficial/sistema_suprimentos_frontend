@@ -10,14 +10,37 @@ const POST_LOGIN_PATH: Record<E2eRole, string> = {
 Cypress.Commands.add('loginAs', (role: E2eRole) => {
   const user = E2E_USERS[role];
   const password = getE2ePassword();
+  const alias = `uiLogin_${role}_${Date.now()}`;
 
-  cy.intercept('POST', '**/api/auth/login').as('uiLogin');
-  cy.visit('/');
-  cy.get('input[placeholder="Seu e-mail"]').clear().type(user.email);
-  cy.get('input[placeholder="Sua senha"]').clear().type(password, { log: false });
+  cy.clearCookies();
+  cy.window({ log: false }).then((win) => {
+    ['@ti-assistant:token', '@ti-assistant:user', '@ti-assistant:refreshToken'].forEach((key) => {
+      win.localStorage.removeItem(key);
+    });
+  });
+
+  cy.intercept('POST', '**/api/auth/login').as(alias);
+  // Visit first so Chakra controlled inputs mount before typing.
+  cy.visit('/', { timeout: 120000 });
+  cy.get('#email', { timeout: 30000 })
+    .should('be.visible')
+    .click()
+    .focused()
+    .type('{selectall}{backspace}', { delay: 0 })
+    .type(user.email, { parseSpecialCharSequences: false, delay: 20 })
+    .should('have.value', user.email);
+  cy.get('#password')
+    .click()
+    .focused()
+    .type('{selectall}{backspace}', { delay: 0 })
+    .type(password, { log: false, parseSpecialCharSequences: false, delay: 20 })
+    .should('have.value', password);
   cy.contains('button', 'Entrar').click();
-  cy.wait('@uiLogin').its('response.statusCode').should('eq', 200);
-  // Cold Next.js compile of /dashboard can exceed the default 20s URL wait.
+  cy.wait(`@${alias}`, { timeout: 60000 }).then((interception) => {
+    expect(interception.response, 'login response').to.exist;
+    expect(interception.response!.statusCode).to.eq(200);
+  });
+  // Cold Next.js compile of post-login routes can exceed the default URL wait.
   cy.url({ timeout: 90000 }).should('include', POST_LOGIN_PATH[role]);
 });
 
