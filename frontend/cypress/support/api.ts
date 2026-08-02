@@ -202,6 +202,28 @@ export function approveSupplyRequest(token: string, requestId: string) {
     .then((res) => res.body);
 }
 
+export function confirmRequesterSupplyRequest(token: string, requestId: string) {
+  return cy
+    .request({
+      method: 'PATCH',
+      url: `${getApiUrl()}/supply-requests/${requestId}/requester-confirmation`,
+      headers: authHeaders(token),
+      body: { confirmation: true },
+    })
+    .then((res) => res.body);
+}
+
+export function confirmManagerSupplyRequestDelivery(token: string, requestId: string) {
+  return cy
+    .request({
+      method: 'PATCH',
+      url: `${getApiUrl()}/supply-requests/${requestId}/manager-delivery-confirmation`,
+      headers: authHeaders(token),
+      body: { confirmation: true },
+    })
+    .then((res) => res.body);
+}
+
 export function listPurchaseOrders(token: string) {
   return cy
     .request<{ items: { id: string; status: string; display_code: string }[] }>({
