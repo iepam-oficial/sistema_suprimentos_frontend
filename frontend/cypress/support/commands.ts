@@ -22,19 +22,17 @@ Cypress.Commands.add('loginAs', (role: E2eRole) => {
   cy.intercept('POST', '**/api/auth/login').as(alias);
   // Visit first so Chakra controlled inputs mount before typing.
   cy.visit('/', { timeout: 120000 });
-  cy.get('#email', { timeout: 30000 })
-    .should('be.visible')
-    .click()
-    .focused()
-    .type('{selectall}{backspace}', { delay: 0 })
-    .type(user.email, { parseSpecialCharSequences: false, delay: 20 })
-    .should('have.value', user.email);
-  cy.get('#password')
-    .click()
-    .focused()
-    .type('{selectall}{backspace}', { delay: 0 })
-    .type(password, { log: false, parseSpecialCharSequences: false, delay: 20 })
-    .should('have.value', password);
+  // Clear + type as separate commands so `.should('have.value')` re-queries (Chakra flake).
+  cy.get('#email', { timeout: 30000 }).should('be.visible').click().clear({ force: true });
+  cy.get('#email').type(user.email, { parseSpecialCharSequences: false, delay: 25 });
+  cy.get('#email').should('have.value', user.email);
+  cy.get('#password').click().clear({ force: true });
+  cy.get('#password').type(password, {
+    log: false,
+    parseSpecialCharSequences: false,
+    delay: 25,
+  });
+  cy.get('#password').should('have.value', password);
   cy.contains('button', 'Entrar').click();
   cy.wait(`@${alias}`, { timeout: 60000 }).then((interception) => {
     expect(interception.response, 'login response').to.exist;

@@ -123,30 +123,33 @@ function fillInlineSupplyCreate(): Cypress.Chainable<string> {
   selectFirstOptionByLabel('Unidade de Medida');
   selectFirstOptionByLabel('Categoria');
   selectFirstOptionByLabel('Plano de Conta');
-  selectFirstOptionByLabel('NCM');
+  // SupplyModal has no NCM field (NCM is set on the classification line after link).
 
+  cy.intercept('POST', '**/api/supplies').as('createInlineSupply');
   getByXPath("//*[@role='dialog']//button[@type='submit' and contains(.,'Criar')]", {
     timeout: 10000,
   }).click();
 
-  cy.get('body', { timeout: 30000 }).should(($body) => {
-    const similar = $body.text().includes('Suprimentos semelhantes encontrados');
-    if (similar) {
-      // will click below
-    }
-  });
-
-  cy.get('body').then(($body) => {
+  // Similar-supplies alert may appear in front of the create modal.
+  cy.get('body', { timeout: 15000 }).then(($body) => {
     if ($body.text().includes('Suprimentos semelhantes encontrados')) {
       cy.clickByText('Continuar cadastro');
     }
   });
 
+  cy.wait('@createInlineSupply', { timeout: 90000 })
+    .its('response.statusCode')
+    .should('be.oneOf', [200, 201]);
+
   cy.contains('[role="dialog"] header', 'Novo Suprimento', { timeout: 30000 }).should(
     'not.exist',
   );
-  cy.waitForText(uniqueName, 15000);
-  cy.get('[aria-label="Suprimento vinculado"]', { timeout: 15000 }).should('exist');
+  // Name lives in an input value — cy.contains(text) will not match.
+  cy.get('[aria-label="Suprimento vinculado"]', { timeout: 30000 }).should('exist');
+  cy.get('input[placeholder="Buscar suprimento no catálogo"]', { timeout: 15000 }).should(
+    'have.value',
+    uniqueName,
+  );
   cy.contains('button', 'Novo suprimento').should('not.exist');
 
   return cy.wrap(uniqueName);
@@ -205,15 +208,15 @@ export function runGoodsReceipt(options: {
   if (options.inlineCreateSupply) {
     // Do NOT waitForText('Classificação') — the stepper tab label matches early.
     cy.contains('Classifique cada linha da NF', { timeout: 90000 }).should('be.visible');
-    // Chakra Checkbox hides the native input — click the visible label so React onChange fires.
+    // Chakra Checkbox: click visible label (hidden input .check/.click often skip React onChange).
     cy.contains('th', 'Suprimento')
       .closest('table')
       .find('tbody tr')
       .first()
-      .find('label.chakra-checkbox')
-      .eq(0)
-      .should('be.visible')
-      .click();
+      .as('classRow');
+    cy.get('@classRow').find('label.chakra-checkbox').eq(0).should('be.visible').click();
+    cy.get('@classRow').find('input[type="checkbox"]').eq(0).should('be.checked');
+    cy.contains('Vincule um suprimento do catálogo', { timeout: 15000 }).should('be.visible');
     cy.contains('button', 'Novo suprimento', { timeout: 20000 }).should('be.visible');
     fillInlineSupplyCreate();
   } else {
