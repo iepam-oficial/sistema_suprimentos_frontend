@@ -18,6 +18,10 @@ FROM base AS builder
 COPY --from=contracts /usr/src/app/packages/contracts ./packages/contracts
 COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY . .
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG BACKEND_API_URL=http://backend:4000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV BACKEND_API_URL=$BACKEND_API_URL
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build

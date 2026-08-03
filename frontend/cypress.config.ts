@@ -30,8 +30,8 @@ export default defineConfig({
   viewportHeight: 900,
   defaultCommandTimeout: 30000,
   requestTimeout: 60000,
-  // Cold Next.js compiles of portal/dashboard routes can exceed 60s in E2E Docker.
-  pageLoadTimeout: 180000,
+  // Production E2E frontend (next start / standalone) — cold compile no longer applies.
+  pageLoadTimeout: 60000,
   responseTimeout: 120000,
   e2e: {
     baseUrl: process.env.E2E_BASE_URL ?? 'http://localhost:3002',
