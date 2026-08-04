@@ -1,5 +1,7 @@
 import type { DiscrepancySeverity, GoodsReceiptStatus, ReceiptLineDestination } from '../enums';
 import type { SupplierRefDTO } from './catalog.dto';
+import type { FiscalNcmDTO } from './fiscal.dto';
+import type { InvoiceLineFiscalSnapshot, InvoiceLineFiscalSnapshotInput } from './invoice-fiscal.dto';
 import type { PurchaseOrderItemDTO } from './purchase-order.dto';
 import type { UserRefDTO } from './user.dto';
 export interface GoodsReceiptPhysicalLineDTO {
@@ -10,7 +12,7 @@ export interface GoodsReceiptPhysicalLineDTO {
     supply_id?: string | null;
     pr_item_id?: string | null;
 }
-export interface GoodsReceiptInvoiceLineDTO {
+export interface GoodsReceiptInvoiceLineDTO extends InvoiceLineFiscalSnapshot {
     id: string;
     goods_receipt_id: string;
     line_number: number;
@@ -22,6 +24,9 @@ export interface GoodsReceiptInvoiceLineDTO {
     supply_id?: string | null;
     ai_suggested_supply_id?: string | null;
     ai_confidence?: number | null;
+    ncm_from_invoice?: string | null;
+    ncm_id?: string | null;
+    fiscal_ncm?: Pick<FiscalNcmDTO, 'id' | 'code' | 'description'> | null;
 }
 export interface GoodsReceiptDiscrepancyDTO {
     id: string;
@@ -109,6 +114,8 @@ export interface ClassifyInvoiceLineInput {
     invoice_line_id: string;
     destination_type: ReceiptLineDestination;
     supply_id?: string;
+    ncm_id?: string | null;
+    supply_ncm_action?: 'KEEP_SUPPLY' | 'USE_LINE_NCM';
 }
 export interface ClassifyInvoiceLinesInput {
     lines: ClassifyInvoiceLineInput[];
@@ -148,12 +155,13 @@ export interface ResolveDiscrepanciesBatchResult {
     succeeded_ids: string[];
     failed: ResolveDiscrepancyBatchFailure[];
 }
-export interface NfeParseLineDTO {
+export interface NfeParseLineDTO extends InvoiceLineFiscalSnapshotInput {
     line_number: number;
     description: string;
     quantity: number;
     unit_price: number;
     total_price: number;
+    ncm?: string;
 }
 export interface NfeParseResultDTO {
     nfe_access_key: string;
@@ -162,12 +170,13 @@ export interface NfeParseResultDTO {
     supplier_name?: string;
     lines: NfeParseLineDTO[];
 }
-export interface SuggestedInvoiceLineDTO {
+export interface SuggestedInvoiceLineDTO extends InvoiceLineFiscalSnapshotInput {
     line_number: number;
     description: string;
     quantity: number;
     unit_price: number;
     total_price: number;
+    ncm?: string;
 }
 export interface SuggestedInvoiceMetadataDTO {
     nfe_number?: string;
@@ -175,12 +184,16 @@ export interface SuggestedInvoiceMetadataDTO {
     nfe_access_key?: string;
     supplier_name?: string;
 }
-export interface ConfirmInvoiceLineInput {
+export interface ConfirmInvoiceLineInput extends InvoiceLineFiscalSnapshotInput {
     line_number: number;
     description: string;
     quantity: number;
     unit_price: number;
     total_price: number;
+    ncm?: string;
+}
+export interface PatchGoodsReceiptInvoiceLineFiscalInput extends InvoiceLineFiscalSnapshotInput {
+    invoice_line_id: string;
 }
 export interface ConfirmInvoiceLinesInput {
     lines: ConfirmInvoiceLineInput[];

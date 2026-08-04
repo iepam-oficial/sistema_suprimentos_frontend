@@ -7,7 +7,6 @@ const PROTECTED_PATH_PREFIXES = [
   '/inventory',
   '/supplies',
   '/supply-requests',
-  '/quotes',
   '/procurement',
   '/extra-expenses',
   '/alerts',
@@ -21,7 +20,7 @@ const ROLE_DEFAULT_PATH: Record<string, string> = {
   ADMIN: '/dashboard',
   MANAGER: '/dashboard',
   COORDINATOR: '/procurement/solicitacoes',
-  DIRECTOR: '/procurement/aprovacoes-sc',
+  DIRECTOR: '/dashboard/financeiro',
   EMPLOYEE: '/supply-requests',
   TECHNICIAN: '/supply-requests',
   ORGANIZER: '/supply-requests',
@@ -31,7 +30,6 @@ const ROLE_DEFAULT_PATH: Record<string, string> = {
 const EMPLOYEE_SELF_SERVICE_PREFIXES = [
   '/supply-requests',
   '/support-tickets',
-  '/quotes',
   '/events',
 ] as const
 
@@ -40,18 +38,17 @@ const ROLE_ALLOWED_FROM_PREFIXES: Record<string, readonly string[]> = {
   ADMIN: PROTECTED_PATH_PREFIXES,
   MANAGER: PROTECTED_PATH_PREFIXES,
   COORDINATOR: [...EMPLOYEE_SELF_SERVICE_PREFIXES, '/procurement'],
-  DIRECTOR: ['/procurement', '/quotes', '/events'],
+  DIRECTOR: ['/dashboard', '/procurement', '/events'],
   EMPLOYEE: EMPLOYEE_SELF_SERVICE_PREFIXES,
   TECHNICIAN: [
     '/supply-requests',
     '/support-tickets',
     '/internal-service-orders',
     '/maintenance-schedules',
-    '/quotes',
     '/events',
   ],
   ORGANIZER: EMPLOYEE_SELF_SERVICE_PREFIXES,
-  SUPPORT: ['/support-tickets', '/alerts', '/quotes', '/events'],
+  SUPPORT: ['/support-tickets', '/alerts', '/events'],
 }
 
 function normalizeFromPath(from: string | null | undefined): string | null {

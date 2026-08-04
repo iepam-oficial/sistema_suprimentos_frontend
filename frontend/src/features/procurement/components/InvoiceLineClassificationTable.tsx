@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Badge,
@@ -29,9 +29,11 @@ import type { CategoryDTO, LocationDTO, SubcategoryDTO } from '@/features/refere
 import { fetchSubcategoriesByCategory } from '@/features/reference-data';
 import { SupplyModal } from '@/features/catalog/components/SupplyModal';
 import { SimilarSupplyAlert } from '@/features/catalog/components/SimilarSupplyAlert';
-import { createSupply } from '@/features/catalog/api/catalogApi';
+import { createSupply, fetchSupplyById } from '@/features/catalog/api/catalogApi';
 import { findSimilarSupplies } from '@/features/catalog/utils/findSimilarSupplies';
 import type { CreateSupplyInput, SupplyDTO } from '@/features/catalog/types';
+import { FiscalNcmAutocomplete } from '@/features/financeiro/components/FiscalNcmAutocomplete';
+import { FiscalNcmPickerDrawer } from '@/features/financeiro/components/FiscalNcmPickerDrawer';
 import { CatalogItemAutocomplete } from './CatalogItemAutocomplete';
 
 export interface InventoryLineFormData {
@@ -50,6 +52,31 @@ export interface LineClassificationState {
   supply_label?: string;
   ai_confidence?: number;
   inventory?: InventoryLineFormData;
+  /** Código NCM cru extraído da NF (auditoria, imutável pela UI). */
+  ncm_from_invoice?: string | null;
+  /** FiscalNcm ativo vinculado à linha (fonte de verdade para classify/finalize). */
+  ncm_id?: string | null;
+  ncm_code?: string | null;
+  ncm_label?: string | null;
+  /** 'invoice' até o gerente editar manualmente; então vira 'manual'. */
+  ncm_source?: 'invoice' | 'manual' | null;
+  /** NCM atual do suprimento vinculado; undefined enquanto não carregado. */
+  supply_ncm_id?: string | null;
+  supply_ncm_action?: 'KEEP_SUPPLY' | 'USE_LINE_NCM';
+}
+
+function formatNcmCode(code: string): string {
+  const digits = code.replace(/\D/g, '');
+  if (digits.length !== 8) return code;
+  return `${digits.slice(0, 4)}.${digits.slice(4, 6)}.${digits.slice(6, 8)}`;
+}
+
+function hasUnresolvedNcmDivergence(state: LineClassificationState): boolean {
+  if (state.destination_type !== 'SUPPLY') return false;
+  const effectiveNcmId = state.ncm_id ?? null;
+  if (effectiveNcmId == null || state.supply_ncm_id == null) return false;
+  if (state.supply_ncm_id === effectiveNcmId) return false;
+  return !state.supply_ncm_action;
 }
 
 type SupplyLineVisualState = 'none' | 'incomplete' | 'complete';
@@ -101,6 +128,11 @@ function initClassifications(lines: GoodsReceiptInvoiceLineDTO[]): LineClassific
           ? line.description
           : line.description,
       ai_confidence: hasAiSuggestion ? (line.ai_confidence ?? undefined) : undefined,
+      ncm_from_invoice: line.ncm_from_invoice ?? null,
+      ncm_id: line.ncm_id ?? null,
+      ncm_code: line.fiscal_ncm?.code ?? null,
+      ncm_label: line.fiscal_ncm?.description ?? null,
+      ncm_source: line.ncm_id != null || line.ncm_from_invoice ? 'invoice' : null,
     };
 
     if (line.destination_type === ReceiptLineDestination.INVENTORY) {
@@ -142,6 +174,11 @@ export function InvoiceLineClassificationTable({
   const [similarSupplies, setSimilarSupplies] = useState<SupplyDTO[]>([]);
   const [pendingCreatePayload, setPendingCreatePayload] = useState<CreateSupplyInput | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [ncmDrawerLineId, setNcmDrawerLineId] = useState<string | null>(null);
+
+  const classificationsRef = useRef(classifications);
+  classificationsRef.current = classifications;
+  const loadingSupplyNcmIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (classifications.length === 0 && lines.length > 0) {
@@ -153,6 +190,44 @@ export function InvoiceLineClassificationTable({
     () => new Map(classifications.map((c) => [c.invoice_line_id, c])),
     [classifications]
   );
+
+  const loadSupplyNcm = async (supplyId: string) => {
+    const token = localStorage.getItem('@ti-assistant:token');
+    let ncmId: string | null = null;
+    if (token) {
+      try {
+        const supply = await fetchSupplyById(token, supplyId);
+        ncmId = supply.ncm_id ?? null;
+      } catch {
+        ncmId = null;
+      }
+    }
+    onChange(
+      classificationsRef.current.map((c) =>
+        c.destination_type === 'SUPPLY' && c.supply_id === supplyId && c.supply_ncm_id === undefined
+          ? { ...c, supply_ncm_id: ncmId }
+          : c
+      )
+    );
+  };
+
+  useEffect(() => {
+    const pendingSupplyIds = new Set(
+      classifications
+        .filter(
+          (c) => c.destination_type === 'SUPPLY' && c.supply_id && c.supply_ncm_id === undefined
+        )
+        .map((c) => c.supply_id!)
+    );
+    pendingSupplyIds.forEach((supplyId) => {
+      if (loadingSupplyNcmIds.current.has(supplyId)) return;
+      loadingSupplyNcmIds.current.add(supplyId);
+      void loadSupplyNcm(supplyId).finally(() => {
+        loadingSupplyNcmIds.current.delete(supplyId);
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSupplyNcm reads classificationsRef, not a dep
+  }, [classifications]);
 
   const updateLine = (lineId: string, patch: Partial<LineClassificationState>) => {
     onChange(
@@ -169,7 +244,31 @@ export function InvoiceLineClassificationTable({
   };
 
   const linkSupplyToLine = (lineId: string, supply: { id: string; name: string }) => {
-    updateLine(lineId, { supply_id: supply.id, supply_label: supply.name });
+    updateLine(lineId, {
+      supply_id: supply.id,
+      supply_label: supply.name,
+      supply_ncm_id: undefined,
+      supply_ncm_action: undefined,
+    });
+  };
+
+  const handleNcmChange = (
+    lineId: string,
+    ncm: { id: string; code: string; description?: string } | null
+  ) => {
+    updateLine(lineId, {
+      ncm_id: ncm?.id ?? null,
+      ncm_code: ncm?.code ?? null,
+      ncm_label: ncm?.description ?? null,
+      ncm_source: 'manual',
+      supply_ncm_action: undefined,
+    });
+  };
+
+  const handleNcmDrawerSelect = (ncm: { id: string; code: string; description: string }) => {
+    if (!ncmDrawerLineId) return;
+    handleNcmChange(ncmDrawerLineId, ncm);
+    setNcmDrawerLineId(null);
   };
 
   const executeCreate = async (payload: CreateSupplyInput) => {
@@ -211,6 +310,8 @@ export function InvoiceLineClassificationTable({
       destination_type: destination,
       supply_id: isSupply ? current?.supply_id : undefined,
       supply_label: isSupply ? current?.supply_label ?? line.description : undefined,
+      supply_ncm_id: isSupply ? current?.supply_ncm_id : undefined,
+      supply_ncm_action: isSupply ? current?.supply_ncm_action : undefined,
       inventory: isSupply
         ? undefined
         : current?.inventory ?? {
@@ -225,6 +326,8 @@ export function InvoiceLineClassificationTable({
       destination_type: 'UNCLASSIFIED',
       supply_id: undefined,
       supply_label: undefined,
+      supply_ncm_id: undefined,
+      supply_ncm_action: undefined,
       inventory: undefined,
     });
   };
@@ -377,6 +480,8 @@ export function InvoiceLineClassificationTable({
                         updateLine(line.id, {
                           supply_id: selection.supply_id,
                           supply_label: selection.description,
+                          supply_ncm_id: undefined,
+                          supply_ncm_action: undefined,
                         });
                       }}
                     />
@@ -509,6 +614,90 @@ export function InvoiceLineClassificationTable({
                 </FormControl>
               </VStack>
             )}
+
+            <FormControl mt={4}>
+              <FormLabel fontSize="sm">NCM</FormLabel>
+              {state.ncm_source === 'invoice' && (
+                <Badge colorScheme="blue" mb={2} fontSize="xs">
+                  {state.ncm_id ? 'Vindo da NF' : 'Sugerido pela NF'}
+                </Badge>
+              )}
+              {disabled ? (
+                <Text fontSize="sm" color={mutedColor}>
+                  {state.ncm_code
+                    ? `${formatNcmCode(state.ncm_code)}${state.ncm_label ? ` — ${state.ncm_label}` : ''}`
+                    : state.ncm_from_invoice
+                      ? `NF: ${formatNcmCode(state.ncm_from_invoice)} (fora do catálogo)`
+                      : 'NCM não informado'}
+                </Text>
+              ) : (
+                <>
+                  <HStack align="flex-end" spacing={2}>
+                    <Box flex={1}>
+                      <FiscalNcmAutocomplete
+                        value={
+                          state.ncm_id
+                            ? {
+                                id: state.ncm_id,
+                                code: state.ncm_code ?? '',
+                                description: state.ncm_label ?? undefined,
+                              }
+                            : null
+                        }
+                        isDisabled={disabled}
+                        onChange={(ncm) => handleNcmChange(line.id, ncm)}
+                      />
+                    </Box>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      isDisabled={disabled}
+                      onClick={() => setNcmDrawerLineId(line.id)}
+                    >
+                      Escolher no catálogo
+                    </Button>
+                  </HStack>
+                  {state.ncm_from_invoice && !state.ncm_id && (
+                    <Text fontSize="xs" color={warningColor} mt={2}>
+                      Código {formatNcmCode(state.ncm_from_invoice)} da NF não encontrado no
+                      catálogo ativo. Selecione um NCM.
+                    </Text>
+                  )}
+                </>
+              )}
+
+              {hasUnresolvedNcmDivergence(state) && (
+                <Box mt={3} p={3} borderWidth="1px" borderColor="orange.300" borderRadius="md">
+                  <Text fontSize="xs" color={warningColor} mb={2}>
+                    O suprimento vinculado já possui um NCM diferente do NCM desta linha.
+                  </Text>
+                  <HStack spacing={2}>
+                    <Button
+                      size="xs"
+                      variant={state.supply_ncm_action === 'KEEP_SUPPLY' ? 'solid' : 'outline'}
+                      isDisabled={disabled}
+                      onClick={() => updateLine(line.id, { supply_ncm_action: 'KEEP_SUPPLY' })}
+                    >
+                      Manter cadastro
+                    </Button>
+                    <Button
+                      size="xs"
+                      colorScheme="blue"
+                      variant={state.supply_ncm_action === 'USE_LINE_NCM' ? 'solid' : 'outline'}
+                      isDisabled={disabled}
+                      onClick={() => updateLine(line.id, { supply_ncm_action: 'USE_LINE_NCM' })}
+                    >
+                      Usar NCM da NF
+                    </Button>
+                  </HStack>
+                  {!state.supply_ncm_action && (
+                    <Text fontSize="xs" color="red.500" mt={2}>
+                      Escolha uma opção para salvar a classificação.
+                    </Text>
+                  )}
+                </Box>
+              )}
+            </FormControl>
           </Box>
         );
       })}
@@ -542,6 +731,13 @@ export function InvoiceLineClassificationTable({
           // mantém SupplyModal aberto
         }}
       />
+
+      <FiscalNcmPickerDrawer
+        isOpen={!!ncmDrawerLineId}
+        onClose={() => setNcmDrawerLineId(null)}
+        invoiceNcmCode={classificationById.get(ncmDrawerLineId ?? '')?.ncm_from_invoice ?? null}
+        onSelect={handleNcmDrawerSelect}
+      />
     </Box>
   );
 }
@@ -555,6 +751,7 @@ export function buildClassificationsFromReceipt(
 export function isClassificationComplete(classifications: LineClassificationState[]): boolean {
   return classifications.every((c) => {
     if (c.destination_type === 'UNCLASSIFIED') return false;
+    if (hasUnresolvedNcmDivergence(c)) return false;
     if (c.destination_type === 'SUPPLY') return !!c.supply_id?.trim();
     if (c.destination_type === 'INVENTORY' && c.inventory) {
       const inv = c.inventory;

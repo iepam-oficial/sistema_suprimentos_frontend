@@ -153,16 +153,19 @@ export declare const ReceiptLineDestination: {
     readonly INVENTORY: "INVENTORY";
 };
 export type ReceiptLineDestination = (typeof ReceiptLineDestination)[keyof typeof ReceiptLineDestination];
+export declare const SupplyBatchOrigin: {
+    readonly MANUAL: "MANUAL";
+    readonly PROCUREMENT: "PROCUREMENT";
+};
+export type SupplyBatchOrigin = (typeof SupplyBatchOrigin)[keyof typeof SupplyBatchOrigin];
 export { TicketStatus, PriorityLevel, SupportTicketKind, } from './dto/support-ticket.dto';
 export { EventType, EventStatus } from './dto/event.dto';
 export { ChartOfAccountType } from './dto/finance.dto';
 export { DepreciationMethod } from './dto/depreciation-rate.dto';
 export { ServiceType, TaskStatus } from './dto/operations.dto';
-export { QuoteStatus } from './dto/quote.dto';
 export type { TicketStatus as TicketStatusType, PriorityLevel as PriorityLevelType, SupportTicketKind as SupportTicketKindType, } from './dto/support-ticket.dto';
 export type { EventType as EventTypeEnum, EventStatus as EventStatusEnum, } from './dto/event.dto';
 export type { ChartOfAccountType as ChartOfAccountTypeEnum } from './dto/finance.dto';
 export type { DepreciationMethod as DepreciationMethodEnum } from './dto/depreciation-rate.dto';
 export type { ServiceType as ServiceTypeEnum, TaskStatus as TaskStatusEnum, } from './dto/operations.dto';
-export type { QuoteStatus as QuoteStatusEnum } from './dto/quote.dto';
 //# sourceMappingURL=enums.d.ts.map

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QuoteStatus = exports.TaskStatus = exports.ServiceType = exports.DepreciationMethod = exports.ChartOfAccountType = exports.EventStatus = exports.EventType = exports.SupportTicketKind = exports.PriorityLevel = exports.TicketStatus = exports.ReceiptLineDestination = exports.DiscrepancySeverity = exports.GoodsReceiptStatus = exports.PurchaseOrderStatus = exports.ProcurementQuoteEventType = exports.ProposalReviewAction = exports.ProposalReviewStatus = exports.QuoteInviteStatus = exports.ProcurementQuoteStatus = exports.PurchaseRequestPriority = exports.PurchaseRequestStatus = exports.DemandSupplyAggregateStatus = exports.DemandSupplyApprovalAction = exports.SupplyMovementType = exports.MovementType = exports.SupplyTransactionType = exports.InventoryStatus = exports.AllocationStatus = exports.SupplyRequestStatus = exports.UserRole = void 0;
+exports.TaskStatus = exports.ServiceType = exports.DepreciationMethod = exports.ChartOfAccountType = exports.EventStatus = exports.EventType = exports.SupportTicketKind = exports.PriorityLevel = exports.TicketStatus = exports.SupplyBatchOrigin = exports.ReceiptLineDestination = exports.DiscrepancySeverity = exports.GoodsReceiptStatus = exports.PurchaseOrderStatus = exports.ProcurementQuoteEventType = exports.ProposalReviewAction = exports.ProposalReviewStatus = exports.QuoteInviteStatus = exports.ProcurementQuoteStatus = exports.PurchaseRequestPriority = exports.PurchaseRequestStatus = exports.DemandSupplyAggregateStatus = exports.DemandSupplyApprovalAction = exports.SupplyMovementType = exports.MovementType = exports.SupplyTransactionType = exports.InventoryStatus = exports.AllocationStatus = exports.SupplyRequestStatus = exports.UserRole = void 0;
 exports.UserRole = {
     ADMIN: 'ADMIN',
     MANAGER: 'MANAGER',
@@ -136,6 +136,10 @@ exports.ReceiptLineDestination = {
     SUPPLY: 'SUPPLY',
     INVENTORY: 'INVENTORY',
 };
+exports.SupplyBatchOrigin = {
+    MANUAL: 'MANUAL',
+    PROCUREMENT: 'PROCUREMENT',
+};
 var support_ticket_dto_1 = require("./dto/support-ticket.dto");
 Object.defineProperty(exports, "TicketStatus", { enumerable: true, get: function () { return support_ticket_dto_1.TicketStatus; } });
 Object.defineProperty(exports, "PriorityLevel", { enumerable: true, get: function () { return support_ticket_dto_1.PriorityLevel; } });
@@ -150,5 +154,3 @@ Object.defineProperty(exports, "DepreciationMethod", { enumerable: true, get: fu
 var operations_dto_1 = require("./dto/operations.dto");
 Object.defineProperty(exports, "ServiceType", { enumerable: true, get: function () { return operations_dto_1.ServiceType; } });
 Object.defineProperty(exports, "TaskStatus", { enumerable: true, get: function () { return operations_dto_1.TaskStatus; } });
-var quote_dto_1 = require("./dto/quote.dto");
-Object.defineProperty(exports, "QuoteStatus", { enumerable: true, get: function () { return quote_dto_1.QuoteStatus; } });

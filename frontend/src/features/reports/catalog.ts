@@ -56,12 +56,6 @@ export const REPORT_CATALOG: ReportCatalogItem[] = [
     description: 'Pendentes e atrasadas',
     group: 'Suprimentos',
   },
-  {
-    slug: 'quotes-by-status',
-    title: 'Cotações por status',
-    description: 'Pipeline de cotações e valores',
-    group: 'Compras',
-  },
 ];
 
 export const REPORT_GROUPS = Array.from(new Set(REPORT_CATALOG.map((r) => r.group)));

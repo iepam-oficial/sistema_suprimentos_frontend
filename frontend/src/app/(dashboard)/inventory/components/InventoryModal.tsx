@@ -45,6 +45,8 @@ import {
     type AppliedSnapshots,
     type DepreciationFieldValues,
 } from './DepreciationConfigFields';
+import { InventoryInternalCodeDisplay } from '@/features/inventory/components/InventoryInternalCodeDisplay';
+import type { InventoryItem } from '@/features/inventory/types';
 
 interface InventoryModalProps {
     isOpen: boolean
@@ -52,9 +54,10 @@ interface InventoryModalProps {
     onSubmit: (data: any) => void
     initialData?: any
     isEdit?: boolean
+    onInternalCodeGenerated?: (item: InventoryItem) => void
 }
 
-export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit }: InventoryModalProps) {
+export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit, onInternalCodeGenerated }: InventoryModalProps) {
     const [formData, setFormData] = useState({
         item: '',
         name: '',
@@ -98,6 +101,8 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
     const [isSuggesting, setIsSuggesting] = useState(false);
     const [applyDepreciationRateId, setApplyDepreciationRateId] = useState<string | null>(null);
     const [appliedSnapshots, setAppliedSnapshots] = useState<AppliedSnapshots | null>(null);
+    const [internalCode, setInternalCode] = useState<string | null>(initialData?.internal_code ?? null);
+    const authToken = typeof window !== 'undefined' ? localStorage.getItem('@ti-assistant:token') : null;
 
     const resetDepreciationSession = () => {
         setSuggestedRates([]);
@@ -132,6 +137,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
         if (isOpen) {
             fetchFormData();
             if (isEdit && initialData) {
+                setInternalCode(initialData.internal_code ?? null);
                 setFormData({
                     item: initialData.item || '',
                     name: initialData.name || '',
@@ -165,6 +171,7 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                 resetDepreciationSession();
                 setAppliedSnapshots(snapshotsFromItem(initialData));
             } else {
+                setInternalCode(null);
                 setFormData({
                     item: '',
                     name: '',
@@ -516,8 +523,20 @@ export function InventoryModal({ isOpen, onClose, onSubmit, initialData, isEdit 
                                     />
                                     <FormErrorMessage>{errors.model}</FormErrorMessage>
                                 </FormControl>
+                                {isEdit && initialData && authToken && (
+                                    <InventoryInternalCodeDisplay
+                                        inventoryId={initialData.id}
+                                        internalCode={internalCode}
+                                        token={authToken}
+                                        variant="modal"
+                                        onGenerated={(item) => {
+                                            setInternalCode(item.internal_code ?? null);
+                                            onInternalCodeGenerated?.(item);
+                                        }}
+                                    />
+                                )}
                                 <FormControl isInvalid={!!errors.serial_number} isRequired>
-                                    <FormLabel>Número de Série</FormLabel>
+                                    <FormLabel>Nº série</FormLabel>
                                     <Input
                                         value={formData.serial_number}
                                         onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}

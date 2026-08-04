@@ -6,8 +6,7 @@ export type ReportSlug =
   | 'purchases-by-batch'
   | 'service-orders'
   | 'alerts-by-level'
-  | 'supply-requests'
-  | 'quotes-by-status';
+  | 'supply-requests';
 
 export const VALID_REPORT_SLUGS: ReportSlug[] = [
   'executive-summary',
@@ -18,7 +17,6 @@ export const VALID_REPORT_SLUGS: ReportSlug[] = [
   'service-orders',
   'alerts-by-level',
   'supply-requests',
-  'quotes-by-status',
 ];
 
 export interface ReportFilters {

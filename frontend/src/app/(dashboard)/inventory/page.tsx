@@ -54,6 +54,12 @@ export default function InventoryPage() {
     const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
     const [quickEditItem, setQuickEditItem] = useState<InventoryItem | null>(null);
     const [isQuickEditSaving, setIsQuickEditSaving] = useState(false);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('@ti-assistant:token') : null;
+
+    const handleInternalCodeGenerated = (updated: InventoryItem) => {
+        setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+        setQuickEditItem((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+    };
 
     useEffect(() => {
         loadItems();
@@ -327,9 +333,21 @@ export default function InventoryPage() {
                                 {groupName} ({groupItemsList.length})
                             </Heading>
                             {isMobile ? (
-                                <MobileView items={groupItemsList} onDelete={handleDelete} onEdit={handleEdit} />
+                                <MobileView
+                                    items={groupItemsList}
+                                    onDelete={handleDelete}
+                                    onEdit={handleEdit}
+                                    token={token}
+                                    onInternalCodeGenerated={handleInternalCodeGenerated}
+                                />
                             ) : (
-                                <DesktopView items={groupItemsList} onDelete={handleDelete} onEdit={handleEdit} />
+                                <DesktopView
+                                    items={groupItemsList}
+                                    onDelete={handleDelete}
+                                    onEdit={handleEdit}
+                                    token={token}
+                                    onInternalCodeGenerated={handleInternalCodeGenerated}
+                                />
                             )}
                         </Box>
                     ))}
@@ -341,6 +359,7 @@ export default function InventoryPage() {
                 onClose={onClose}
                 onSubmit={handleCreate}
                 isEdit={false}
+                onInternalCodeGenerated={handleInternalCodeGenerated}
             />
 
             <InventoryQuickEditDrawer

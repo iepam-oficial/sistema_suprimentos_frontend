@@ -65,6 +65,7 @@ export {
   directorApproveGoodsReceipt,
   fetchGoodsReceiptById,
   finalizeGoodsReceipt,
+  patchGoodsReceiptInvoiceLineFiscal,
   resolveGoodsReceiptDiscrepancy,
   resolveGoodsReceiptDiscrepanciesBatch,
   runGoodsReceiptComparison,

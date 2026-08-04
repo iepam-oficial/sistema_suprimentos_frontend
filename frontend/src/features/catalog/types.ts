@@ -6,6 +6,7 @@ export type {
   CreateSupplyBatchInput,
   CreateSupplyInput,
   MovementType,
+  PatchSupplyBatchInvoiceLineFiscalInput,
   StockMovementDTO,
   SubcategoryRefDTO,
   SupplierDTO,

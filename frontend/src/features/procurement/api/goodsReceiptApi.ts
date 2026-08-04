@@ -3,6 +3,7 @@ import type {
   ConfirmInvoiceLinesInput,
   CreateGoodsReceiptInput,
   GoodsReceiptDTO,
+  PatchGoodsReceiptInvoiceLineFiscalInput,
   ResolveDiscrepanciesBatchInput,
   ResolveDiscrepanciesBatchResult,
   ResolveDiscrepancyInput,
@@ -129,6 +130,22 @@ export async function classifyInvoiceLines(
     `/api/goods-receipts/${encodeURIComponent(id)}/invoice-lines/classify`,
     {
       method: 'PUT',
+      headers: jsonHeaders(token),
+      body: JSON.stringify(input),
+    }
+  );
+  return handleResponse<GoodsReceiptDTO>(response);
+}
+
+export async function patchGoodsReceiptInvoiceLineFiscal(
+  token: string,
+  id: string,
+  input: PatchGoodsReceiptInvoiceLineFiscalInput
+): Promise<GoodsReceiptDTO> {
+  const response = await fetch(
+    `/api/goods-receipts/${encodeURIComponent(id)}/invoice-lines/fiscal`,
+    {
+      method: 'PATCH',
       headers: jsonHeaders(token),
       body: JSON.stringify(input),
     }

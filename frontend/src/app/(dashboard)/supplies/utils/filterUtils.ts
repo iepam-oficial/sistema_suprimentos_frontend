@@ -1,3 +1,4 @@
+import { normalizeInternalCodeForSearch } from '@/utils/internalCode';
 import { Supply } from './types';
 
 export type SupplyVisibilityFilter = '' | 'visible' | 'hidden';
@@ -9,9 +10,12 @@ export const filterSupplies = (
     visibility: SupplyVisibilityFilter = ''
 ): Supply[] => {
     return Array.isArray(supplies) ? supplies.filter(supply => {
+        const normalizedSearchForCode = normalizeInternalCodeForSearch(searchTerm).toLowerCase();
+        const matchesInternalCode = normalizedSearchForCode.length > 0 &&
+            normalizeInternalCodeForSearch(supply.internal_code ?? '').toLowerCase().includes(normalizedSearchForCode);
         const matchesSearch = supply.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (supply.description ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (supply.internal_code ?? '').toLowerCase().includes(searchTerm.toLowerCase());
+            matchesInternalCode;
 
         const matchesCategory = !selectedCategory || supply.category?.id === selectedCategory;
 

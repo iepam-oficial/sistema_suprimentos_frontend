@@ -26,7 +26,7 @@ import {
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
-const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
+const ALLOWED_ROLES = ['MANAGER', 'ADMIN', 'DIRECTOR'];
 
 function goodsReceiptStatusLabel(status: string): string {
   const labels: Record<string, string> = {

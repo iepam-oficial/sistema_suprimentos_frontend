@@ -1,6 +1,7 @@
 import type {
   CreateSupplyBatchInput,
   CreateSupplyInput,
+  PatchSupplyBatchInvoiceLineFiscalInput,
   StockMovement,
   SupplyBatchDTO,
   SupplyDTO,
@@ -137,6 +138,35 @@ export async function fetchSupplyBatchById(token: string, id: string): Promise<S
 
   if (!response.ok) {
     throw new Error('Erro ao carregar lote');
+  }
+
+  return response.json();
+}
+
+export async function patchSupplyBatchInvoiceLineFiscal(
+  token: string,
+  batchId: string,
+  input: PatchSupplyBatchInvoiceLineFiscalInput,
+): Promise<SupplyBatchDTO> {
+  const response = await fetch(
+    `/api/supply-batches/${encodeURIComponent(batchId)}/invoice-lines/fiscal`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errData as { error?: string; message?: string }).error ??
+        (errData as { message?: string }).message ??
+        'Erro ao atualizar campos fiscais da linha',
+    );
   }
 
   return response.json();

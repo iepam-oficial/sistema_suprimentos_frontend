@@ -15,7 +15,6 @@ import {
   Package,
   ShoppingCart,
   Timer,
-  FileText,
   ChevronDown,
   ChevronRight,
   Search,
@@ -154,8 +153,11 @@ function useSidebarMenuModel() {
   };
 
   const menuItems: NavItem[] = [
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(user && ['ADMIN', 'MANAGER', 'DIRECTOR'].includes(user.role)
       ? [{ icon: Home, label: 'Dashboard', href: '/dashboard' }]
+      : []),
+    ...(user?.role === 'DIRECTOR'
+      ? [{ icon: BarChart, label: 'Dashboard Financeiro', href: '/dashboard/financeiro' }]
       : []),
   ];
 
@@ -194,7 +196,6 @@ function useSidebarMenuModel() {
   ];
 
   const financeiroItems: NavItem[] = [
-    { icon: FileText, label: 'Cotações', href: '/quotes' },
     ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
       ? [{ icon: Timer, label: 'Gastos Extras', href: '/extra-expenses' }]
       : []),
@@ -223,6 +224,7 @@ function useSidebarMenuModel() {
     ...(!isEmployee ? [{ label: 'Fornecedores', href: '/settings/suppliers' }] : []),
     ...(!isEmployee ? [{ label: 'Planos de Conta', href: '/chart-of-accounts' }] : []),
     ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
+    ...(isAdmin ? [{ label: 'Códigos internos', href: '/settings/catalog-codes' }] : []),
   ];
 
   const comprasItems: NavItem[] = [

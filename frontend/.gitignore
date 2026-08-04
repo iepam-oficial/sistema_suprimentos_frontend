@@ -12,15 +12,25 @@
 
 # testing
 /coverage
-/tests/e2e/artifacts/
+/cypress/videos/
+/cypress/screenshots/
+/cypress/downloads/
 
 # next.js
 /.next/
 /.next-*/
+/.next_*/
 /out/
 
 # production
 /build
+
+# local scratch / e2e backup artifacts
+/tmp/
+/.t12-build-check/
+*.bak
+*.bak-*
+.babelrc.bak*
 
 # misc
 .DS_Store

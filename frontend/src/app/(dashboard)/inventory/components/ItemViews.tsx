@@ -19,14 +19,21 @@ import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { InventoryItem } from '../types';
 import { getStatusColor, getStatusLabel } from '../utils/statusUtils';
 import formatCurrency from '../utils/formatCurrency';
+import { InventoryInternalCodeDisplay } from '@/features/inventory/components/InventoryInternalCodeDisplay';
 
 interface ItemViewsProps {
     items: InventoryItem[];
     onDelete: (id: string) => void;
     onEdit: (item: InventoryItem) => void;
+    token?: string | null;
+    onInternalCodeGenerated?: (item: InventoryItem) => void;
 }
 
-export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
+function itemDisplayName(item: InventoryItem): string {
+    return [item.name, item.model].filter(Boolean).join(' ');
+}
+
+export const MobileView = ({ items, onDelete, onEdit, token, onInternalCodeGenerated }: ItemViewsProps) => {
     const { colorMode } = useColorMode();
 
     return (
@@ -86,7 +93,22 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
 
                     <VStack align="stretch" spacing={2}>
                         <Box>
-                            <Text fontWeight="bold" fontSize="xs" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Nº Série</Text>
+                            <Text fontWeight="bold" fontSize="sm" noOfLines={1} color={colorMode === 'dark' ? 'white' : 'gray.800'}>
+                                {itemDisplayName(item) || item.item}
+                            </Text>
+                            {token && onInternalCodeGenerated && (
+                                <InventoryInternalCodeDisplay
+                                    inventoryId={item.id}
+                                    internalCode={item.internal_code}
+                                    token={token}
+                                    onGenerated={onInternalCodeGenerated}
+                                    variant="list"
+                                />
+                            )}
+                        </Box>
+
+                        <Box>
+                            <Text fontWeight="bold" fontSize="xs" color={colorMode === 'dark' ? 'white' : 'gray.800'}>Nº série</Text>
                             <Text fontSize="sm" fontFamily="mono" noOfLines={1} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>{item.serial_number}</Text>
                         </Box>
 
@@ -122,7 +144,7 @@ export const MobileView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
     );
 };
 
-export const DesktopView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
+export const DesktopView = ({ items, onDelete, onEdit, token, onInternalCodeGenerated }: ItemViewsProps) => {
     const { colorMode } = useColorMode();
     const thProps = {
         py: 2,
@@ -142,7 +164,7 @@ export const DesktopView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
                 <Thead position="sticky" top={0} zIndex={1}>
                     <Tr>
                         <Th {...thProps}>Item</Th>
-                        <Th {...thProps}>Número de Série</Th>
+                        <Th {...thProps}>Nº série</Th>
                         <Th {...thProps}>Status</Th>
                         <Th {...thProps}>Polo</Th>
                         <Th {...thProps}>Ambiente</Th>
@@ -161,11 +183,33 @@ export const DesktopView = ({ items, onDelete, onEdit }: ItemViewsProps) => {
                                 bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.4)' : 'gray.50',
                             }}
                         >
-                            <Td py={1.5} px={2}>
-                                <Badge size="sm" colorScheme="blue">{item.item}</Badge>
+                            <Td py={1.5} px={2} maxW="200px">
+                                <Box>
+                                    <HStack spacing={2} mb={0.5}>
+                                        <Badge size="sm" colorScheme="blue">{item.item}</Badge>
+                                        {itemDisplayName(item) && (
+                                            <Text
+                                                fontSize="sm"
+                                                color={colorMode === 'dark' ? 'white' : 'gray.800'}
+                                                isTruncated
+                                            >
+                                                {itemDisplayName(item)}
+                                            </Text>
+                                        )}
+                                    </HStack>
+                                    {token && onInternalCodeGenerated && (
+                                        <InventoryInternalCodeDisplay
+                                            inventoryId={item.id}
+                                            internalCode={item.internal_code}
+                                            token={token}
+                                            onGenerated={onInternalCodeGenerated}
+                                            variant="list"
+                                        />
+                                    )}
+                                </Box>
                             </Td>
                             <Td py={1.5} px={2} fontSize="sm" maxW="140px" isTruncated>
-                                <Text fontFamily="mono" color={colorMode === 'dark' ? 'white' : 'gray.800'} isTruncated>
+                                <Text fontFamily="mono" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'} fontSize="xs" isTruncated>
                                     {item.serial_number}
                                 </Text>
                             </Td>

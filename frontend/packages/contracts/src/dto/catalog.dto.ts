@@ -1,5 +1,9 @@
-import type { MovementType, SupplyMovementType, SupplyTransactionType } from '../enums';
+import type { MovementType, SupplyBatchOrigin, SupplyMovementType, SupplyTransactionType } from '../enums';
 import type { FiscalNcmDTO } from './fiscal.dto';
+import type {
+  InvoiceLineFiscalSnapshot,
+  InvoiceLineFiscalSnapshotInput,
+} from './invoice-fiscal.dto';
 import type {
   CategoryDTO,
   SubcategoryDTO,
@@ -68,6 +72,26 @@ export interface SupplyDTO {
 
 export type SupplyBatchInvoiceFileType = 'image' | 'pdf' | 'xml';
 
+/** Linha fiscal exibida no detalhe do lote (PROCUREMENT ou MANUAL). */
+export interface SupplyBatchFiscalLineDTO extends InvoiceLineFiscalSnapshot {
+  id?: string;
+  line_number: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  ncm_from_invoice?: string | null;
+}
+
+/** Entidade de linha de NF vinculada a lote manual. */
+export type SupplyBatchInvoiceLineDTO = SupplyBatchFiscalLineDTO;
+
+/** PATCH dos campos fiscais de uma linha de NF do lote manual. */
+export interface PatchSupplyBatchInvoiceLineFiscalInput
+  extends InvoiceLineFiscalSnapshotInput {
+  invoice_line_id: string;
+}
+
 export interface SupplyBatchDTO {
   id: string;
   supply_id: string;
@@ -82,6 +106,12 @@ export interface SupplyBatchDTO {
   notes: string | null;
   invoice_url: string | null;
   invoice_file_type?: SupplyBatchInvoiceFileType | null;
+  origin?: SupplyBatchOrigin | null;
+  goods_receipt_id?: string | null;
+  goods_receipt_invoice_line_id?: string | null;
+  fiscal_lines?: SupplyBatchFiscalLineDTO[];
+  fiscal_incomplete?: boolean;
+  invoice_recommended?: boolean;
   created_at?: string;
   updated_at?: string;
   supply?: SupplyDTO;

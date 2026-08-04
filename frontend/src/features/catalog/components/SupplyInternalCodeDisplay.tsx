@@ -10,6 +10,7 @@ import {
 
 import { generateSupplyInternalCode } from '@/features/catalog/api/catalogApi';
 import type { SupplyDTO } from '@/features/catalog/types';
+import { isDottedHierarchicalInternalCode } from '@/utils/internalCode';
 
 interface SupplyInternalCodeDisplayProps {
   supplyId: string;
@@ -47,11 +48,15 @@ export function SupplyInternalCodeDisplay({
     }
   };
 
+  const isDotted =
+    internalCode != null && isDottedHierarchicalInternalCode(internalCode);
+  const actionLabel = internalCode ? 'Atualizar código' : 'Gerar código';
+
   if (variant === 'modal') {
     return (
       <FormControl>
         <FormLabel>Código interno</FormLabel>
-        {internalCode ? (
+        {isDotted ? (
           <Input isReadOnly value={internalCode} />
         ) : (
           <Button
@@ -60,14 +65,14 @@ export function SupplyInternalCodeDisplay({
             isLoading={isLoading}
             isDisabled={isLoading}
           >
-            Gerar código
+            {actionLabel}
           </Button>
         )}
       </FormControl>
     );
   }
 
-  if (internalCode) {
+  if (isDotted) {
     return (
       <Text fontSize="xs" color="gray.500">
         {internalCode}
@@ -83,7 +88,7 @@ export function SupplyInternalCodeDisplay({
       isLoading={isLoading}
       isDisabled={isLoading}
     >
-      Gerar código
+      {actionLabel}
     </Button>
   );
 }
