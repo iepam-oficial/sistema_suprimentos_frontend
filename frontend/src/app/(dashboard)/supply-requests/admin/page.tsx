@@ -96,7 +96,10 @@ export default function AdminSupplyRequestsPage() {
 
     useEffect(() => {
         setLoading(true);
-        Promise.all([fetchRequests(), fetchAllocationRequests(), loadInventoryTransactions(), loadStockMovements()]).finally(() => setLoading(false));
+        Promise.all([fetchRequests(), fetchAllocationRequests(), loadInventoryTransactions(), loadStockMovements()]).finally(() => {
+            setLoading(false);
+            setLoadingTabs([false, false, false, false]);
+        });
     }, []);
 
     useEffect(() => {
@@ -691,9 +694,9 @@ export default function AdminSupplyRequestsPage() {
             >
                 <TabList flexShrink={0}>
                     <Tab data-testid="admin-tab-suprimentos">Suprimentos</Tab>
-                    <Tab>Alocações</Tab>
-                    <Tab>Transações de Inventário</Tab>
-                    <Tab>Movimentações de Estoque</Tab>
+                    <Tab data-testid="admin-tab-alocacoes">Alocações</Tab>
+                    <Tab data-testid="admin-tab-transacoes">Transações de Inventário</Tab>
+                    <Tab data-testid="admin-tab-movimentacoes">Movimentações de Estoque</Tab>
                 </TabList>
                 <TabPanels flex="1" minH={0} overflow="hidden">
                     <TabPanel p={2} h="full" display="flex" flexDirection="column" minH={0}>
