@@ -276,7 +276,14 @@ export function DemandSupplyListTab({
     );
 
     const emptyState = (
-        <Flex direction="column" align="center" justify="center" py={8} h="full">
+        <Flex
+            data-testid="demand-supply-empty"
+            direction="column"
+            align="center"
+            justify="center"
+            py={8}
+            h="full"
+        >
             {loading ? (
                 <Spinner size="lg" />
             ) : (
@@ -422,9 +429,11 @@ export function DemandSupplyListTab({
             ? emptyState
             : !loading && items.length === 0
               ? emptyState
-              : isMobile
-                ? mobileCards
-                : desktopTable;
+              : (
+                    <Box data-testid="demand-supply-list">
+                        {isMobile ? mobileCards : desktopTable}
+                    </Box>
+                );
 
     return (
         <>
