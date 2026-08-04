@@ -227,8 +227,23 @@ export function runGoodsReceipt(options: {
     options.onClassificationReady();
   }
 
-  cy.contains('button', 'Salvar classificação e comparar').should('be.enabled').click();
-  cy.clickByText('Divergências');
+  // Cold Next compiles of classify/compare can exceed 30s; wait on network, not the
+  // disabled Divergências tab (comparisonCompleted flips only after POST /compare).
+  cy.intercept('PUT', '**/api/goods-receipts/*/invoice-lines/classify').as('grClassify');
+  cy.intercept('POST', '**/api/goods-receipts/*/compare').as('grCompare');
+  cy.contains('button', 'Salvar classificação e comparar', { timeout: 60000 })
+    .should('be.enabled')
+    .click();
+  cy.wait('@grClassify', { timeout: 180000 })
+    .its('response.statusCode')
+    .should('be.oneOf', [200, 201]);
+  cy.wait('@grCompare', { timeout: 180000 })
+    .its('response.statusCode')
+    .should('be.oneOf', [200, 201]);
+  cy.contains('Classificação salva', { timeout: 60000 }).should('exist');
+  cy.contains('button', 'Divergências', { timeout: 60000 }).should('not.be.disabled');
+  // setStep(3) already runs after compare; click is idempotent if already on the step.
+  cy.contains('button', 'Divergências').click();
 
   if (options.stopAtDiscrepancies) {
     cy.waitForText('selecionadas');

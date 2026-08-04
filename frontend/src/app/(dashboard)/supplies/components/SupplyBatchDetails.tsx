@@ -35,8 +35,6 @@ import {
   FiDownload,
 } from 'react-icons/fi';
 import { FileText } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { SupplyBatchDTO, SupplyBatchInvoiceFileType } from '@ti-assistant/contracts';
 import { formatBRL } from '@/utils/money';
 import { exportToCSV } from '@/utils/exportToCSV';
@@ -137,8 +135,13 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
     });
   };
 
-  const exportFiscalPDF = () => {
+  const exportFiscalPDF = async () => {
     if (!batch) return;
+    // Dynamic import avoids pulling jspdf/canvg into the page compile graph (Next/babel flake).
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const doc = new jsPDF({ orientation: 'landscape' });
     const supplyName = batch.supply?.name ?? '—';
     doc.setFontSize(14);
@@ -155,8 +158,8 @@ export function SupplyBatchDetails({ batchId, onBack }: SupplyBatchDetailsProps)
       headStyles: { fontSize: 7 },
     });
     if (body.length === 0) {
-      const finalY = (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable
-        ?.finalY ?? 28;
+      const finalY =
+        (doc as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? 28;
       doc.setFontSize(9);
       doc.text('Nenhuma linha fiscal vinculada a este lote.', 14, finalY + 8);
     }
