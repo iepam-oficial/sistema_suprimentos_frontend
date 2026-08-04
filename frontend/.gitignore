@@ -12,7 +12,6 @@
 
 # testing
 /coverage
-/tests/e2e/artifacts/
 /cypress/videos/
 /cypress/screenshots/
 /cypress/downloads/
