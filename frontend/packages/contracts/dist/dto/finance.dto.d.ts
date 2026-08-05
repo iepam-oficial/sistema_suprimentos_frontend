@@ -12,8 +12,22 @@ export interface ChartOfAccountDTO {
     codigo: string;
     nome: string;
     tipo: ChartOfAccountType;
+    descricao?: string | null;
+    has_links: boolean;
     created_at: string;
     updated_at: string;
+}
+export interface CreateChartOfAccountInput {
+    codigo: string;
+    nome: string;
+    tipo: ChartOfAccountType;
+    descricao?: string | null;
+}
+export interface UpdateChartOfAccountInput {
+    codigo?: string;
+    nome?: string;
+    tipo?: ChartOfAccountType;
+    descricao?: string | null;
 }
 export interface ExtraExpenseCategoryDTO {
     id: string;

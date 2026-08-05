@@ -3,6 +3,8 @@ import type { ExtraExpenseDTO } from '@ti-assistant/contracts';
 export type {
   ChartOfAccountType,
   ChartOfAccountDTO,
+  CreateChartOfAccountInput,
+  UpdateChartOfAccountInput,
   ExtraExpenseCategoryDTO,
   ExtraExpenseDTO,
   FinanceLocationRefDTO,
