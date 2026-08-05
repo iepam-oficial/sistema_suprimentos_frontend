@@ -77,7 +77,8 @@ export function MyAllocationsPage() {
           allocation.inventory.name.toLowerCase().includes(search.toLowerCase()) ||
           allocation.inventory.model.toLowerCase().includes(search.toLowerCase()) ||
           allocation.inventory.serial_number.toLowerCase().includes(search.toLowerCase()) ||
-          allocation.destination.toLowerCase().includes(search.toLowerCase());
+          allocation.destination.toLowerCase().includes(search.toLowerCase()) ||
+          (allocation.destination_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
         const matchesStatus = !statusFilter || allocation.status === statusFilter;
         return matchesSearch && matchesStatus;
       });

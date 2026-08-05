@@ -63,6 +63,11 @@ export interface InventoryAllocationDTO {
   status: AllocationStatus;
   approval_date?: string | null;
   destination: string;
+  destination_name?: string | null;
+  destination_id?: string | null;
+  locale_name?: string | null;
+  location_name?: string | null;
+  requester_sector?: string | null;
   return_date?: string | null;
   delivery_date?: string | null;
   notes?: string | null;
