@@ -222,7 +222,9 @@ function useSidebarMenuModel() {
     ...(!isEmployee ? [{ label: 'Ambientes', href: '/settings/enviroments' }] : []),
     ...(!isEmployee ? [{ label: 'Setores', href: '/settings/sectors' }] : []),
     ...(!isEmployee ? [{ label: 'Fornecedores', href: '/settings/suppliers' }] : []),
-    ...(!isEmployee ? [{ label: 'Planos de Conta', href: '/chart-of-accounts' }] : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+      ? [{ label: 'Planos de Conta', href: '/chart-of-accounts' }]
+      : []),
     ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
     ...(isAdmin ? [{ label: 'Códigos internos', href: '/settings/catalog-codes' }] : []),
   ];
