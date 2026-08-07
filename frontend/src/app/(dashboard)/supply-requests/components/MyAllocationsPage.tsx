@@ -45,19 +45,18 @@ import { CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { InventoryAllocation } from '@/features/inventory/types';
 import { extendAllocationDeadline } from '@/features/inventory/api/inventoryApi';
+import {
+  extendDeadlineMinIso,
+  getOverdueBadgeKind,
+  matchesOverdueFilter,
+  toDateInputValue,
+  todayIsoDate,
+  validateExtendDeadline,
+} from '@/features/inventory/utils/allocationDeadlineUi';
 
 function formatDeadline(deadline: string | null | undefined): string {
   if (!deadline) return '—';
   return new Date(deadline).toLocaleDateString('pt-BR');
-}
-
-function todayIsoDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function toDateInputValue(iso: string | null | undefined): string {
-  if (!iso) return '';
-  return new Date(iso).toISOString().split('T')[0];
 }
 
 export function MyAllocationsPage() {
@@ -100,7 +99,7 @@ export function MyAllocationsPage() {
           allocation.destination.toLowerCase().includes(search.toLowerCase()) ||
           (allocation.destination_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
         const matchesStatus = !statusFilter || allocation.status === statusFilter;
-        const matchesOverdue = !overdueFilter || allocation.is_overdue;
+        const matchesOverdue = matchesOverdueFilter(allocation.is_overdue, overdueFilter);
         return matchesSearch && matchesStatus && matchesOverdue;
       });
       setFilteredAllocations(filtered);
@@ -253,30 +252,24 @@ export function MyAllocationsPage() {
     const current = toDateInputValue(extendingAllocation.delivery_deadline);
     const returnDate = toDateInputValue(extendingAllocation.return_date);
     const today = todayIsoDate();
-    if (newDeadline <= current) {
+    const validation = validateExtendDeadline({
+      newDeadline,
+      currentDeadline: current,
+      today,
+      returnDate: returnDate || undefined,
+    });
+    if (!validation.ok) {
+      const description =
+        validation.reason === 'not_after_current'
+          ? 'O novo prazo deve ser posterior ao prazo atual.'
+          : validation.reason === 'before_today'
+            ? 'O novo prazo deve ser hoje ou uma data futura.'
+            : validation.reason === 'after_return'
+              ? 'O novo prazo não pode ser posterior à data de devolução.'
+              : 'Informe o novo prazo de entrega.';
       toast({
         title: 'Data inválida',
-        description: 'O novo prazo deve ser posterior ao prazo atual.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    if (newDeadline < today) {
-      toast({
-        title: 'Data inválida',
-        description: 'O novo prazo deve ser hoje ou uma data futura.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    if (returnDate && newDeadline > returnDate) {
-      toast({
-        title: 'Data inválida',
-        description: 'O novo prazo não pode ser posterior à data de devolução.',
+        description,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -444,10 +437,10 @@ export function MyAllocationsPage() {
                       </Badge>
                     </HStack>
                     <HStack spacing={1} flexWrap="wrap">
-                      {allocation.is_overdue && (
+                      {getOverdueBadgeKind(allocation) === 'atrasado' && (
                         <Badge colorScheme="red" size="sm">Atrasado</Badge>
                       )}
-                      {allocation.was_ever_overdue && !allocation.is_overdue && (
+                      {getOverdueBadgeKind(allocation) === 'ja_atrasou' && (
                         <Badge colorScheme="orange" size="sm">Já atrasou</Badge>
                       )}
                     </HStack>
@@ -627,10 +620,10 @@ export function MyAllocationsPage() {
                                     ? 'Perdido'
                                     : 'Devolvido'}
                         </Badge>
-                        {allocation.is_overdue && (
+                        {getOverdueBadgeKind(allocation) === 'atrasado' && (
                           <Badge colorScheme="red" size="sm">Atrasado</Badge>
                         )}
-                        {allocation.was_ever_overdue && !allocation.is_overdue && (
+                        {getOverdueBadgeKind(allocation) === 'ja_atrasou' && (
                           <Badge colorScheme="orange" size="sm">Já atrasou</Badge>
                         )}
                       </HStack>
@@ -766,15 +759,10 @@ export function MyAllocationsPage() {
                 type="date"
                 value={newDeadline}
                 onChange={e => setNewDeadline(e.target.value)}
-                min={(() => {
-                  const today = todayIsoDate();
-                  const current = toDateInputValue(extendingAllocation?.delivery_deadline);
-                  if (!current) return today;
-                  const nextDay = new Date(current + 'T00:00:00');
-                  nextDay.setDate(nextDay.getDate() + 1);
-                  const minFromCurrent = nextDay.toISOString().split('T')[0];
-                  return minFromCurrent > today ? minFromCurrent : today;
-                })()}
+                min={extendDeadlineMinIso(
+                  toDateInputValue(extendingAllocation?.delivery_deadline),
+                  todayIsoDate()
+                )}
                 max={toDateInputValue(extendingAllocation?.return_date) || undefined}
               />
             </FormControl>

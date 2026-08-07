@@ -19,18 +19,16 @@ import {
 } from '@chakra-ui/react';
 
 import type { InventoryItem } from '@/features/inventory/types';
+import {
+  canSubmitAllocationDates,
+  defaultDeliveryDeadlineIso,
+  isAllocationConfirmEnabled,
+  shouldBlockReturnDateChange,
+  shouldClearReturnDateOnDeadlineChange,
+  todayIsoDate,
+} from '@/features/inventory/utils/allocationDeadlineUi';
 import { fetchMe, useAuthSession } from '@/features/identity';
 import { fetchLocalesByUserLocation, type LocaleDTO } from '@/features/reference-data';
-
-function addDaysIsoDate(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
-
-function todayIsoDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 interface InventoryAllocationModalProps {
   isOpen: boolean;
@@ -109,7 +107,7 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
 
   const handleDeliveryDeadlineChange = (value: string) => {
     setDeliveryDeadline(value);
-    if (returnDate && value && returnDate < value) {
+    if (shouldClearReturnDateOnDeadlineChange(value, returnDate)) {
       setReturnDate('');
       toast({
         title: 'Data de devolução ajustada',
@@ -122,7 +120,7 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
   };
 
   const handleReturnDateChange = (value: string) => {
-    if (deliveryDeadline && value && value < deliveryDeadline) {
+    if (shouldBlockReturnDateChange(value, deliveryDeadline)) {
       toast({
         title: 'Data inválida',
         description: 'A data de devolução não pode ser anterior ao prazo de entrega.',
@@ -136,8 +134,8 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
   };
 
   const handleSubmit = () => {
-    if (!deliveryDeadline || !returnDate || !destination) return;
-    if (returnDate < deliveryDeadline) {
+    if (!isAllocationConfirmEnabled({ deliveryDeadline, returnDate, destination })) return;
+    if (!canSubmitAllocationDates({ deliveryDeadline, returnDate, today })) {
       toast({
         title: 'Data inválida',
         description: 'A data de devolução não pode ser anterior ao prazo de entrega.',
@@ -157,7 +155,7 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
 
   React.useEffect(() => {
     if (isOpen) {
-      setDeliveryDeadline(addDaysIsoDate(7));
+      setDeliveryDeadline(defaultDeliveryDeadlineIso());
       setReturnDate('');
       setDestination('');
       setNotes('');
@@ -254,7 +252,7 @@ export const InventoryAllocationModal: React.FC<InventoryAllocationModalProps> =
           <Button
             colorScheme="purple"
             onClick={handleSubmit}
-            isDisabled={!deliveryDeadline || !returnDate || !destination}
+            isDisabled={!isAllocationConfirmEnabled({ deliveryDeadline, returnDate, destination })}
             isLoading={isLoading}
             bg={colorMode === 'dark' ? 'rgba(159, 122, 234, 0.8)' : undefined}
             _hover={{

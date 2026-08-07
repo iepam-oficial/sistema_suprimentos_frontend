@@ -26,6 +26,10 @@ import {
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { InventoryAllocation } from '@/features/inventory/types';
+import {
+  getOverdueBadgeKind,
+  matchesOverdueFilter,
+} from '@/features/inventory/utils/allocationDeadlineUi';
 import { AdminTabShell } from './AdminTabShell';
 import { AdminTabToolbar } from './AdminTabToolbar';
 import { AdminFiltersDrawer } from './AdminFiltersDrawer';
@@ -121,7 +125,7 @@ export function AllocationsTab({
     };
 
     const filtered = filteredAllocationRequests.filter((r) => {
-        if (overdueFilter && !r.is_overdue) return false;
+        if (!matchesOverdueFilter(r.is_overdue, overdueFilter)) return false;
         if (!returnStart && !returnEnd) return true;
         if (!r.return_date) return false;
         const ret = new Date(r.return_date);
@@ -266,10 +270,10 @@ export function AllocationsTab({
                         <Badge colorScheme={getStatusColorScheme(request.status)}>
                             {getStatusLabel(request.status)}
                         </Badge>
-                        {request.is_overdue && (
+                        {getOverdueBadgeKind(request) === 'atrasado' && (
                             <Badge colorScheme="red">Atrasado</Badge>
                         )}
-                        {request.was_ever_overdue && !request.is_overdue && (
+                        {getOverdueBadgeKind(request) === 'ja_atrasou' && (
                             <Badge colorScheme="orange">Já atrasou</Badge>
                         )}
                     </HStack>
@@ -349,10 +353,10 @@ export function AllocationsTab({
                                 <Badge colorScheme={getStatusColorScheme(request.status)}>
                                     {getStatusLabel(request.status)}
                                 </Badge>
-                                {request.is_overdue && (
+                                {getOverdueBadgeKind(request) === 'atrasado' && (
                                     <Badge colorScheme="red">Atrasado</Badge>
                                 )}
-                                {request.was_ever_overdue && !request.is_overdue && (
+                                {getOverdueBadgeKind(request) === 'ja_atrasou' && (
                                     <Badge colorScheme="orange">Já atrasou</Badge>
                                 )}
                             </HStack>
