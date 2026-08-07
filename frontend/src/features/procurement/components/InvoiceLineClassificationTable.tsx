@@ -34,7 +34,13 @@ import { findSimilarSupplies } from '@/features/catalog/utils/findSimilarSupplie
 import type { CreateSupplyInput, SupplyDTO } from '@/features/catalog/types';
 import { FiscalNcmAutocomplete } from '@/features/financeiro/components/FiscalNcmAutocomplete';
 import { FiscalNcmPickerDrawer } from '@/features/financeiro/components/FiscalNcmPickerDrawer';
+import {
+  fetchChartOfAccountById,
+  fetchChartOfAccounts,
+} from '@/features/financeiro/api/chartOfAccountApi';
+import type { ChartOfAccount } from '@/features/financeiro/types';
 import { CatalogItemAutocomplete } from './CatalogItemAutocomplete';
+import { ChartOfAccountCombobox } from './purchase-request/ChartOfAccountCombobox';
 
 export interface InventoryLineFormData {
   name: string;
@@ -63,6 +69,11 @@ export interface LineClassificationState {
   /** NCM atual do suprimento vinculado; undefined enquanto não carregado. */
   supply_ncm_id?: string | null;
   supply_ncm_action?: 'KEEP_SUPPLY' | 'USE_LINE_NCM';
+  chart_of_account_id?: string;
+  /** Ex.: "1.1.01 — Despesas administrativas" */
+  chart_of_account_label?: string;
+  /** true quando a conta veio do cadastro do suprimento (somente leitura). */
+  chart_of_account_inherited?: boolean;
 }
 
 function formatNcmCode(code: string): string {
@@ -133,6 +144,11 @@ function initClassifications(lines: GoodsReceiptInvoiceLineDTO[]): LineClassific
       ncm_code: line.fiscal_ncm?.code ?? null,
       ncm_label: line.fiscal_ncm?.description ?? null,
       ncm_source: line.ncm_id != null || line.ncm_from_invoice ? 'invoice' : null,
+      chart_of_account_id: line.chart_of_account_id ?? undefined,
+      chart_of_account_label: line.chart_of_account
+        ? `${line.chart_of_account.codigo} — ${line.chart_of_account.nome}`
+        : undefined,
+      chart_of_account_inherited: false,
     };
 
     if (line.destination_type === ReceiptLineDestination.INVENTORY) {
@@ -175,6 +191,8 @@ export function InvoiceLineClassificationTable({
   const [pendingCreatePayload, setPendingCreatePayload] = useState<CreateSupplyInput | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [ncmDrawerLineId, setNcmDrawerLineId] = useState<string | null>(null);
+  const [despesaAccounts, setDespesaAccounts] = useState<ChartOfAccount[]>([]);
+  const [ativoAccounts, setAtivoAccounts] = useState<ChartOfAccount[]>([]);
 
   const classificationsRef = useRef(classifications);
   classificationsRef.current = classifications;
@@ -186,28 +204,67 @@ export function InvoiceLineClassificationTable({
     }
   }, [lines, classifications.length, onChange]);
 
+  useEffect(() => {
+    fetchChartOfAccounts('DESPESA')
+      .then(setDespesaAccounts)
+      .catch(() => setDespesaAccounts([]));
+    fetchChartOfAccounts('ATIVO')
+      .then(setAtivoAccounts)
+      .catch(() => setAtivoAccounts([]));
+  }, []);
+
   const classificationById = useMemo(
     () => new Map(classifications.map((c) => [c.invoice_line_id, c])),
     [classifications]
   );
 
-  const loadSupplyNcm = async (supplyId: string) => {
+  const loadSupplyMeta = async (supplyId: string) => {
     const token = localStorage.getItem('@ti-assistant:token');
     let ncmId: string | null = null;
+    let coaId: string | null = null;
+    let coaLabel: string | undefined;
     if (token) {
       try {
         const supply = await fetchSupplyById(token, supplyId);
         ncmId = supply.ncm_id ?? null;
+        coaId = supply.chart_of_account_id ?? null;
+        if (coaId) {
+          try {
+            const account = await fetchChartOfAccountById(token, coaId);
+            coaLabel = `${account.codigo} — ${account.nome}`;
+          } catch {
+            coaLabel = coaId;
+          }
+        }
       } catch {
         ncmId = null;
+        coaId = null;
       }
     }
     onChange(
-      classificationsRef.current.map((c) =>
-        c.destination_type === 'SUPPLY' && c.supply_id === supplyId && c.supply_ncm_id === undefined
-          ? { ...c, supply_ncm_id: ncmId }
-          : c
-      )
+      classificationsRef.current.map((c) => {
+        if (c.destination_type !== 'SUPPLY' || c.supply_id !== supplyId) return c;
+        if (c.supply_ncm_id !== undefined) return c;
+
+        if (coaId) {
+          return {
+            ...c,
+            supply_ncm_id: ncmId,
+            chart_of_account_id: coaId,
+            chart_of_account_label: coaLabel,
+            chart_of_account_inherited: true,
+          };
+        }
+
+        return {
+          ...c,
+          supply_ncm_id: ncmId,
+          chart_of_account_inherited: false,
+          ...(c.chart_of_account_inherited
+            ? { chart_of_account_id: undefined, chart_of_account_label: undefined }
+            : {}),
+        };
+      })
     );
   };
 
@@ -222,11 +279,11 @@ export function InvoiceLineClassificationTable({
     pendingSupplyIds.forEach((supplyId) => {
       if (loadingSupplyNcmIds.current.has(supplyId)) return;
       loadingSupplyNcmIds.current.add(supplyId);
-      void loadSupplyNcm(supplyId).finally(() => {
+      void loadSupplyMeta(supplyId).finally(() => {
         loadingSupplyNcmIds.current.delete(supplyId);
       });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSupplyNcm reads classificationsRef, not a dep
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSupplyMeta reads classificationsRef, not a dep
   }, [classifications]);
 
   const updateLine = (lineId: string, patch: Partial<LineClassificationState>) => {
@@ -243,12 +300,22 @@ export function InvoiceLineClassificationTable({
     setPendingCreatePayload(null);
   };
 
+  const clearChartOfAccount = (): Pick<
+    LineClassificationState,
+    'chart_of_account_id' | 'chart_of_account_label' | 'chart_of_account_inherited'
+  > => ({
+    chart_of_account_id: undefined,
+    chart_of_account_label: undefined,
+    chart_of_account_inherited: false,
+  });
+
   const linkSupplyToLine = (lineId: string, supply: { id: string; name: string }) => {
     updateLine(lineId, {
       supply_id: supply.id,
       supply_label: supply.name,
       supply_ncm_id: undefined,
       supply_ncm_action: undefined,
+      ...clearChartOfAccount(),
     });
   };
 
@@ -318,6 +385,14 @@ export function InvoiceLineClassificationTable({
             ...emptyInventoryForm(line.quantity),
             name: line.description,
           },
+      ...clearChartOfAccount(),
+      ...(isSupply && current?.supply_id
+        ? {
+            chart_of_account_id: current.chart_of_account_id,
+            chart_of_account_label: current.chart_of_account_label,
+            chart_of_account_inherited: current.chart_of_account_inherited,
+          }
+        : {}),
     });
   };
 
@@ -329,6 +404,7 @@ export function InvoiceLineClassificationTable({
       supply_ncm_id: undefined,
       supply_ncm_action: undefined,
       inventory: undefined,
+      ...clearChartOfAccount(),
     });
   };
 
@@ -473,7 +549,13 @@ export function InvoiceLineClassificationTable({
                       isLinked={visualState === 'complete'}
                       placeholder="Buscar suprimento no catálogo"
                       onChange={(value) =>
-                        updateLine(line.id, { supply_label: value, supply_id: undefined })
+                        updateLine(line.id, {
+                          supply_label: value,
+                          supply_id: undefined,
+                          supply_ncm_id: undefined,
+                          supply_ncm_action: undefined,
+                          ...clearChartOfAccount(),
+                        })
                       }
                       onSelect={(selection) => {
                         if (!selection.supply_id) return;
@@ -482,6 +564,7 @@ export function InvoiceLineClassificationTable({
                           supply_label: selection.description,
                           supply_ncm_id: undefined,
                           supply_ncm_action: undefined,
+                          ...clearChartOfAccount(),
                         });
                       }}
                     />
@@ -698,6 +781,40 @@ export function InvoiceLineClassificationTable({
                 </Box>
               )}
             </FormControl>
+
+            <FormControl mt={4} isRequired>
+              <FormLabel fontSize="sm">Plano de contas</FormLabel>
+              {state.chart_of_account_inherited && state.chart_of_account_label ? (
+                <Text fontSize="sm">{state.chart_of_account_label}</Text>
+              ) : (
+                <>
+                  <ChartOfAccountCombobox
+                    accounts={
+                      state.destination_type === 'INVENTORY' ? ativoAccounts : despesaAccounts
+                    }
+                    value={state.chart_of_account_id ?? ''}
+                    isDisabled={disabled}
+                    onChange={(accountId) => {
+                      const accounts =
+                        state.destination_type === 'INVENTORY' ? ativoAccounts : despesaAccounts;
+                      const account = accounts.find((a) => a.id === accountId);
+                      updateLine(line.id, {
+                        chart_of_account_id: accountId,
+                        chart_of_account_label: account
+                          ? `${account.codigo} — ${account.nome}`
+                          : undefined,
+                        chart_of_account_inherited: false,
+                      });
+                    }}
+                  />
+                  {!state.chart_of_account_id?.trim() && (
+                    <Text fontSize="xs" color={warningColor} mt={2}>
+                      Selecione o plano de contas para esta linha.
+                    </Text>
+                  )}
+                </>
+              )}
+            </FormControl>
           </Box>
         );
       })}
@@ -752,6 +869,7 @@ export function isClassificationComplete(classifications: LineClassificationStat
   return classifications.every((c) => {
     if (c.destination_type === 'UNCLASSIFIED') return false;
     if (hasUnresolvedNcmDivergence(c)) return false;
+    if (!c.chart_of_account_id?.trim()) return false;
     if (c.destination_type === 'SUPPLY') return !!c.supply_id?.trim();
     if (c.destination_type === 'INVENTORY' && c.inventory) {
       const inv = c.inventory;
