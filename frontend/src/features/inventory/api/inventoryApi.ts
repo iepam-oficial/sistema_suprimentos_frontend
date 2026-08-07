@@ -342,6 +342,35 @@ export const markAllocationLost = async (allocationId: string, token: string) =>
   return response.json();
 };
 
+export const extendAllocationDeadline = async (
+  allocationId: string,
+  delivery_deadline: string,
+  token: string
+) => {
+  const response = await fetch(
+    `/api/inventory-allocations/${allocationId}/extend-deadline`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ delivery_deadline }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errorData as { error?: string; message?: string }).error ||
+        (errorData as { message?: string }).message ||
+        'Erro ao prorrogar prazo de entrega'
+    );
+  }
+
+  return response.json();
+};
+
 export const confirmManagerReturn = async (allocationId: string, token: string) => {
   const response = await fetch(
     `/api/inventory-allocations/${allocationId}/manager-return-confirmation`,

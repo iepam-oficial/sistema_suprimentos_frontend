@@ -44,12 +44,28 @@ import { SearchIcon } from 'lucide-react';
 import { CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { InventoryAllocation } from '@/features/inventory/types';
+import { extendAllocationDeadline } from '@/features/inventory/api/inventoryApi';
+
+function formatDeadline(deadline: string | null | undefined): string {
+  if (!deadline) return '—';
+  return new Date(deadline).toLocaleDateString('pt-BR');
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function toDateInputValue(iso: string | null | undefined): string {
+  if (!iso) return '';
+  return new Date(iso).toISOString().split('T')[0];
+}
 
 export function MyAllocationsPage() {
   const [allocations, setAllocations] = useState<InventoryAllocation[]>([]);
   const [filteredAllocations, setFilteredAllocations] = useState<InventoryAllocation[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [overdueFilter, setOverdueFilter] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const toast = useToast();
@@ -63,6 +79,10 @@ export function MyAllocationsPage() {
   const [lostNotes, setLostNotes] = useState('');
   const [markingLostId, setMarkingLostId] = useState<string | null>(null);
   const [isMarkingLost, setIsMarkingLost] = useState(false);
+  const [extendModalOpen, setExtendModalOpen] = useState(false);
+  const [extendingAllocation, setExtendingAllocation] = useState<InventoryAllocation | null>(null);
+  const [newDeadline, setNewDeadline] = useState('');
+  const [isExtending, setIsExtending] = useState(false);
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const { colorMode } = useColorMode();
 
@@ -71,7 +91,7 @@ export function MyAllocationsPage() {
   }, []);
 
   useEffect(() => {
-    if (search || statusFilter) {
+    if (search || statusFilter || overdueFilter) {
       const filtered = allocations.filter(allocation => {
         const matchesSearch =
           allocation.inventory.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -80,13 +100,14 @@ export function MyAllocationsPage() {
           allocation.destination.toLowerCase().includes(search.toLowerCase()) ||
           (allocation.destination_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
         const matchesStatus = !statusFilter || allocation.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const matchesOverdue = !overdueFilter || allocation.is_overdue;
+        return matchesSearch && matchesStatus && matchesOverdue;
       });
       setFilteredAllocations(filtered);
     } else {
       setFilteredAllocations(allocations);
     }
-  }, [search, statusFilter, allocations]);
+  }, [search, statusFilter, overdueFilter, allocations]);
 
   const fetchAllocations = async () => {
     try {
@@ -220,6 +241,78 @@ export function MyAllocationsPage() {
     }
   };
 
+  const openExtendModal = (allocation: InventoryAllocation) => {
+    if (!allocation.is_overdue) return;
+    setExtendingAllocation(allocation);
+    setNewDeadline('');
+    setExtendModalOpen(true);
+  };
+
+  const handleExtendDeadline = async () => {
+    if (!extendingAllocation || !newDeadline) return;
+    const current = toDateInputValue(extendingAllocation.delivery_deadline);
+    const returnDate = toDateInputValue(extendingAllocation.return_date);
+    const today = todayIsoDate();
+    if (newDeadline <= current) {
+      toast({
+        title: 'Data inválida',
+        description: 'O novo prazo deve ser posterior ao prazo atual.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    if (newDeadline < today) {
+      toast({
+        title: 'Data inválida',
+        description: 'O novo prazo deve ser hoje ou uma data futura.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    if (returnDate && newDeadline > returnDate) {
+      toast({
+        title: 'Data inválida',
+        description: 'O novo prazo não pode ser posterior à data de devolução.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setIsExtending(true);
+    try {
+      const token = localStorage.getItem('@ti-assistant:token');
+      if (!token) throw new Error('Token não encontrado');
+      await extendAllocationDeadline(extendingAllocation.id, newDeadline, token);
+      toast({
+        title: 'Sucesso',
+        description: 'Prazo de entrega prorrogado',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      setExtendModalOpen(false);
+      setExtendingAllocation(null);
+      setNewDeadline('');
+      fetchAllocations();
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao prorrogar prazo',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsExtending(false);
+    }
+  };
+
   if (loading) {
     return (
       <Flex justify="center" align="center" minH="200px">
@@ -248,25 +341,40 @@ export function MyAllocationsPage() {
               _focus={{ borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500', boxShadow: 'none' }}
             />
           </InputGroup>
-          <Select
-            placeholder="Filtrar por status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            maxW="200px"
-            bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'gray.50'}
-            backdropFilter="blur(12px)"
-            borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-            _hover={{ borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)' }}
-            _focus={{ borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500', boxShadow: 'none' }}
-          >
-            <option value="">Todos</option>
-            <option value="PENDING">Pendente</option>
-            <option value="APPROVED">Aprovado</option>
-            <option value="REJECTED">Rejeitado</option>
-            <option value="DELIVERED">Entregue</option>
-            <option value="RETURNED">Devolvido</option>
-            <option value="LOST">Perdido</option>
-          </Select>
+          <HStack spacing={3} flexShrink={0}>
+            <Select
+              placeholder="Filtrar por status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              maxW="200px"
+              bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'gray.50'}
+              backdropFilter="blur(12px)"
+              borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
+              _hover={{ borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)' }}
+              _focus={{ borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500', boxShadow: 'none' }}
+            >
+              <option value="">Todos</option>
+              <option value="PENDING">Pendente</option>
+              <option value="APPROVED">Aprovado</option>
+              <option value="REJECTED">Rejeitado</option>
+              <option value="DELIVERED">Entregue</option>
+              <option value="RETURNED">Devolvido</option>
+              <option value="LOST">Perdido</option>
+            </Select>
+            <Select
+              value={overdueFilter ? 'overdue' : ''}
+              onChange={(e) => setOverdueFilter(e.target.value === 'overdue')}
+              maxW="180px"
+              bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'gray.50'}
+              backdropFilter="blur(12px)"
+              borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
+              _hover={{ borderColor: colorMode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)' }}
+              _focus={{ borderColor: colorMode === 'dark' ? 'blue.400' : 'blue.500', boxShadow: 'none' }}
+            >
+              <option value="">Todas</option>
+              <option value="overdue">Atrasadas</option>
+            </Select>
+          </HStack>
         </Flex>
         )}
 
@@ -335,6 +443,14 @@ export function MyAllocationsPage() {
                                   : 'Devolvido'}
                       </Badge>
                     </HStack>
+                    <HStack spacing={1} flexWrap="wrap">
+                      {allocation.is_overdue && (
+                        <Badge colorScheme="red" size="sm">Atrasado</Badge>
+                      )}
+                      {allocation.was_ever_overdue && !allocation.is_overdue && (
+                        <Badge colorScheme="orange" size="sm">Já atrasou</Badge>
+                      )}
+                    </HStack>
 
                     <Divider />
 
@@ -351,6 +467,13 @@ export function MyAllocationsPage() {
                         <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>Destino:</Text>
                         <Text fontSize="sm" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
                           {allocation.destination_name || allocation.destination}
+                        </Text>
+                      </HStack>
+
+                      <HStack justify="space-between">
+                        <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.300' : 'gray.500'}>Prazo de entrega:</Text>
+                        <Text fontSize="sm" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
+                          {formatDeadline(allocation.delivery_deadline)}
                         </Text>
                       </HStack>
                       
@@ -378,6 +501,16 @@ export function MyAllocationsPage() {
 
                     {/* Botões de ação */}
                     <VStack spacing={2}>
+                      {allocation.is_overdue && (
+                        <Button
+                          size="sm"
+                          colorScheme="orange"
+                          onClick={() => openExtendModal(allocation)}
+                          w="full"
+                        >
+                          Prorrogar prazo
+                        </Button>
+                      )}
                       {allocation.status === 'APPROVED' && !allocation.requester_delivery_confirmation && (
                         <Button 
                           size="sm" 
@@ -434,6 +567,7 @@ export function MyAllocationsPage() {
                   <Th color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', lg: 'table-cell' }}>Nº Série</Th>
                   <Th color={colorMode === 'dark' ? 'white' : 'gray.800'}>Destino</Th>
                   <Th color={colorMode === 'dark' ? 'white' : 'gray.800'}>Status</Th>
+                  <Th color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', md: 'table-cell' }}>Prazo de entrega</Th>
                   <Th color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', md: 'table-cell' }}>Data de Retorno</Th>
                   <Th color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', lg: 'table-cell' }}>Confirmações</Th>
                   <Th color={colorMode === 'dark' ? 'white' : 'gray.800'}>Ações</Th>
@@ -464,34 +598,45 @@ export function MyAllocationsPage() {
                       </Text>
                     </Td>
                     <Td>
-                      <Badge
-                        colorScheme={
-                          allocation.status === 'APPROVED'
-                            ? 'green'
-                            : allocation.status === 'REJECTED'
-                              ? 'red'
-                              : allocation.status === 'DELIVERED'
-                                ? 'purple'
-                                : allocation.status === 'RETURNED'
-                                  ? 'blue'
+                      <HStack spacing={1} flexWrap="wrap">
+                        <Badge
+                          colorScheme={
+                            allocation.status === 'APPROVED'
+                              ? 'green'
+                              : allocation.status === 'REJECTED'
+                                ? 'red'
+                                : allocation.status === 'DELIVERED'
+                                  ? 'purple'
+                                  : allocation.status === 'RETURNED'
+                                    ? 'blue'
+                                    : allocation.status === 'LOST'
+                                      ? 'purple'
+                                      : 'yellow'
+                          }
+                          size={{ base: 'sm', md: 'md' }}
+                        >
+                          {allocation.status === 'PENDING'
+                            ? 'Pendente'
+                            : allocation.status === 'APPROVED'
+                              ? 'Aprovado'
+                              : allocation.status === 'REJECTED'
+                                ? 'Rejeitado'
+                                : allocation.status === 'DELIVERED'
+                                  ? 'Entregue'
                                   : allocation.status === 'LOST'
-                                    ? 'purple'
-                                    : 'yellow'
-                        }
-                        size={{ base: 'sm', md: 'md' }}
-                      >
-                        {allocation.status === 'PENDING'
-                          ? 'Pendente'
-                          : allocation.status === 'APPROVED'
-                            ? 'Aprovado'
-                            : allocation.status === 'REJECTED'
-                              ? 'Rejeitado'
-                              : allocation.status === 'DELIVERED'
-                                ? 'Entregue'
-                                : allocation.status === 'LOST'
-                                  ? 'Perdido'
-                                  : 'Devolvido'}
-                      </Badge>
+                                    ? 'Perdido'
+                                    : 'Devolvido'}
+                        </Badge>
+                        {allocation.is_overdue && (
+                          <Badge colorScheme="red" size="sm">Atrasado</Badge>
+                        )}
+                        {allocation.was_ever_overdue && !allocation.is_overdue && (
+                          <Badge colorScheme="orange" size="sm">Já atrasou</Badge>
+                        )}
+                      </HStack>
+                    </Td>
+                    <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', md: 'table-cell' }}>
+                      {formatDeadline(allocation.delivery_deadline)}
                     </Td>
                     <Td color={colorMode === 'dark' ? 'white' : 'gray.800'} display={{ base: 'none', md: 'table-cell' }}>
                       {allocation.return_date ? new Date(allocation.return_date).toLocaleDateString('pt-BR') : 'Não definida'}
@@ -514,6 +659,15 @@ export function MyAllocationsPage() {
                     </Td>
                     <Td>
                       <VStack spacing={2} align="start">
+                      {allocation.is_overdue && (
+                        <Button
+                          size={{ base: 'xs', md: 'sm' }}
+                          colorScheme="orange"
+                          onClick={() => openExtendModal(allocation)}
+                        >
+                          Prorrogar prazo
+                        </Button>
+                      )}
                       {allocation.status === 'APPROVED' && !allocation.requester_delivery_confirmation && (
                         <Button
                             size={{ base: 'xs', md: 'sm' }}
@@ -589,6 +743,62 @@ export function MyAllocationsPage() {
           <ModalFooter>
             <Button colorScheme="purple" mr={3} onClick={handleMarkAsLost} isLoading={isMarkingLost}>Confirmar</Button>
             <Button variant="ghost" onClick={() => setLostModalOpen(false)}>Cancelar</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      <Modal
+        isOpen={extendModalOpen}
+        onClose={() => {
+          setExtendModalOpen(false);
+          setExtendingAllocation(null);
+          setNewDeadline('');
+        }}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Prorrogar prazo de entrega</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <FormControl isRequired>
+              <FormLabel>Novo prazo de entrega</FormLabel>
+              <Input
+                type="date"
+                value={newDeadline}
+                onChange={e => setNewDeadline(e.target.value)}
+                min={(() => {
+                  const today = todayIsoDate();
+                  const current = toDateInputValue(extendingAllocation?.delivery_deadline);
+                  if (!current) return today;
+                  const nextDay = new Date(current + 'T00:00:00');
+                  nextDay.setDate(nextDay.getDate() + 1);
+                  const minFromCurrent = nextDay.toISOString().split('T')[0];
+                  return minFromCurrent > today ? minFromCurrent : today;
+                })()}
+                max={toDateInputValue(extendingAllocation?.return_date) || undefined}
+              />
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              colorScheme="orange"
+              mr={3}
+              onClick={handleExtendDeadline}
+              isLoading={isExtending}
+              isDisabled={!newDeadline}
+            >
+              Confirmar prorrogação
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setExtendModalOpen(false);
+                setExtendingAllocation(null);
+                setNewDeadline('');
+              }}
+            >
+              Cancelar
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
