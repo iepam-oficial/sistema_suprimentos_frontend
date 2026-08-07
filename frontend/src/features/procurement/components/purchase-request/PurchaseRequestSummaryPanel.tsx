@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Badge,
   Box,
   Text,
   useColorModeValue,
@@ -17,13 +16,6 @@ function requesterName(request: PurchaseRequestDTO): string {
   return '—';
 }
 
-function chartOfAccountLabel(request: PurchaseRequestDTO): string {
-  if (request.chart_of_account) {
-    return `${request.chart_of_account.codigo} — ${request.chart_of_account.nome}`;
-  }
-  return request.chart_of_account_id || '—';
-}
-
 interface PurchaseRequestSummaryPanelProps {
   request: PurchaseRequestDTO;
   emphasized?: boolean;
@@ -36,29 +28,6 @@ function SummaryField({ label, value }: { label: string; value: string }) {
         {label}
       </Text>
       <Text fontSize="sm">{value}</Text>
-    </VStack>
-  );
-}
-
-function EmphasizedChartOfAccountField({ label, value }: { label: string; value: string }) {
-  return (
-    <VStack align="stretch" spacing={1}>
-      <Text fontSize="sm" color="gray.500">
-        {label}
-      </Text>
-      <Badge
-        colorScheme="blue"
-        fontSize="sm"
-        px={3}
-        py={1.5}
-        borderRadius="md"
-        whiteSpace="normal"
-        textAlign="left"
-        maxW="100%"
-        alignSelf="flex-start"
-      >
-        {value}
-      </Badge>
     </VStack>
   );
 }
@@ -83,16 +52,9 @@ export function PurchaseRequestSummaryPanel({
   request,
   emphasized = false,
 }: PurchaseRequestSummaryPanelProps) {
-  const chartLabel = chartOfAccountLabel(request);
-
   return (
     <VStack align="stretch" spacing={4}>
       <SummaryField label="Solicitante" value={requesterName(request)} />
-      {emphasized ? (
-        <EmphasizedChartOfAccountField label="Plano de contas" value={chartLabel} />
-      ) : (
-        <SummaryField label="Plano de contas" value={chartLabel} />
-      )}
       {emphasized ? (
         <EmphasizedJustificationField label="Justificativa" value={request.justification} />
       ) : (

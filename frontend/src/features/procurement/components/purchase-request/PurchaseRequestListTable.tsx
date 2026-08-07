@@ -91,7 +91,6 @@ export function PurchaseRequestListTable({
             <Th>Prioridade</Th>
             {showCreator && <Th>Solicitante</Th>}
             <Th>Itens</Th>
-            <Th>Plano de contas</Th>
             <Th>Criada em</Th>
           </Tr>
         </Thead>
@@ -124,11 +123,6 @@ export function PurchaseRequestListTable({
                 </Td>
               )}
               <Td color={textColor}>{item.items.length}</Td>
-              <Td color={textColor}>
-                {item.chart_of_account
-                  ? `${item.chart_of_account.codigo} — ${item.chart_of_account.nome}`
-                  : '—'}
-              </Td>
               <Td color={textColor} whiteSpace="nowrap">
                 {new Date(item.created_at).toLocaleDateString('pt-BR', {
                   day: '2-digit',
