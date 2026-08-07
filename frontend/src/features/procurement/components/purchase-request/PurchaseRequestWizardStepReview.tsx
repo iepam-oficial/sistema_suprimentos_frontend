@@ -13,23 +13,19 @@ import {
   useColorModeValue,
   VStack,
 } from '@chakra-ui/react';
-import type { ChartOfAccount } from '@/features/financeiro/types';
 import type { PurchaseRequestWizardForm } from './purchaseRequestWizardTypes';
 
 interface PurchaseRequestWizardStepReviewProps {
   form: PurchaseRequestWizardForm;
-  accounts: ChartOfAccount[];
 }
 
 export function PurchaseRequestWizardStepReview({
   form,
-  accounts,
 }: PurchaseRequestWizardStepReviewProps) {
   const mutedColor = useColorModeValue('gray.600', 'gray.400');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const summaryBg = useColorModeValue('gray.50', 'gray.700');
 
-  const account = accounts.find((a) => a.id === form.chartOfAccountId);
   const validItems = form.items.filter((item) => item.description.trim() && item.unit.trim());
 
   return (
@@ -40,10 +36,6 @@ export function PurchaseRequestWizardStepReview({
         </Text>
         <Text fontSize="sm" color={mutedColor}>
           <strong>Justificativa:</strong> {form.justification.trim() || '—'}
-        </Text>
-        <Text fontSize="sm" color={mutedColor} mt={2}>
-          <strong>Plano de contas:</strong>{' '}
-          {account ? `${account.codigo} — ${account.nome}` : '—'}
         </Text>
         {form.notes.trim() && (
           <Text fontSize="sm" color={mutedColor} mt={2}>

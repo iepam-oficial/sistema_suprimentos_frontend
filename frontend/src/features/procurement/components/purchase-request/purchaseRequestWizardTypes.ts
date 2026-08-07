@@ -11,7 +11,6 @@ export interface PurchaseRequestItemFormRow {
 
 export interface PurchaseRequestWizardForm {
   justification: string;
-  chartOfAccountId: string;
   notes: string;
   items: PurchaseRequestItemFormRow[];
 }
@@ -28,7 +27,6 @@ export function createEmptyItemRow(): PurchaseRequestItemFormRow {
 export function createEmptyWizardForm(): PurchaseRequestWizardForm {
   return {
     justification: '',
-    chartOfAccountId: '',
     notes: '',
     items: [createEmptyItemRow()],
   };
@@ -37,7 +35,6 @@ export function createEmptyWizardForm(): PurchaseRequestWizardForm {
 export function wizardFormFromDto(dto: PurchaseRequestDTO): PurchaseRequestWizardForm {
   return {
     justification: dto.justification,
-    chartOfAccountId: dto.chart_of_account_id,
     notes: dto.notes ?? '',
     items: dto.items.length
       ? dto.items.map((item) => ({
@@ -54,7 +51,7 @@ export function wizardFormFromDto(dto: PurchaseRequestDTO): PurchaseRequestWizar
 export function buildPurchaseRequestPayload(
   form: PurchaseRequestWizardForm,
 ): CreatePurchaseRequestInput | null {
-  if (!form.justification.trim() || !form.chartOfAccountId) {
+  if (!form.justification.trim()) {
     return null;
   }
 
@@ -65,7 +62,6 @@ export function buildPurchaseRequestPayload(
 
   return {
     justification: form.justification.trim(),
-    chart_of_account_id: form.chartOfAccountId,
     notes: form.notes.trim() || undefined,
     items: validItems.map((item) => ({
       description: item.description.trim(),

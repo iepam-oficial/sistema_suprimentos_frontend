@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import type { PurchaseRequestDTO } from '@ti-assistant/contracts';
-import { fetchChartOfAccounts } from '@/features/financeiro/api/chartOfAccountApi';
-import type { ChartOfAccount } from '@/features/financeiro/types';
 import {
   createPurchaseRequest,
   fetchPurchaseRequestById,
@@ -35,7 +33,7 @@ function getToken(): string | null {
 
 function validateStep(step: number, form: PurchaseRequestWizardForm): boolean {
   if (step === 0) {
-    return Boolean(form.justification.trim() && form.chartOfAccountId);
+    return Boolean(form.justification.trim());
   }
   if (step === 1) {
     return form.items.some(
@@ -51,25 +49,11 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<PurchaseRequestWizardForm>(createEmptyWizardForm);
-  const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [loading, setLoading] = useState(mode === 'edit');
   const [saving, setSaving] = useState(false);
   const [requestId, setRequestId] = useState<string | undefined>(id);
   const [displayCode, setDisplayCode] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-
-  useEffect(() => {
-    fetchChartOfAccounts('DESPESA')
-      .then(setAccounts)
-      .catch(() => {
-        toast({
-          title: 'Erro ao carregar planos de conta',
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
-      });
-  }, [toast]);
 
   const loadDraft = useCallback(async () => {
     if (!id) return;
@@ -117,10 +101,6 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
         toast({ title: 'Justificativa obrigatória', status: 'warning', duration: 3000, isClosable: true });
         return;
       }
-      if (!form.chartOfAccountId) {
-        toast({ title: 'Plano de contas obrigatório', status: 'warning', duration: 3000, isClosable: true });
-        return;
-      }
     }
     if (currentStep === 1) {
       toast({
@@ -150,7 +130,7 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
     if (!payload) {
       toast({
         title: 'Dados incompletos',
-        description: 'Preencha justificativa, plano de contas e ao menos um item válido.',
+        description: 'Preencha justificativa e ao menos um item válido.',
         status: 'warning',
         duration: 3000,
         isClosable: true,
@@ -271,7 +251,6 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
     steps: STEPS,
     form,
     setForm,
-    accounts,
     loading,
     saving,
     requestId,
