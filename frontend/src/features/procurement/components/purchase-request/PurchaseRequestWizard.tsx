@@ -97,7 +97,6 @@ export function PurchaseRequestWizard({ mode, id }: PurchaseRequestWizardProps) 
           {wizard.step === 0 && (
             <PurchaseRequestWizardStepGeneral
               form={wizard.form}
-              accounts={wizard.accounts}
               onChange={wizard.setForm}
             />
           )}
@@ -111,7 +110,7 @@ export function PurchaseRequestWizard({ mode, id }: PurchaseRequestWizardProps) 
           )}
 
           {wizard.step === 2 && (
-            <PurchaseRequestWizardStepReview form={wizard.form} accounts={wizard.accounts} />
+            <PurchaseRequestWizardStepReview form={wizard.form} />
           )}
 
           <HStack justify="space-between" mt={6} flexWrap="wrap" gap={2}>

@@ -646,6 +646,7 @@ export function GoodsReceiptWizard({
         supply_id: c.destination_type === 'SUPPLY' ? c.supply_id : undefined,
         ncm_id: c.ncm_id ?? null,
         supply_ncm_action: c.destination_type === 'SUPPLY' ? c.supply_ncm_action : undefined,
+        chart_of_account_id: c.chart_of_account_id,
       }));
 
       let updated = await classifyInvoiceLines(token, receipt.id, { lines: classifyLines });
@@ -660,6 +661,7 @@ export function GoodsReceiptWizard({
           location_id: c.inventory!.location_id,
           category_id: c.inventory!.category_id,
           subcategory_id: c.inventory!.subcategory_id,
+          chart_of_account_id: c.chart_of_account_id,
         }));
 
       if (inventoryLines.length > 0) {

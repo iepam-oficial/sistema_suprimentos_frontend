@@ -499,7 +499,12 @@ export default function SupplyRequestsPage() {
     setIsAllocationModalOpen(true);
   };
 
-  const handleAllocationSubmit = async (data: { return_date: string; destination: string; notes: string }) => {
+  const handleAllocationSubmit = async (data: {
+    delivery_deadline: string;
+    return_date: string;
+    destination: string;
+    notes: string;
+  }) => {
     setIsAllocating(true);
     try {
       const token = localStorage.getItem('@ti-assistant:token');
@@ -511,7 +516,8 @@ export default function SupplyRequestsPage() {
         data.return_date,
         data.destination,
         data.notes,
-        token
+        token,
+        data.delivery_deadline
       );
       setIsAllocationModalOpen(false);
       setSelectedItem(null);

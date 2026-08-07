@@ -70,6 +70,9 @@ export interface InventoryAllocationDTO {
   requester_sector?: string | null;
   return_date?: string | null;
   delivery_date?: string | null;
+  delivery_deadline: string | null;
+  was_ever_overdue: boolean;
+  is_overdue: boolean;
   notes?: string | null;
   manager_delivery_confirmation?: boolean;
   requester_delivery_confirmation?: boolean;

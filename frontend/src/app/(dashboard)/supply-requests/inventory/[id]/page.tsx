@@ -71,7 +71,12 @@ export default function InventoryDetailPage({ params }: { params: { id: string }
     fetchData();
   }, [params.id]);
 
-  const handleAllocationSubmit = async (data: { return_date: string; destination: string; notes: string }) => {
+  const handleAllocationSubmit = async (data: {
+    delivery_deadline: string;
+    return_date: string;
+    destination: string;
+    notes: string;
+  }) => {
     setIsAllocating(true);
     try {
       const token = localStorage.getItem('@ti-assistant:token');
@@ -81,7 +86,8 @@ export default function InventoryDetailPage({ params }: { params: { id: string }
         data.return_date,
         data.destination,
         data.notes,
-        token
+        token,
+        data.delivery_deadline
       );
       onClose();
       window.location.reload();

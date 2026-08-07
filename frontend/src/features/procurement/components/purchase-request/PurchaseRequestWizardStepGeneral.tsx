@@ -1,20 +1,16 @@
 'use client';
 
 import { FormControl, FormLabel, Textarea, VStack } from '@chakra-ui/react';
-import type { ChartOfAccount } from '@/features/financeiro/types';
-import { ChartOfAccountCombobox } from './ChartOfAccountCombobox';
 import type { PurchaseRequestWizardForm } from './purchaseRequestWizardTypes';
 
 interface PurchaseRequestWizardStepGeneralProps {
   form: PurchaseRequestWizardForm;
-  accounts: ChartOfAccount[];
   onChange: (form: PurchaseRequestWizardForm) => void;
   isDisabled?: boolean;
 }
 
 export function PurchaseRequestWizardStepGeneral({
   form,
-  accounts,
   onChange,
   isDisabled = false,
 }: PurchaseRequestWizardStepGeneralProps) {
@@ -28,16 +24,6 @@ export function PurchaseRequestWizardStepGeneral({
           placeholder="Descreva a necessidade da compra"
           isDisabled={isDisabled}
           rows={4}
-        />
-      </FormControl>
-
-      <FormControl isRequired>
-        <FormLabel>Plano de contas</FormLabel>
-        <ChartOfAccountCombobox
-          accounts={accounts}
-          value={form.chartOfAccountId}
-          onChange={(chartOfAccountId) => onChange({ ...form, chartOfAccountId })}
-          isDisabled={isDisabled}
         />
       </FormControl>
 

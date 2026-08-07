@@ -26,6 +26,10 @@ import {
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { InventoryAllocation } from '@/features/inventory/types';
+import {
+  getOverdueBadgeKind,
+  matchesOverdueFilter,
+} from '@/features/inventory/utils/allocationDeadlineUi';
 import { AdminTabShell } from './AdminTabShell';
 import { AdminTabToolbar } from './AdminTabToolbar';
 import { AdminFiltersDrawer } from './AdminFiltersDrawer';
@@ -87,6 +91,7 @@ export function AllocationsTab({
     const colorModeVal = useColorModeValue('light', 'dark');
     const [returnStart, setReturnStart] = useState('');
     const [returnEnd, setReturnEnd] = useState('');
+    const [overdueFilter, setOverdueFilter] = useState(false);
     const { isOpen, onOpen, onClose } = useDisclosure();
 
     const inputBg = colorMode === 'dark' ? 'gray.700' : 'white';
@@ -99,6 +104,7 @@ export function AllocationsTab({
         statusFilter ||
         returnStart ||
         returnEnd ||
+        overdueFilter ||
         sectorFilter ||
         locationFilter ||
         localeFilter ||
@@ -109,10 +115,17 @@ export function AllocationsTab({
         onClearFilters();
         setReturnStart('');
         setReturnEnd('');
+        setOverdueFilter(false);
         onSearchChange('');
     };
 
+    const formatDeadline = (deadline: string | null | undefined) => {
+        if (!deadline) return '—';
+        return new Date(deadline).toLocaleDateString('pt-BR');
+    };
+
     const filtered = filteredAllocationRequests.filter((r) => {
+        if (!matchesOverdueFilter(r.is_overdue, overdueFilter)) return false;
         if (!returnStart && !returnEnd) return true;
         if (!r.return_date) return false;
         const ret = new Date(r.return_date);
@@ -174,6 +187,19 @@ export function AllocationsTab({
                     <option value="DELIVERED">Entregue</option>
                     <option value="RETURNED">Devolvido</option>
                     <option value="LOST">Perdido</option>
+                </Select>
+            </FormControl>
+            <FormControl>
+                <FormLabel color={textColor} fontSize="sm">Atraso</FormLabel>
+                <Select
+                    value={overdueFilter ? 'overdue' : ''}
+                    onChange={(e) => setOverdueFilter(e.target.value === 'overdue')}
+                    bg={inputBg}
+                    borderColor={inputBorder}
+                    size="sm"
+                >
+                    <option value="">Todas</option>
+                    <option value="overdue">Atrasadas</option>
                 </Select>
             </FormControl>
             <FormControl>
@@ -240,9 +266,18 @@ export function AllocationsTab({
                     <Text fontSize="sm" color="gray.500">{request.requester.name} - {request.requester.email}</Text>
                     <Text fontSize="sm">Modelo: {request.inventory.model}</Text>
                     <Text fontSize="sm">Série: {request.inventory.serial_number}</Text>
-                    <Badge colorScheme={getStatusColorScheme(request.status)} mt={1} mb={1}>
-                        {getStatusLabel(request.status)}
-                    </Badge>
+                    <HStack spacing={1} mt={1} mb={1} flexWrap="wrap">
+                        <Badge colorScheme={getStatusColorScheme(request.status)}>
+                            {getStatusLabel(request.status)}
+                        </Badge>
+                        {getOverdueBadgeKind(request) === 'atrasado' && (
+                            <Badge colorScheme="red">Atrasado</Badge>
+                        )}
+                        {getOverdueBadgeKind(request) === 'ja_atrasou' && (
+                            <Badge colorScheme="orange">Já atrasou</Badge>
+                        )}
+                    </HStack>
+                    <Text fontSize="sm">Prazo de entrega: {formatDeadline(request.delivery_deadline)}</Text>
                     <Text fontSize="xs" color="gray.400">Data: {new Date(request.created_at).toLocaleDateString('pt-BR')}</Text>
                     <VStack spacing={2} mt={2} align="stretch">
                         {request.status === 'PENDING' && (
@@ -289,6 +324,7 @@ export function AllocationsTab({
                     <Th py={2} color={thColor} bg={thBg}>Usuário</Th>
                     <Th py={2} color={thColor} bg={thBg}>Quantidade</Th>
                     <Th py={2} color={thColor} bg={thBg}>Status</Th>
+                    <Th py={2} color={thColor} bg={thBg}>Prazo de entrega</Th>
                     <Th py={2} color={thColor} bg={thBg}>Data da Solicitação</Th>
                     <Th py={2} color={thColor} bg={thBg}>Data Limite de Entrega</Th>
                     <Th py={2} color={thColor} bg={thBg}>Data de Entrega</Th>
@@ -313,9 +349,20 @@ export function AllocationsTab({
                         </Td>
                         <Td py={1.5} px={2} color={textColor} fontSize="sm">1</Td>
                         <Td py={1.5} px={2}>
-                            <Badge colorScheme={getStatusColorScheme(request.status)}>
-                                {getStatusLabel(request.status)}
-                            </Badge>
+                            <HStack spacing={1} flexWrap="wrap">
+                                <Badge colorScheme={getStatusColorScheme(request.status)}>
+                                    {getStatusLabel(request.status)}
+                                </Badge>
+                                {getOverdueBadgeKind(request) === 'atrasado' && (
+                                    <Badge colorScheme="red">Atrasado</Badge>
+                                )}
+                                {getOverdueBadgeKind(request) === 'ja_atrasou' && (
+                                    <Badge colorScheme="orange">Já atrasou</Badge>
+                                )}
+                            </HStack>
+                        </Td>
+                        <Td py={1.5} px={2} color={textColor} fontSize="sm">
+                            {formatDeadline(request.delivery_deadline)}
                         </Td>
                         <Td py={1.5} px={2} color={textColor} fontSize="sm">
                             {request.created_at ? new Date(request.created_at).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Não definida'}
