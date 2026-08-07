@@ -4,6 +4,7 @@ import type {
   ReceiptLineDestination,
 } from '../enums';
 import type { SupplierRefDTO } from './catalog.dto';
+import type { ChartOfAccountDTO } from './finance.dto';
 import type { FiscalNcmDTO } from './fiscal.dto';
 import type {
   InvoiceLineFiscalSnapshot,
@@ -36,6 +37,8 @@ export interface GoodsReceiptInvoiceLineDTO extends InvoiceLineFiscalSnapshot {
   ncm_from_invoice?: string | null;
   ncm_id?: string | null;
   fiscal_ncm?: Pick<FiscalNcmDTO, 'id' | 'code' | 'description'> | null;
+  chart_of_account_id?: string | null;
+  chart_of_account?: Pick<ChartOfAccountDTO, 'codigo' | 'nome'> | null;
 }
 
 export interface GoodsReceiptDiscrepancyDTO {
@@ -135,6 +138,7 @@ export interface ClassifyInvoiceLineInput {
   supply_id?: string;
   ncm_id?: string | null;
   supply_ncm_action?: 'KEEP_SUPPLY' | 'USE_LINE_NCM';
+  chart_of_account_id?: string;
 }
 
 export interface ClassifyInvoiceLinesInput {
