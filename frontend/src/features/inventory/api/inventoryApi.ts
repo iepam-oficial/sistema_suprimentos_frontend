@@ -243,7 +243,8 @@ export const allocateInventoryItem = async (
   return_date: string,
   destination: string,
   notes: string,
-  token: string
+  token: string,
+  delivery_deadline: string = ''
 ) => {
   const response = await fetch('/api/inventory-allocations', {
     method: 'POST',
@@ -256,6 +257,7 @@ export const allocateInventoryItem = async (
       return_date,
       destination,
       notes,
+      delivery_deadline,
     }),
   });
 
