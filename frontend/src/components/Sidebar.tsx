@@ -26,6 +26,7 @@ import {
   Scale,
   Receipt,
   ListOrdered,
+  Truck,
   TrendingDown,
   Barcode,
   LucideIcon,
@@ -145,6 +146,9 @@ function useSidebarMenuModel() {
     if (href === '/procurement/solicitacoes') return pathname.startsWith('/procurement/solicitacoes');
     if (href === '/procurement/aprovacoes-sc') return pathname.startsWith('/procurement/aprovacoes-sc');
     if (href === '/procurement/fila-compras') return pathname.startsWith('/procurement/fila-compras');
+    if (href === '/procurement/entregas-pos-recebimento') {
+      return pathname.startsWith('/procurement/entregas-pos-recebimento');
+    }
     if (href === '/procurement/cotacoes') return pathname.startsWith('/procurement/cotacoes');
     if (href === '/procurement/pedidos') return pathname.startsWith('/procurement/pedidos');
     if (href === '/depreciation-rates') return pathname.startsWith('/depreciation-rates');
@@ -239,6 +243,15 @@ function useSidebarMenuModel() {
     ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
       ? [{ icon: ListOrdered, label: 'Fila de Compras', href: '/procurement/fila-compras' }]
       : []),
+    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+      ? [
+          {
+            icon: Truck,
+            label: 'Entregas pós-recebimento',
+            href: '/procurement/entregas-pos-recebimento',
+          },
+        ]
+      : []),
     ...(user && ['MANAGER', 'DIRECTOR', 'ADMIN'].includes(user.role)
       ? [{ icon: Scale, label: 'Cotações de Compras', href: '/procurement/cotacoes' }]
       : []),
@@ -254,6 +267,7 @@ function useSidebarMenuModel() {
     pathname.startsWith('/procurement/solicitacoes') ||
     pathname.startsWith('/procurement/aprovacoes-sc') ||
     pathname.startsWith('/procurement/fila-compras') ||
+    pathname.startsWith('/procurement/entregas-pos-recebimento') ||
     pathname.startsWith('/procurement/cotacoes') ||
     pathname.startsWith('/procurement/pedidos');
   const settingsActive = pathname.startsWith('/settings') || pathname === '/chart-of-accounts';

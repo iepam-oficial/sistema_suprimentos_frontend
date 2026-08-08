@@ -15,6 +15,8 @@ export interface DemandSupplyListFilters {
   search?: string;
   delivery_deadline_from?: string;
   delivery_deadline_to?: string;
+  purchase_request_id?: string;
+  origin?: 'purchase_request' | 'sc';
   page?: number;
   limit?: number;
 }
@@ -65,6 +67,12 @@ function buildListQuery(filters: DemandSupplyListFilters = {}): string {
   }
   if (filters.delivery_deadline_to) {
     params.set('delivery_deadline_to', filters.delivery_deadline_to);
+  }
+  if (filters.purchase_request_id) {
+    params.set('purchase_request_id', filters.purchase_request_id);
+  }
+  if (filters.origin) {
+    params.set('origin', filters.origin);
   }
   if (filters.page !== undefined) params.set('page', String(filters.page));
   if (filters.limit !== undefined) params.set('limit', String(filters.limit));
