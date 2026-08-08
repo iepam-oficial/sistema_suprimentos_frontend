@@ -48,6 +48,13 @@ function EmphasizedJustificationField({ label, value }: { label: string; value: 
   );
 }
 
+function formatDeadline(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('pt-BR');
+}
+
 export function PurchaseRequestSummaryPanel({
   request,
   emphasized = false,
@@ -60,6 +67,14 @@ export function PurchaseRequestSummaryPanel({
       ) : (
         <SummaryField label="Justificativa" value={request.justification} />
       )}
+      <SummaryField
+        label="Destino da entrega"
+        value={request.destination?.trim() || '—'}
+      />
+      <SummaryField
+        label="Prazo de entrega"
+        value={formatDeadline(request.delivery_deadline)}
+      />
       {request.notes && <SummaryField label="Observações" value={request.notes} />}
       <SummaryField
         label="Criada em"
