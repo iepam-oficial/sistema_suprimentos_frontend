@@ -89,9 +89,8 @@ export interface CreatePurchaseRequestItemInput {
 
 export interface CreatePurchaseRequestInput {
   justification: string;
-  /** Required at submit (SCDEL-01/02); optional on draft create until service validation lands */
-  destination?: string;
-  delivery_deadline?: string;
+  destination: string;
+  delivery_deadline: string;
   priority?: PurchaseRequestPriority;
   notes?: string;
   /** @deprecated Ignored — COA is set on goods-receipt invoice lines */

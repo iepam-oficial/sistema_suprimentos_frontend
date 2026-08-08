@@ -11,8 +11,18 @@ export interface PurchaseRequestItemFormRow {
 
 export interface PurchaseRequestWizardForm {
   justification: string;
+  destination: string;
+  delivery_deadline: string;
   notes: string;
   items: PurchaseRequestItemFormRow[];
+}
+
+function toDateInputValue(value: string | null | undefined): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return value.slice(0, 10);
 }
 
 export function createEmptyItemRow(): PurchaseRequestItemFormRow {
@@ -27,6 +37,8 @@ export function createEmptyItemRow(): PurchaseRequestItemFormRow {
 export function createEmptyWizardForm(): PurchaseRequestWizardForm {
   return {
     justification: '',
+    destination: '',
+    delivery_deadline: '',
     notes: '',
     items: [createEmptyItemRow()],
   };
@@ -35,6 +47,8 @@ export function createEmptyWizardForm(): PurchaseRequestWizardForm {
 export function wizardFormFromDto(dto: PurchaseRequestDTO): PurchaseRequestWizardForm {
   return {
     justification: dto.justification,
+    destination: dto.destination ?? '',
+    delivery_deadline: toDateInputValue(dto.delivery_deadline),
     notes: dto.notes ?? '',
     items: dto.items.length
       ? dto.items.map((item) => ({
@@ -55,6 +69,12 @@ export function buildPurchaseRequestPayload(
     return null;
   }
 
+  const destination = form.destination.trim();
+  const deliveryDeadline = form.delivery_deadline.trim();
+  if (!destination || !deliveryDeadline) {
+    return null;
+  }
+
   const validItems = form.items.filter((item) => item.description.trim() && item.unit.trim());
   if (validItems.length === 0) {
     return null;
@@ -62,6 +82,8 @@ export function buildPurchaseRequestPayload(
 
   return {
     justification: form.justification.trim(),
+    destination,
+    delivery_deadline: deliveryDeadline,
     notes: form.notes.trim() || undefined,
     items: validItems.map((item) => ({
       description: item.description.trim(),

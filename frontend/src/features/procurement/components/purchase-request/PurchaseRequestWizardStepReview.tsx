@@ -37,6 +37,15 @@ export function PurchaseRequestWizardStepReview({
         <Text fontSize="sm" color={mutedColor}>
           <strong>Justificativa:</strong> {form.justification.trim() || '—'}
         </Text>
+        <Text fontSize="sm" color={mutedColor} mt={2}>
+          <strong>Destino:</strong> {form.destination.trim() || '—'}
+        </Text>
+        <Text fontSize="sm" color={mutedColor} mt={2}>
+          <strong>Prazo de entrega:</strong>{' '}
+          {form.delivery_deadline
+            ? new Date(`${form.delivery_deadline}T00:00:00`).toLocaleDateString('pt-BR')
+            : '—'}
+        </Text>
         {form.notes.trim() && (
           <Text fontSize="sm" color={mutedColor} mt={2}>
             <strong>Observações:</strong> {form.notes.trim()}

@@ -1,6 +1,13 @@
 'use client';
 
-import { FormControl, FormLabel, Textarea, VStack } from '@chakra-ui/react';
+import {
+  FormControl,
+  FormLabel,
+  Input,
+  SimpleGrid,
+  Textarea,
+  VStack,
+} from '@chakra-ui/react';
 import type { PurchaseRequestWizardForm } from './purchaseRequestWizardTypes';
 
 interface PurchaseRequestWizardStepGeneralProps {
@@ -26,6 +33,28 @@ export function PurchaseRequestWizardStepGeneral({
           rows={4}
         />
       </FormControl>
+
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+        <FormControl isRequired>
+          <FormLabel>Destino da entrega</FormLabel>
+          <Input
+            value={form.destination}
+            onChange={(e) => onChange({ ...form, destination: e.target.value })}
+            placeholder="Ex.: Secretaria, Sala 12"
+            isDisabled={isDisabled}
+          />
+        </FormControl>
+
+        <FormControl isRequired>
+          <FormLabel>Prazo de entrega</FormLabel>
+          <Input
+            type="date"
+            value={form.delivery_deadline}
+            onChange={(e) => onChange({ ...form, delivery_deadline: e.target.value })}
+            isDisabled={isDisabled}
+          />
+        </FormControl>
+      </SimpleGrid>
 
       <FormControl>
         <FormLabel>Observações</FormLabel>
