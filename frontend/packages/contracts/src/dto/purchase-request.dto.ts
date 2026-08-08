@@ -31,6 +31,8 @@ export interface PurchaseRequestDTO {
   priority: PurchaseRequestPriority;
   justification: string;
   notes?: string | null;
+  destination: string;
+  delivery_deadline: string;
   chart_of_account_id?: string | null;
   chart_of_account?: Pick<ChartOfAccountDTO, 'codigo' | 'nome'> | null;
   created_by: UserRefDTO | UserDTO;
@@ -87,6 +89,8 @@ export interface CreatePurchaseRequestItemInput {
 
 export interface CreatePurchaseRequestInput {
   justification: string;
+  destination: string;
+  delivery_deadline: string;
   priority?: PurchaseRequestPriority;
   notes?: string;
   /** @deprecated Ignored — COA is set on goods-receipt invoice lines */
@@ -96,6 +100,8 @@ export interface CreatePurchaseRequestInput {
 
 export interface UpdatePurchaseRequestInput {
   justification?: string;
+  destination?: string;
+  delivery_deadline?: string;
   priority?: PurchaseRequestPriority;
   notes?: string;
   chart_of_account_id?: string;
