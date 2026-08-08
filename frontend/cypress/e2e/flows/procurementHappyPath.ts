@@ -11,6 +11,7 @@ import { E2E_ITEM_DESCRIPTION, E2E_SUPPLIER_NAMES, getE2ePassword } from '../../
 import {
   advancePurchaseRequestToReview,
   fillGoodsReceiptPhysicalLine,
+  confirmPurchaseRequestSubmit,
   fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
   fixturePath,
@@ -56,7 +57,8 @@ function classifyFirstInvoiceLineAsSupply(): void {
     }
   });
 
-  cy.contains('button', 'Salvar classificação e comparar', { timeout: 30000 }).should(
+  // Seed E2E define COA 3.1.01 no catálogo; loadSupplyMeta herda de forma assíncrona.
+  cy.contains('button', 'Salvar classificação e comparar', { timeout: 90000 }).should(
     'be.enabled',
   );
 }
@@ -331,12 +333,30 @@ export function runProcurementHappyPath(
   fillPurchaseRequestDeliveryFields();
   fillPurchaseRequestItemsStep();
   advancePurchaseRequestToReview();
+  cy.intercept('POST', '**/api/purchase-requests').as('createPurchaseRequest');
   cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');
-  cy.clickByText('Submeter');
-  cy.clickByText('Confirmar envio');
-  cy.wait('@submitPurchaseRequest', { timeout: 60000 })
-    .its('response.statusCode')
-    .should('eq', 200);
+  cy.get('[data-testid="pr-wizard-submit"]', { timeout: 15000 })
+    .should('be.visible')
+    .should('be.enabled')
+    .click();
+  confirmPurchaseRequestSubmit();
+  cy.wait('@submitPurchaseRequest', { timeout: 90000 }).then((interception) => {
+    expect(
+      interception.response?.statusCode,
+      `submit body=${JSON.stringify(interception.response?.body ?? {})}`,
+    ).to.eq(200);
+  });
+  // Se o create falhou antes do submit, a alias create terá resposta 4xx (diagnóstico).
+  cy.get('@createPurchaseRequest.all').then((calls) => {
+    const list = calls as unknown as Array<{ response?: { statusCode?: number; body?: unknown } }>;
+    if (list.length > 0) {
+      const last = list[list.length - 1];
+      expect(
+        last.response?.statusCode,
+        `create body=${JSON.stringify(last.response?.body ?? {})}`,
+      ).to.be.oneOf([200, 201]);
+    }
+  });
   cy.get('@submitPurchaseRequest').then((interception) => {
     const req = interception as unknown as { request: { url: string } };
     const id = req.request.url.match(/purchase-requests\/([^/]+)\/submit/)?.[1] ?? '';

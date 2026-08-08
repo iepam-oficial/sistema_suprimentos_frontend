@@ -2,6 +2,7 @@ import { e2eReset, getPurchaseRequest } from '../support/api';
 import { E2E_ITEM_DESCRIPTION } from '../support/constants';
 import {
   advancePurchaseRequestToReview,
+  confirmPurchaseRequestSubmit,
   fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
 } from '../support/forms/purchaseRequestForm';
@@ -23,7 +24,7 @@ describe('SC rejected', () => {
     advancePurchaseRequestToReview();
     cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');
     cy.clickByText('Submeter');
-    cy.clickByText('Confirmar envio');
+    confirmPurchaseRequestSubmit();
     cy.wait('@submitPurchaseRequest', { timeout: 60000 })
       .its('response.statusCode')
       .should('eq', 200);

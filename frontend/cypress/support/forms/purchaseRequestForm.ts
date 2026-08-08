@@ -13,20 +13,46 @@ export function fillPurchaseRequestDeliveryFields(
   destination = 'Setor Manutenção E2E',
   deadlineDaysFromToday = 14,
 ): void {
+  // Civil date in local TZ — avoid UTC off-by-one from toISOString().
   const deadline = new Date();
+  deadline.setHours(12, 0, 0, 0);
   deadline.setDate(deadline.getDate() + deadlineDaysFromToday);
-  const yyyyMmDd = deadline.toISOString().slice(0, 10);
+  const yyyy = deadline.getFullYear();
+  const mm = String(deadline.getMonth() + 1).padStart(2, '0');
+  const dd = String(deadline.getDate()).padStart(2, '0');
+  const yyyyMmDd = `${yyyy}-${mm}-${dd}`;
 
   cy.contains('label', 'Destino da entrega', { timeout: 15000 })
     .parent()
-    .find('input')
+    .find('input:not([type="date"])')
     .clear()
-    .type(destination);
+    .type(destination)
+    .should('have.value', destination);
+
+  // Chrome date inputs are flaky with .type(); set value + React onChange events.
   cy.contains('label', 'Prazo de entrega', { timeout: 15000 })
     .parent()
     .find('input[type="date"]')
-    .clear()
-    .type(yyyyMmDd);
+    .then(($input) => {
+      const el = $input[0] as HTMLInputElement;
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      )?.set;
+      setter?.call(el, yyyyMmDd);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    })
+    .should('have.value', yyyyMmDd);
+}
+
+/** Confirma o modal de submit da SC (Chakra portal — force click). */
+export function confirmPurchaseRequestSubmit(): void {
+  cy.get('[role="dialog"]', { timeout: 15000 }).should('be.visible');
+  cy.contains('[role="dialog"] button', 'Confirmar envio', { timeout: 15000 })
+    .should('be.visible')
+    .should('not.be.disabled')
+    .click({ force: true });
 }
 
 export function fillPurchaseRequestItemsStep(

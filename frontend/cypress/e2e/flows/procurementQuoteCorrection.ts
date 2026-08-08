@@ -2,6 +2,7 @@ import { e2eReset, getPurchaseRequest, getQuotePortalTokens } from '../../suppor
 import { E2E_SUPPLIER_NAMES } from '../../support/constants';
 import {
   advancePurchaseRequestToReview,
+  confirmPurchaseRequestSubmit,
   fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
 } from '../../support/forms/purchaseRequestForm';
@@ -89,7 +90,7 @@ export function runProcurementQuoteCorrection(): Cypress.Chainable<ProcurementQu
   advancePurchaseRequestToReview();
   cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');
   cy.clickByText('Submeter');
-  cy.clickByText('Confirmar envio');
+  confirmPurchaseRequestSubmit();
   cy.wait('@submitPurchaseRequest', { timeout: 60000 }).then((interception) => {
     expect(interception.response?.statusCode).to.eq(200);
     const req = interception as unknown as { request: { url: string } };
