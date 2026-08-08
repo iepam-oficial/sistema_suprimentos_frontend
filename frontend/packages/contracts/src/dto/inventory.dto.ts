@@ -74,9 +74,24 @@ export interface InventoryAllocationDTO {
   was_ever_overdue: boolean;
   is_overdue: boolean;
   notes?: string | null;
+  purchase_request_id?: string | null;
+  goods_receipt_id?: string | null;
   manager_delivery_confirmation?: boolean;
   requester_delivery_confirmation?: boolean;
   manager_return_confirmation?: boolean;
   inventory?: InventoryItemDTO;
   requester?: UserDTO;
+}
+
+/** List/query filters for inventory allocations; SC-origin queue uses purchase_request_id / origin. */
+export interface InventoryAllocationListQueryFilters {
+  requester_id?: string;
+  status?: AllocationStatus;
+  /** When set, only allocations linked to this purchase request */
+  purchase_request_id?: string;
+  goods_receipt_id?: string;
+  /** `purchase_request` / `sc` → only rows with purchase_request_id not null */
+  origin?: 'purchase_request' | 'sc';
+  page?: number;
+  limit?: number;
 }

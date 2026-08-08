@@ -13,6 +13,7 @@ export interface DemandSupplySummaryDTO {
   user: UserRefDTO;
   destination: string;
   delivery_deadline: string;
+  purchase_request_id?: string | null;
   aggregate_status: DemandSupplyAggregateStatus;
   total_items: number;
   decided_items: number;
@@ -21,6 +22,23 @@ export interface DemandSupplySummaryDTO {
   locale?: { id: string; name: string } | null;
   created_at: string;
   updated_at: string;
+}
+
+/** List/query filters for demand-supplies; SC-origin queue uses purchase_request_id / origin. */
+export interface DemandSupplyListQueryFilters {
+  user_id?: string;
+  sector_id?: string;
+  location_id?: string;
+  locale_id?: string;
+  search?: string;
+  delivery_deadline_from?: string;
+  delivery_deadline_to?: string;
+  /** When set, only demand-supplies linked to this purchase request */
+  purchase_request_id?: string;
+  /** `purchase_request` / `sc` → only rows with purchase_request_id not null */
+  origin?: 'purchase_request' | 'sc';
+  page?: number;
+  limit?: number;
 }
 
 export interface DemandSupplyApprovalDTO {
