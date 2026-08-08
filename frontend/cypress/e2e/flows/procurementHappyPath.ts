@@ -11,9 +11,9 @@ import { E2E_ITEM_DESCRIPTION, E2E_SUPPLIER_NAMES, getE2ePassword } from '../../
 import {
   advancePurchaseRequestToReview,
   fillGoodsReceiptPhysicalLine,
+  fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
   fixturePath,
-  selectChartAccount,
 } from '../../support/forms/purchaseRequestForm';
 import { markAllProposalsReviewOk } from '../../support/forms/proposalReview';
 import { getByXPath } from '../../support/xpath';
@@ -328,7 +328,7 @@ export function runProcurementHappyPath(
   cy.contains('Nova solicitação de compra', { timeout: 90000 }).should('be.visible');
   cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
   cy.get('textarea').first().type('Necessidade E2E de parafusos para manutenção');
-  selectChartAccount('3.1.01', 'Material de Escritório');
+  fillPurchaseRequestDeliveryFields();
   fillPurchaseRequestItemsStep();
   advancePurchaseRequestToReview();
   cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');

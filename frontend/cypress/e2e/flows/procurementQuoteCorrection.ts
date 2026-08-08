@@ -2,8 +2,8 @@ import { e2eReset, getPurchaseRequest, getQuotePortalTokens } from '../../suppor
 import { E2E_SUPPLIER_NAMES } from '../../support/constants';
 import {
   advancePurchaseRequestToReview,
+  fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
-  selectChartAccount,
 } from '../../support/forms/purchaseRequestForm';
 import {
   markAllProposalsReviewOk,
@@ -84,7 +84,7 @@ export function runProcurementQuoteCorrection(): Cypress.Chainable<ProcurementQu
   cy.get('textarea')
     .first()
     .type('Necessidade E2E de parafusos para correção de proposta');
-  selectChartAccount('3.1.01', 'Material de Escritório');
+  fillPurchaseRequestDeliveryFields();
   fillPurchaseRequestItemsStep();
   advancePurchaseRequestToReview();
   cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');

@@ -2,8 +2,8 @@ import { e2eReset, getPurchaseRequest } from '../support/api';
 import { E2E_ITEM_DESCRIPTION } from '../support/constants';
 import {
   advancePurchaseRequestToReview,
+  fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
-  selectChartAccount,
 } from '../support/forms/purchaseRequestForm';
 
 describe('debug approve', () => {
@@ -16,7 +16,7 @@ describe('debug approve', () => {
     cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
     cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
     cy.get('textarea').first().type('SC debug approve');
-    selectChartAccount('3.1.01', 'Material de Escritório');
+    fillPurchaseRequestDeliveryFields();
     fillPurchaseRequestItemsStep(E2E_ITEM_DESCRIPTION, '5');
     advancePurchaseRequestToReview();
     cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');

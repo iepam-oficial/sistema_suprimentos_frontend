@@ -8,6 +8,27 @@ export function selectChartAccount(search: string, label: string): void {
   cy.wait(200);
 }
 
+/** SCDEL-01 — destino + prazo no passo Dados gerais (obrigatórios no create/submit). */
+export function fillPurchaseRequestDeliveryFields(
+  destination = 'Setor Manutenção E2E',
+  deadlineDaysFromToday = 14,
+): void {
+  const deadline = new Date();
+  deadline.setDate(deadline.getDate() + deadlineDaysFromToday);
+  const yyyyMmDd = deadline.toISOString().slice(0, 10);
+
+  cy.contains('label', 'Destino da entrega', { timeout: 15000 })
+    .parent()
+    .find('input')
+    .clear()
+    .type(destination);
+  cy.contains('label', 'Prazo de entrega', { timeout: 15000 })
+    .parent()
+    .find('input[type="date"]')
+    .clear()
+    .type(yyyyMmDd);
+}
+
 export function fillPurchaseRequestItemsStep(
   description = E2E_ITEM_DESCRIPTION,
   quantity = '10',

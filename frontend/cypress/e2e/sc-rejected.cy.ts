@@ -2,8 +2,8 @@ import { e2eReset, getPurchaseRequest } from '../support/api';
 import { E2E_ITEM_DESCRIPTION } from '../support/constants';
 import {
   advancePurchaseRequestToReview,
+  fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
-  selectChartAccount,
 } from '../support/forms/purchaseRequestForm';
 
 describe('SC rejected', () => {
@@ -18,7 +18,7 @@ describe('SC rejected', () => {
     cy.contains('Nova solicitação de compra', { timeout: 90000 }).should('be.visible');
     cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
     cy.get('textarea').first().type('SC E2E para rejeição');
-    selectChartAccount('3.1.01', 'Material de Escritório');
+    fillPurchaseRequestDeliveryFields();
     fillPurchaseRequestItemsStep(E2E_ITEM_DESCRIPTION, '5');
     advancePurchaseRequestToReview();
     cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');

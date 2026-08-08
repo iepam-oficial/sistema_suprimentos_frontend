@@ -244,3 +244,42 @@ export function listPurchaseRequests(token: string, status?: string) {
     })
     .then((res) => res.body);
 }
+
+export function listDemandSuppliesByScOrigin(token: string) {
+  return cy
+    .request<{
+      items: Array<{
+        id: string;
+        purchase_request_id?: string | null;
+        aggregate_status: string;
+        destination: string;
+      }>;
+      total: number;
+    }>({
+      method: 'GET',
+      url: `${getApiUrl()}/demand-supplies?origin=sc&limit=50`,
+      headers: authHeaders(token),
+    })
+    .then((res) => res.body);
+}
+
+export function getDemandSupplyDetail(token: string, id: string) {
+  return cy
+    .request<{
+      id: string;
+      purchase_request_id?: string | null;
+      aggregate_status: string;
+      items: Array<{
+        id: string;
+        status: string;
+        supply_id?: string | null;
+        requester_confirmation?: boolean;
+        manager_delivery_confirmation?: boolean;
+      }>;
+    }>({
+      method: 'GET',
+      url: `${getApiUrl()}/demand-supplies/${id}`,
+      headers: authHeaders(token),
+    })
+    .then((res) => res.body);
+}
