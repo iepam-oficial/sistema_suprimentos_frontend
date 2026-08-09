@@ -132,7 +132,9 @@ function useSidebarMenuModel() {
   };
 
   const comprasBadgeSum = formatBadgeCount(
-    getCount('fila-compras') + getCount('cotacoes') + getCount('pedidos'),
+    getCount('fila-compras', { aggregate: true }) +
+      getCount('cotacoes') +
+      getCount('pedidos'),
   );
 
   const isEmployee = user?.role === 'EMPLOYEE';
