@@ -44,6 +44,7 @@ import {
   rejectPurchaseRequest,
   useDirectorApprovalFilters,
   usePollingRefresh,
+  useProcurementMenuBadges,
   usePurchaseRequests,
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
@@ -63,6 +64,7 @@ export default function PurchaseRequestApprovalsPage() {
   const [actionType, setActionType] = useState<ActionType>('approve');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { refreshRouteCount } = useProcurementMenuBadges();
 
   const {
     isOpen: isActionOpen,
@@ -201,6 +203,7 @@ export default function PurchaseRequestApprovalsPage() {
 
       onActionClose();
       reload();
+      void refreshRouteCount('aprovacoes-sc');
     } catch (err) {
       toast({
         title: 'Erro ao processar solicitação',
