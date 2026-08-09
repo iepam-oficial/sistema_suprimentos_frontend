@@ -22,6 +22,7 @@ import type { PurchaseRequestDTO, SupplierDTO } from '@ti-assistant/contracts';
 import { fetchSuppliers } from '@/features/catalog/api/catalogApi';
 import { createProcurementQuote, sendProcurementQuote } from '../api/procurementQuoteApi';
 import { fetchPurchaseRequests } from '../api/purchaseRequestApi';
+import { useProcurementMenuBadges } from '../context/ProcurementMenuBadgesContext';
 import { purchaseRequestPriorityColor, purchaseRequestPriorityLabel } from '../types';
 import { resolveInitialPurchaseRequestId } from '../utils/quoteWizardEligibility';
 
@@ -40,6 +41,7 @@ export function ProcurementQuoteWizard({
   initialPurchaseRequestId,
 }: ProcurementQuoteWizardProps) {
   const toast = useToast();
+  const { refreshRouteCount } = useProcurementMenuBadges();
   const onCancelRef = useRef(onCancel);
   onCancelRef.current = onCancel;
 
@@ -183,6 +185,7 @@ export function ProcurementQuoteWizard({
         });
       }
 
+      void refreshRouteCount('fila-compras');
       onSuccess(quote.id);
     } catch (err) {
       toast({
