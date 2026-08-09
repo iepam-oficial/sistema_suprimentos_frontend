@@ -24,6 +24,7 @@ import { createProcurementQuote, sendProcurementQuote } from '../api/procurement
 import { fetchPurchaseRequests } from '../api/purchaseRequestApi';
 import { useProcurementMenuBadges } from '../context/ProcurementMenuBadgesContext';
 import { purchaseRequestPriorityColor, purchaseRequestPriorityLabel } from '../types';
+import { badgeRouteAfterAction } from '../utils/menuBadgeRoutes';
 import { resolveInitialPurchaseRequestId } from '../utils/quoteWizardEligibility';
 
 const MIN_SUPPLIERS = 3;
@@ -185,7 +186,7 @@ export function ProcurementQuoteWizard({
         });
       }
 
-      void refreshRouteCount('fila-compras');
+      void refreshRouteCount(badgeRouteAfterAction('create_quote'));
       onSuccess(quote.id);
     } catch (err) {
       toast({

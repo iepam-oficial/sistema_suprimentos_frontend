@@ -20,6 +20,29 @@ export function isAbsolutePendingRoute(routeKey: MenuBadgeRouteKey): boolean {
   return (ABSOLUTE_PENDING_ROUTE_KEYS as readonly string[]).includes(routeKey);
 }
 
+/** Diff routes clear badge on visit; absolute pending routes must not. */
+export function shouldClearCountOnMarkSeen(routeKey: MenuBadgeRouteKey): boolean {
+  return !isAbsolutePendingRoute(routeKey);
+}
+
+export type MenuBadgeRefreshAction = 'approve_sc' | 'reject_sc' | 'create_quote';
+
+/** Which absolute route to refresh after a successful domain action (MPEND-08). */
+export function badgeRouteAfterAction(action: MenuBadgeRefreshAction): AbsolutePendingRouteKey {
+  if (action === 'create_quote') return 'fila-compras';
+  return 'aprovacoes-sc';
+}
+
+/** Stable list filters used by badge poll — independent of page UI filters (MPEND-09). */
+export function stableBadgeListFilters(
+  routeKey: AbsolutePendingRouteKey,
+): { status: 'PENDING_APPROVAL' } | { awaiting_quote: true } {
+  if (routeKey === 'aprovacoes-sc') {
+    return { status: 'PENDING_APPROVAL' };
+  }
+  return { awaiting_quote: true };
+}
+
 export const MENU_BADGE_PATH_BY_ROUTE: Record<MenuBadgeRouteKey, string> = {
   solicitacoes: '/procurement/solicitacoes',
   'aprovacoes-sc': '/procurement/aprovacoes-sc',

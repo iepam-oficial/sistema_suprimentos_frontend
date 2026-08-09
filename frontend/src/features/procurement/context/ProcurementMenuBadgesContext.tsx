@@ -35,6 +35,8 @@ import {
   isAbsolutePendingRoute,
   isPathActiveForRoute,
   routeKeysForRole,
+  shouldClearCountOnMarkSeen,
+  stableBadgeListFilters,
   type MenuBadgeRouteKey,
 } from '../utils/menuBadgeRoutes';
 
@@ -76,7 +78,7 @@ async function fetchSnapshot(
       const result = await fetchPurchaseRequests(
         token,
         {
-          status: 'PENDING_APPROVAL',
+          ...stableBadgeListFilters('aprovacoes-sc'),
           limit: LIST_LIMIT,
         },
         fetchOpts,
@@ -90,7 +92,7 @@ async function fetchSnapshot(
       const result = await fetchPurchaseRequests(
         token,
         {
-          awaiting_quote: true,
+          ...stableBadgeListFilters('fila-compras'),
           limit: LIST_LIMIT,
         },
         fetchOpts,
@@ -185,7 +187,7 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
       if (!userId) return;
 
       // Absolute pending: visiting must not consume the badge count permanently
-      if (isAbsolutePendingRoute(routeKey)) {
+      if (!shouldClearCountOnMarkSeen(routeKey)) {
         if (snapshot) {
           latestSnapshotsRef.current[routeKey] = snapshot;
         }
