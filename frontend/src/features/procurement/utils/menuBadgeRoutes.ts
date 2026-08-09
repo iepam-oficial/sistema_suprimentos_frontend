@@ -8,6 +8,18 @@ export const MENU_BADGE_ROUTE_KEYS = [
 
 export type MenuBadgeRouteKey = (typeof MENU_BADGE_ROUTE_KEYS)[number];
 
+/** Routes whose menu badge is absolute pending count (not diff vs baseline). */
+export const ABSOLUTE_PENDING_ROUTE_KEYS = [
+  'aprovacoes-sc',
+  'fila-compras',
+] as const satisfies readonly MenuBadgeRouteKey[];
+
+export type AbsolutePendingRouteKey = (typeof ABSOLUTE_PENDING_ROUTE_KEYS)[number];
+
+export function isAbsolutePendingRoute(routeKey: MenuBadgeRouteKey): boolean {
+  return (ABSOLUTE_PENDING_ROUTE_KEYS as readonly string[]).includes(routeKey);
+}
+
 export const MENU_BADGE_PATH_BY_ROUTE: Record<MenuBadgeRouteKey, string> = {
   solicitacoes: '/procurement/solicitacoes',
   'aprovacoes-sc': '/procurement/aprovacoes-sc',
