@@ -5,6 +5,7 @@ import {
   confirmPurchaseRequestSubmit,
   fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
+  stubPurchaseRequestLocales,
 } from '../support/forms/purchaseRequestForm';
 
 describe('SC rejected', () => {
@@ -15,6 +16,7 @@ describe('SC rejected', () => {
 
     cy.log('SC: criar e submeter');
     cy.loginAs('COORDINATOR');
+    stubPurchaseRequestLocales();
     cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
     cy.contains('Nova solicitação de compra', { timeout: 90000 }).should('be.visible');
     cy.get('textarea', { timeout: 90000 }).first().should('be.visible');

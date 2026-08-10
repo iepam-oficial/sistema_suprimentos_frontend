@@ -13,6 +13,7 @@ import {
 import {
   buildPurchaseRequestPayload,
   createEmptyWizardForm,
+  isDeliveryDeadlineOnOrAfterToday,
   wizardFormFromDto,
   type PurchaseRequestWizardForm,
 } from '../components/purchase-request/purchaseRequestWizardTypes';
@@ -36,7 +37,8 @@ function validateStep(step: number, form: PurchaseRequestWizardForm): boolean {
     return Boolean(
       form.justification.trim() &&
         form.destination.trim() &&
-        form.delivery_deadline.trim(),
+        form.delivery_deadline.trim() &&
+        isDeliveryDeadlineOnOrAfterToday(form.delivery_deadline),
     );
   }
   if (step === 1) {
@@ -111,6 +113,15 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
       }
       if (!form.delivery_deadline.trim()) {
         toast({ title: 'Prazo de entrega obrigatório', status: 'warning', duration: 3000, isClosable: true });
+        return;
+      }
+      if (!isDeliveryDeadlineOnOrAfterToday(form.delivery_deadline)) {
+        toast({
+          title: 'Prazo de entrega não pode ser anterior a hoje',
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+        });
         return;
       }
     }

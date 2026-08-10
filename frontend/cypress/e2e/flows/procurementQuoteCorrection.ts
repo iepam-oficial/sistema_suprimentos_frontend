@@ -5,6 +5,7 @@ import {
   confirmPurchaseRequestSubmit,
   fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
+  stubPurchaseRequestLocales,
 } from '../../support/forms/purchaseRequestForm';
 import {
   markAllProposalsReviewOk,
@@ -80,6 +81,7 @@ export function runProcurementQuoteCorrection(): Cypress.Chainable<ProcurementQu
 
   cy.log('SC: criar e submeter');
   cy.loginAs('COORDINATOR');
+  stubPurchaseRequestLocales();
   cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
   cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
   cy.get('textarea')

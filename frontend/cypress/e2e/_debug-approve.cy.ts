@@ -5,6 +5,7 @@ import {
   confirmPurchaseRequestSubmit,
   fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
+  stubPurchaseRequestLocales,
 } from '../support/forms/purchaseRequestForm';
 
 describe('debug approve', () => {
@@ -14,6 +15,7 @@ describe('debug approve', () => {
     e2eReset();
 
     cy.loginAs('COORDINATOR');
+    stubPurchaseRequestLocales();
     cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
     cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
     cy.get('textarea').first().type('SC debug approve');
