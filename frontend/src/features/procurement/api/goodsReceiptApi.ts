@@ -2,6 +2,7 @@ import type {
   ClassifyInvoiceLinesInput,
   ConfirmInvoiceLinesInput,
   CreateGoodsReceiptInput,
+  FinalizeGoodsReceiptResultDTO,
   GoodsReceiptDTO,
   PatchGoodsReceiptInvoiceLineFiscalInput,
   ResolveDiscrepanciesBatchInput,
@@ -227,10 +228,24 @@ export async function directorApproveGoodsReceipt(
 export async function finalizeGoodsReceipt(
   token: string,
   id: string
-): Promise<GoodsReceiptDTO> {
+): Promise<FinalizeGoodsReceiptResultDTO> {
   const response = await fetch(`/api/goods-receipts/${encodeURIComponent(id)}/finalize`, {
     method: 'POST',
     headers: authHeaders(token),
   });
-  return handleResponse<GoodsReceiptDTO>(response);
+  return handleResponse<FinalizeGoodsReceiptResultDTO>(response);
+}
+
+export async function reprocessGoodsReceiptInternalDelivery(
+  token: string,
+  id: string
+): Promise<FinalizeGoodsReceiptResultDTO> {
+  const response = await fetch(
+    `/api/goods-receipts/${encodeURIComponent(id)}/reprocess-internal-delivery`,
+    {
+      method: 'POST',
+      headers: authHeaders(token),
+    }
+  );
+  return handleResponse<FinalizeGoodsReceiptResultDTO>(response);
 }

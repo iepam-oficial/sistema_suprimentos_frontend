@@ -874,15 +874,42 @@ export function GoodsReceiptWizard({
 
     setSubmitting(true);
     try {
-      const updated = await finalizeGoodsReceipt(token, receipt.id);
-      onReceiptUpdated(updated);
-      toast({
-        title: 'Recebimento finalizado',
-        description: 'Lotes e patrimônio foram criados.',
-        status: 'success',
-        duration: 4000,
-        isClosable: true,
-      });
+      const result = await finalizeGoodsReceipt(token, receipt.id);
+      onReceiptUpdated(result.receipt);
+      if (result.internal_delivery.created) {
+        toast({
+          title: 'Recebimento finalizado',
+          description: 'Lotes, patrimônio e entrega interna (pedidos/alocações) foram criados.',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      } else if (result.internal_delivery.reason === 'sc_incomplete') {
+        toast({
+          title: 'Recebimento finalizado',
+          description:
+            'Lotes e patrimônio foram criados. A SC ainda não está completa — pedidos/alocações serão gerados quando o recebimento cobrir todos os itens.',
+          status: 'success',
+          duration: 7000,
+          isClosable: true,
+        });
+      } else if (result.internal_delivery.reason === 'already_linked') {
+        toast({
+          title: 'Recebimento finalizado',
+          description: 'Lotes e patrimônio OK. Entrega interna já existia para este recebimento.',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        toast({
+          title: 'Recebimento finalizado',
+          description: 'Lotes e patrimônio foram criados.',
+          status: 'success',
+          duration: 4000,
+          isClosable: true,
+        });
+      }
     } catch (err) {
       toast({
         title: 'Erro ao finalizar',
