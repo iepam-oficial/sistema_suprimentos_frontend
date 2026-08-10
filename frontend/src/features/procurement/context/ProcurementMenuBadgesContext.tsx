@@ -25,15 +25,18 @@ import {
   writeBaseline,
 } from '../utils/menuBadgeBaseline';
 import {
-  countChangedItems,
   fingerprintPurchaseOrder,
   fingerprintPurchaseRequest,
   fingerprintQuote,
   type MenuBadgeSnapshotItem,
 } from '../utils/menuBadgeDiff';
+import { displayCount, resolvePollCount } from '../utils/menuBadgeCount';
 import {
+  isAbsolutePendingRoute,
   isPathActiveForRoute,
   routeKeysForRole,
+  shouldClearCountOnMarkSeen,
+  stableBadgeListFilters,
   type MenuBadgeRouteKey,
 } from '../utils/menuBadgeRoutes';
 
@@ -41,9 +44,17 @@ const LIST_LIMIT = 100;
 
 type Counts = Partial<Record<MenuBadgeRouteKey, number>>;
 
+type GetCountOptions = { aggregate?: boolean };
+
+type SnapshotResult = {
+  items: MenuBadgeSnapshotItem[];
+  total: number;
+};
+
 type ProcurementMenuBadgesContextValue = {
-  getCount: (routeKey: MenuBadgeRouteKey) => number;
+  getCount: (routeKey: MenuBadgeRouteKey, options?: GetCountOptions) => number;
   markRouteSeen: (routeKey: MenuBadgeRouteKey, snapshot?: MenuBadgeSnapshotItem[]) => void;
+  refreshRouteCount: (routeKey: MenuBadgeRouteKey) => Promise<void>;
 };
 
 const ProcurementMenuBadgesContext =
@@ -53,46 +64,81 @@ async function fetchSnapshot(
   token: string,
   routeKey: MenuBadgeRouteKey,
   options?: { polling?: boolean },
-): Promise<MenuBadgeSnapshotItem[]> {
+): Promise<SnapshotResult> {
   const fetchOpts = options?.polling === true ? { polling: true as const } : undefined;
   switch (routeKey) {
     case 'solicitacoes': {
       const result = await fetchPurchaseRequests(token, { limit: LIST_LIMIT }, fetchOpts);
-      return result.items.map((item) => fingerprintPurchaseRequest(item));
+      return {
+        items: result.items.map((item) => fingerprintPurchaseRequest(item)),
+        total: result.total,
+      };
     }
     case 'aprovacoes-sc': {
       const result = await fetchPurchaseRequests(
         token,
         {
-          status: 'PENDING_APPROVAL',
+          ...stableBadgeListFilters('aprovacoes-sc'),
           limit: LIST_LIMIT,
         },
         fetchOpts,
       );
-      return result.items.map((item) => fingerprintPurchaseRequest(item));
+      return {
+        items: result.items.map((item) => fingerprintPurchaseRequest(item)),
+        total: result.total,
+      };
     }
     case 'fila-compras': {
       const result = await fetchPurchaseRequests(
         token,
         {
-          awaiting_quote: true,
+          ...stableBadgeListFilters('fila-compras'),
           limit: LIST_LIMIT,
         },
         fetchOpts,
       );
-      return result.items.map((item) => fingerprintPurchaseRequest(item));
+      return {
+        items: result.items.map((item) => fingerprintPurchaseRequest(item)),
+        total: result.total,
+      };
     }
     case 'cotacoes': {
       const result = await fetchProcurementQuotes(token, { limit: LIST_LIMIT }, fetchOpts);
-      return result.items.map((item) => fingerprintQuote(item));
+      return {
+        items: result.items.map((item) => fingerprintQuote(item)),
+        total: result.total,
+      };
     }
     case 'pedidos': {
       const result = await fetchPurchaseOrders(token, { limit: LIST_LIMIT }, fetchOpts);
-      return result.items.map((item) => fingerprintPurchaseOrder(item));
+      return {
+        items: result.items.map((item) => fingerprintPurchaseOrder(item)),
+        total: result.total,
+      };
     }
     default:
-      return [];
+      return { items: [], total: 0 };
   }
+}
+
+function applyPollResult(
+  userId: string,
+  routeKey: MenuBadgeRouteKey,
+  snapshot: SnapshotResult,
+): number {
+  const baseline = readBaseline(userId, routeKey);
+
+  if (!isAbsolutePendingRoute(routeKey) && baseline == null) {
+    writeBaseline(userId, routeKey, snapshot.items);
+  }
+
+  return resolvePollCount({
+    routeKey,
+    total: snapshot.total,
+    itemsLength: snapshot.items.length,
+    baseline,
+    currentItems: snapshot.items,
+  });
 }
 
 export function ProcurementMenuBadgesProvider({ children }: { children: ReactNode }) {
@@ -107,18 +153,46 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
   const routeKeys = useMemo(() => routeKeysForRole(role), [role]);
 
   const getCount = useCallback(
-    (routeKey: MenuBadgeRouteKey) => {
-      if (isPathActiveForRoute(pathname, routeKey)) {
-        return 0;
-      }
-      return counts[routeKey] ?? 0;
+    (routeKey: MenuBadgeRouteKey, options?: GetCountOptions) => {
+      const raw = counts[routeKey] ?? 0;
+      return displayCount({
+        raw,
+        routeActive: isPathActiveForRoute(pathname, routeKey),
+        aggregate: options?.aggregate === true,
+      });
     },
     [counts, pathname],
+  );
+
+  const refreshRouteCount = useCallback(
+    async (routeKey: MenuBadgeRouteKey) => {
+      if (!userId) return;
+      const token = localStorage.getItem('@ti-assistant:token');
+      if (!token) return;
+
+      try {
+        const snapshot = await fetchSnapshot(token, routeKey);
+        latestSnapshotsRef.current[routeKey] = snapshot.items;
+        const next = applyPollResult(userId, routeKey, snapshot);
+        setCounts((prev) => ({ ...prev, [routeKey]: next }));
+      } catch {
+        // keep previous count; poll will retry
+      }
+    },
+    [userId],
   );
 
   const markRouteSeen = useCallback(
     (routeKey: MenuBadgeRouteKey, snapshot?: MenuBadgeSnapshotItem[]) => {
       if (!userId) return;
+
+      // Absolute pending: visiting must not consume the badge count permanently
+      if (!shouldClearCountOnMarkSeen(routeKey)) {
+        if (snapshot) {
+          latestSnapshotsRef.current[routeKey] = snapshot;
+        }
+        return;
+      }
 
       const apply = (next: MenuBadgeSnapshotItem[]) => {
         writeBaseline(userId, routeKey, next);
@@ -147,7 +221,7 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
 
       void fetchSnapshot(token, routeKey)
         .then((current) => {
-          apply(current);
+          apply(current.items);
         })
         .catch(() => {
           // keep previous baseline if fetch fails
@@ -173,23 +247,10 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
       await Promise.all(
         routeKeys.map(async (routeKey) => {
           try {
-            const current = await fetchSnapshot(token, routeKey, { polling: true });
+            const snapshot = await fetchSnapshot(token, routeKey, { polling: true });
             if (cancelled) return;
-            latestSnapshotsRef.current[routeKey] = current;
-
-            if (isPathActiveForRoute(pathname, routeKey)) {
-              nextCounts[routeKey] = 0;
-              return;
-            }
-
-            let baseline = readBaseline(userId, routeKey);
-            if (baseline == null) {
-              writeBaseline(userId, routeKey, current);
-              nextCounts[routeKey] = 0;
-              return;
-            }
-
-            nextCounts[routeKey] = countChangedItems(baseline, current);
+            latestSnapshotsRef.current[routeKey] = snapshot.items;
+            nextCounts[routeKey] = applyPollResult(userId, routeKey, snapshot);
           } catch {
             // silent — keep previous count
           }
@@ -214,7 +275,7 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
       cancelled = true;
       dispose();
     };
-  }, [userId, routeKeys, pathname]);
+  }, [userId, routeKeys]);
 
   useEffect(() => {
     if (!userId) {
@@ -222,12 +283,6 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
       latestSnapshotsRef.current = {};
     }
   }, [userId]);
-
-  useEffect(() => {
-    return () => {
-      // no-op cleanup; baselines stay in sessionStorage for SPA navigation
-    };
-  }, []);
 
   // Clear baselines when user logs out (user id becomes empty after having been set)
   const prevUserIdRef = useRef<string>('');
@@ -244,8 +299,9 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
     () => ({
       getCount,
       markRouteSeen,
+      refreshRouteCount,
     }),
-    [getCount, markRouteSeen],
+    [getCount, markRouteSeen, refreshRouteCount],
   );
 
   return (
@@ -261,6 +317,7 @@ export function useProcurementMenuBadges(): ProcurementMenuBadgesContextValue {
     return {
       getCount: () => 0,
       markRouteSeen: () => undefined,
+      refreshRouteCount: async () => undefined,
     };
   }
   return ctx;

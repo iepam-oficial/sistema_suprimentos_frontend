@@ -134,12 +134,36 @@ export const fetchAvailableInventory = async (token: string) => {
   return response.json();
 };
 
-export const fetchAllocations = async (token: string) => {
-  const response = await fetch('/api/inventory-allocations', {
-    headers: {
-      Authorization: `Bearer ${token}`,
+export interface AllocationListFilters {
+  purchase_request_id?: string;
+  goods_receipt_id?: string;
+  origin?: 'purchase_request' | 'sc';
+  status?: string;
+}
+
+export const fetchAllocations = async (
+  token: string,
+  filters: AllocationListFilters = {},
+) => {
+  const params = new URLSearchParams();
+  if (filters.purchase_request_id) {
+    params.set('purchase_request_id', filters.purchase_request_id);
+  }
+  if (filters.goods_receipt_id) {
+    params.set('goods_receipt_id', filters.goods_receipt_id);
+  }
+  if (filters.origin) params.set('origin', filters.origin);
+  if (filters.status) params.set('status', filters.status);
+  const query = params.toString();
+
+  const response = await fetch(
+    `/api/inventory-allocations${query ? `?${query}` : ''}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     throw new Error('Erro ao buscar alocações');

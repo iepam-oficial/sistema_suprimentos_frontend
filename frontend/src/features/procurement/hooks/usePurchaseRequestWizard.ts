@@ -13,6 +13,7 @@ import {
 import {
   buildPurchaseRequestPayload,
   createEmptyWizardForm,
+  isDeliveryDeadlineOnOrAfterToday,
   wizardFormFromDto,
   type PurchaseRequestWizardForm,
 } from '../components/purchase-request/purchaseRequestWizardTypes';
@@ -33,7 +34,12 @@ function getToken(): string | null {
 
 function validateStep(step: number, form: PurchaseRequestWizardForm): boolean {
   if (step === 0) {
-    return Boolean(form.justification.trim());
+    return Boolean(
+      form.justification.trim() &&
+        form.destination.trim() &&
+        form.delivery_deadline.trim() &&
+        isDeliveryDeadlineOnOrAfterToday(form.delivery_deadline),
+    );
   }
   if (step === 1) {
     return form.items.some(
@@ -101,6 +107,23 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
         toast({ title: 'Justificativa obrigatória', status: 'warning', duration: 3000, isClosable: true });
         return;
       }
+      if (!form.destination.trim()) {
+        toast({ title: 'Destino da entrega obrigatório', status: 'warning', duration: 3000, isClosable: true });
+        return;
+      }
+      if (!form.delivery_deadline.trim()) {
+        toast({ title: 'Prazo de entrega obrigatório', status: 'warning', duration: 3000, isClosable: true });
+        return;
+      }
+      if (!isDeliveryDeadlineOnOrAfterToday(form.delivery_deadline)) {
+        toast({
+          title: 'Prazo de entrega não pode ser anterior a hoje',
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
     }
     if (currentStep === 1) {
       toast({
@@ -130,7 +153,7 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
     if (!payload) {
       toast({
         title: 'Dados incompletos',
-        description: 'Preencha justificativa e ao menos um item válido.',
+        description: 'Preencha justificativa, destino, prazo e ao menos um item válido.',
         status: 'warning',
         duration: 3000,
         isClosable: true,

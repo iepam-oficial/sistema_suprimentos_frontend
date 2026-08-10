@@ -2,8 +2,10 @@ import { e2eReset, getPurchaseRequest, getQuotePortalTokens } from '../../suppor
 import { E2E_SUPPLIER_NAMES } from '../../support/constants';
 import {
   advancePurchaseRequestToReview,
+  confirmPurchaseRequestSubmit,
+  fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
-  selectChartAccount,
+  stubPurchaseRequestLocales,
 } from '../../support/forms/purchaseRequestForm';
 import {
   markAllProposalsReviewOk,
@@ -79,17 +81,18 @@ export function runProcurementQuoteCorrection(): Cypress.Chainable<ProcurementQu
 
   cy.log('SC: criar e submeter');
   cy.loginAs('COORDINATOR');
+  stubPurchaseRequestLocales();
   cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
   cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
   cy.get('textarea')
     .first()
     .type('Necessidade E2E de parafusos para correção de proposta');
-  selectChartAccount('3.1.01', 'Material de Escritório');
+  fillPurchaseRequestDeliveryFields();
   fillPurchaseRequestItemsStep();
   advancePurchaseRequestToReview();
   cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');
   cy.clickByText('Submeter');
-  cy.clickByText('Confirmar envio');
+  confirmPurchaseRequestSubmit();
   cy.wait('@submitPurchaseRequest', { timeout: 60000 }).then((interception) => {
     expect(interception.response?.statusCode).to.eq(200);
     const req = interception as unknown as { request: { url: string } };

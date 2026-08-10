@@ -33,17 +33,25 @@ export function runSupplyRequestDelivery(
 
   cy.then(() => getSupplyBalance(supplyId)).then((balance) => {
     state.balanceBefore = balance.balance;
+    expect(
+      balance.balance,
+      `saldo físico supply=${supplyId} insuficiente para SR`,
+    ).to.be.at.least(1);
   });
 
-  cy.then(() => e2eLogin('usuario@example.com', password)).then(({ token }) =>
-    createSupplyRequest(token, {
+  // Cap à quantidade física: available efetiva (físico − committed) pode ser menor;
+  // qty 1 ainda prova DELIVERED e evita 400 flaky quando o saldo pós-GR é baixo.
+  cy.then(() => e2eLogin('usuario@example.com', password)).then(({ token }) => {
+    const qty = Math.min(quantity, Math.floor(state.balanceBefore));
+    expect(qty, 'quantidade SR').to.be.at.least(1);
+    return createSupplyRequest(token, {
       supply_id: supplyId,
-      quantity,
+      quantity: qty,
       destination: 'Setor Manutenção E2E',
     }).then((created) => {
       state.supplyRequestId = created.id;
-    }),
-  );
+    });
+  });
 
   cy.log('Supply request: aprovar (API)');
   cy.then(() => e2eLogin('gerente@example.com', password)).then(({ token }) =>

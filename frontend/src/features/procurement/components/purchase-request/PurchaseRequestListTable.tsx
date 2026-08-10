@@ -90,6 +90,8 @@ export function PurchaseRequestListTable({
             <Th>Status</Th>
             <Th>Prioridade</Th>
             {showCreator && <Th>Solicitante</Th>}
+            <Th>Destino</Th>
+            <Th>Prazo</Th>
             <Th>Itens</Th>
             <Th>Criada em</Th>
           </Tr>
@@ -122,6 +124,12 @@ export function PurchaseRequestListTable({
                   {'name' in item.created_by ? item.created_by.name : '—'}
                 </Td>
               )}
+              <Td color={textColor}>{item.destination?.trim() || '—'}</Td>
+              <Td color={textColor} whiteSpace="nowrap">
+                {item.delivery_deadline
+                  ? new Date(item.delivery_deadline).toLocaleDateString('pt-BR')
+                  : '—'}
+              </Td>
               <Td color={textColor}>{item.items.length}</Td>
               <Td color={textColor} whiteSpace="nowrap">
                 {new Date(item.created_at).toLocaleDateString('pt-BR', {

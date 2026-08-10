@@ -110,6 +110,22 @@ export interface GoodsReceiptDTO {
   inventory_entries: GoodsReceiptInventoryEntryDTO[];
 }
 
+export type InternalDeliverySkipReason =
+  | 'receipt_not_found'
+  | 'already_linked'
+  | 'sc_not_approved'
+  | 'sc_incomplete'
+  | 'no_unlinked_receipts';
+
+export type InternalDeliveryResultDTO =
+  | { created: true }
+  | { created: false; reason: InternalDeliverySkipReason };
+
+export interface FinalizeGoodsReceiptResultDTO {
+  receipt: GoodsReceiptDTO;
+  internal_delivery: InternalDeliveryResultDTO;
+}
+
 export interface GoodsReceiptListResult {
   items: GoodsReceiptSummaryDTO[];
   total: number;

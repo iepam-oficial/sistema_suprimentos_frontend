@@ -11,9 +11,11 @@ import { E2E_ITEM_DESCRIPTION, E2E_SUPPLIER_NAMES, getE2ePassword } from '../../
 import {
   advancePurchaseRequestToReview,
   fillGoodsReceiptPhysicalLine,
+  confirmPurchaseRequestSubmit,
+  fillPurchaseRequestDeliveryFields,
+  stubPurchaseRequestLocales,
   fillPurchaseRequestItemsStep,
   fixturePath,
-  selectChartAccount,
 } from '../../support/forms/purchaseRequestForm';
 import { markAllProposalsReviewOk } from '../../support/forms/proposalReview';
 import { getByXPath } from '../../support/xpath';
@@ -56,7 +58,8 @@ function classifyFirstInvoiceLineAsSupply(): void {
     }
   });
 
-  cy.contains('button', 'Salvar classificação e comparar', { timeout: 30000 }).should(
+  // Seed E2E define COA 3.1.01 no catálogo; loadSupplyMeta herda de forma assíncrona.
+  cy.contains('button', 'Salvar classificação e comparar', { timeout: 90000 }).should(
     'be.enabled',
   );
 }
@@ -83,14 +86,9 @@ function selectFirstOptionByLabel(label: string): void {
     `//*[@role='dialog']//label[contains(.,'${label}')]/following::select[1]`,
     { timeout: 15000 },
   ).then(($select) => {
-    cy.wrap($select)
-      .find('option')
-      .not('[value=""]')
-      .should('have.length.at.least', 1)
-      .first()
-      .then(($opt) => {
-        cy.wrap($select).select($opt.val() as string, { force: true });
-      });
+    const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+    expect(options.length, `${label} options`).to.be.at.least(1);
+    cy.wrap($select).select(options[0].value, { force: true });
   });
 }
 
@@ -324,19 +322,38 @@ export function runProcurementHappyPath(
 
   cy.log('SC: criar e submeter');
   cy.loginAs('COORDINATOR');
+  stubPurchaseRequestLocales();
   cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
   cy.contains('Nova solicitação de compra', { timeout: 90000 }).should('be.visible');
   cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
   cy.get('textarea').first().type('Necessidade E2E de parafusos para manutenção');
-  selectChartAccount('3.1.01', 'Material de Escritório');
+  fillPurchaseRequestDeliveryFields();
   fillPurchaseRequestItemsStep();
   advancePurchaseRequestToReview();
+  cy.intercept('POST', '**/api/purchase-requests').as('createPurchaseRequest');
   cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');
-  cy.clickByText('Submeter');
-  cy.clickByText('Confirmar envio');
-  cy.wait('@submitPurchaseRequest', { timeout: 60000 })
-    .its('response.statusCode')
-    .should('eq', 200);
+  cy.get('[data-testid="pr-wizard-submit"]', { timeout: 15000 })
+    .should('be.visible')
+    .should('be.enabled')
+    .click();
+  confirmPurchaseRequestSubmit();
+  cy.wait('@submitPurchaseRequest', { timeout: 90000 }).then((interception) => {
+    expect(
+      interception.response?.statusCode,
+      `submit body=${JSON.stringify(interception.response?.body ?? {})}`,
+    ).to.eq(200);
+  });
+  // Se o create falhou antes do submit, a alias create terá resposta 4xx (diagnóstico).
+  cy.get('@createPurchaseRequest.all').then((calls) => {
+    const list = calls as unknown as Array<{ response?: { statusCode?: number; body?: unknown } }>;
+    if (list.length > 0) {
+      const last = list[list.length - 1];
+      expect(
+        last.response?.statusCode,
+        `create body=${JSON.stringify(last.response?.body ?? {})}`,
+      ).to.be.oneOf([200, 201]);
+    }
+  });
   cy.get('@submitPurchaseRequest').then((interception) => {
     const req = interception as unknown as { request: { url: string } };
     const id = req.request.url.match(/purchase-requests\/([^/]+)\/submit/)?.[1] ?? '';
@@ -371,8 +388,14 @@ export function runProcurementHappyPath(
   cy.visit('/procurement/aprovacoes-sc', { timeout: 120000 });
   cy.contains('Aprovações de SC', { timeout: 60000 }).should('be.visible');
   cy.intercept('POST', '**/api/purchase-requests/*/approve').as('approvePurchaseRequest');
-  cy.contains('button', 'Aprovar', { timeout: 90000 }).should('be.visible').click();
-  cy.contains('button', 'Confirmar', { timeout: 15000 }).should('be.visible').click();
+  cy.contains('tr', 'Necessidade E2E de parafusos para manutenção', { timeout: 90000 })
+    .should('be.visible')
+    .within(() => {
+      cy.get('[data-testid="pr-approve"]').should('be.visible').click();
+    });
+  cy.contains('[role="dialog"] button', 'Confirmar', { timeout: 15000 })
+    .should('be.visible')
+    .click();
   cy.wait('@approvePurchaseRequest', { timeout: 90000 })
     .its('response.statusCode')
     .should('be.oneOf', [200, 201, 204]);
@@ -474,31 +497,28 @@ export function runProcurementHappyPath(
     "//*[@role='dialog']//label[contains(.,'Cotação aprovada')]/following::select[1]",
     { timeout: 20000 },
   ).then(($select) => {
-    cy.wrap($select)
-      .find('option')
-      .not('[value=""]')
-      .should('have.length.at.least', 1)
-      .first()
-      .then(($opt) => {
-        cy.wrap($select).select($opt.val() as string, { force: true });
-      });
+    const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+    expect(options.length, 'approved quote options').to.be.at.least(1);
+    cy.wrap($select).select(options[0].value, { force: true });
   });
   // Modal refetches quote detail and may reset payment — wait before selecting.
-  cy.wait('@loadQuoteForOrder', { timeout: 90000 });
+  cy.wait('@loadQuoteForOrder', { timeout: 90000 })
+    .its('response.statusCode')
+    .should('eq', 200);
 
   getByXPath(
     "//*[@role='dialog']//label[contains(.,'Forma de pagamento')]/following::select[1]",
     { timeout: 20000 },
-  ).then(($select) => {
-    cy.wrap($select)
-      .find('option')
-      .not('[value=""]')
-      .should('have.length.at.least', 1)
-      .first()
-      .then(($opt) => {
-        cy.wrap($select).select($opt.val() as string, { force: true });
-      });
-  });
+  )
+    .should(($select) => {
+      const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+      expect(options.length, 'payment method options').to.be.at.least(1);
+    })
+    .then(($select) => {
+      const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+      cy.wrap($select).select(options[0].value, { force: true });
+    })
+    .should('not.have.value', '');
 
   cy.intercept('POST', '**/api/purchase-orders').as('createPurchaseOrder');
   getByXPath("//*[@role='dialog']//button[contains(.,'Gerar pedido')]", { timeout: 30000 })

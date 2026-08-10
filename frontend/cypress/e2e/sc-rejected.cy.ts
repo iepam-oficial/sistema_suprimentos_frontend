@@ -2,8 +2,10 @@ import { e2eReset, getPurchaseRequest } from '../support/api';
 import { E2E_ITEM_DESCRIPTION } from '../support/constants';
 import {
   advancePurchaseRequestToReview,
+  confirmPurchaseRequestSubmit,
+  fillPurchaseRequestDeliveryFields,
   fillPurchaseRequestItemsStep,
-  selectChartAccount,
+  stubPurchaseRequestLocales,
 } from '../support/forms/purchaseRequestForm';
 
 describe('SC rejected', () => {
@@ -14,16 +16,17 @@ describe('SC rejected', () => {
 
     cy.log('SC: criar e submeter');
     cy.loginAs('COORDINATOR');
+    stubPurchaseRequestLocales();
     cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
     cy.contains('Nova solicitação de compra', { timeout: 90000 }).should('be.visible');
     cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
     cy.get('textarea').first().type('SC E2E para rejeição');
-    selectChartAccount('3.1.01', 'Material de Escritório');
+    fillPurchaseRequestDeliveryFields();
     fillPurchaseRequestItemsStep(E2E_ITEM_DESCRIPTION, '5');
     advancePurchaseRequestToReview();
     cy.intercept('POST', '**/api/purchase-requests/*/submit').as('submitPurchaseRequest');
     cy.clickByText('Submeter');
-    cy.clickByText('Confirmar envio');
+    confirmPurchaseRequestSubmit();
     cy.wait('@submitPurchaseRequest', { timeout: 60000 })
       .its('response.statusCode')
       .should('eq', 200);
