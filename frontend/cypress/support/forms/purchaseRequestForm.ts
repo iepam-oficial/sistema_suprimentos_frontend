@@ -8,6 +8,28 @@ export function selectChartAccount(search: string, label: string): void {
   cy.wait(200);
 }
 
+/**
+ * Stub de GET /api/locales/user-location para o select "Local de Destino".
+ * No stack E2E o endpoint pode 400/404 — registrar ANTES do cy.visit da SC.
+ */
+export function stubPurchaseRequestLocales(
+  destination = 'Setor Manutenção E2E',
+): void {
+  cy.intercept('GET', '**/api/locales/user-location', {
+    statusCode: 200,
+    body: [
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        name: destination,
+        location: {
+          id: '22222222-2222-4222-8222-222222222222',
+          name: 'Localização E2E',
+        },
+      },
+    ],
+  }).as('localesUserLocation');
+}
+
 /** SCDEL-01 — destino + prazo no passo Dados gerais (obrigatórios no create/submit). */
 export function fillPurchaseRequestDeliveryFields(
   destination = 'Setor Manutenção E2E',
@@ -22,12 +44,47 @@ export function fillPurchaseRequestDeliveryFields(
   const dd = String(deadline.getDate()).padStart(2, '0');
   const yyyyMmDd = `${yyyy}-${mm}-${dd}`;
 
-  cy.contains('label', 'Destino da entrega', { timeout: 15000 })
-    .parent()
-    .find('input:not([type="date"])')
-    .clear()
-    .type(destination)
-    .should('have.value', destination);
+  // Free-text ("Destino da entrega") or locale Select ("Local de Destino") — both valid UIs.
+  cy.get('body', { timeout: 15000 }).should(($body) => {
+    const hasFreeText = $body.find('label').toArray().some((el) =>
+      (el.textContent || '').includes('Destino da entrega'),
+    );
+    const hasLocaleSelect = $body.find('label').toArray().some((el) =>
+      (el.textContent || '').includes('Local de Destino'),
+    );
+    expect(hasFreeText || hasLocaleSelect, 'destino field label').to.eq(true);
+  });
+
+  cy.get('body').then(($body) => {
+    const hasLocaleSelect = $body.find('label').toArray().some((el) =>
+      (el.textContent || '').includes('Local de Destino'),
+    );
+    if (hasLocaleSelect) {
+      cy.contains('label', 'Local de Destino', { timeout: 15000 })
+        .parent()
+        .find('select')
+        .should('not.be.disabled')
+        .should(($select) => {
+          const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+          expect(options.length, 'locale options').to.be.at.least(1);
+        })
+        .then(($select) => {
+          const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+          const match = options.find((o) =>
+            (o.textContent || '').toLowerCase().includes(destination.toLowerCase()),
+          );
+          const value = (match ?? options[0]).value;
+          cy.wrap($select).select(value, { force: true });
+        });
+    } else {
+      cy.contains('label', 'Destino da entrega', { timeout: 15000 })
+        .parent()
+        .find('input:not([type="date"])')
+        .clear()
+        .type(destination)
+        .should('have.value', destination);
+    }
+  });
 
   // Chrome date inputs are flaky with .type(); set value + React onChange events.
   cy.contains('label', 'Prazo de entrega', { timeout: 15000 })

@@ -13,6 +13,7 @@ import {
   fillGoodsReceiptPhysicalLine,
   confirmPurchaseRequestSubmit,
   fillPurchaseRequestDeliveryFields,
+  stubPurchaseRequestLocales,
   fillPurchaseRequestItemsStep,
   fixturePath,
 } from '../../support/forms/purchaseRequestForm';
@@ -85,14 +86,9 @@ function selectFirstOptionByLabel(label: string): void {
     `//*[@role='dialog']//label[contains(.,'${label}')]/following::select[1]`,
     { timeout: 15000 },
   ).then(($select) => {
-    cy.wrap($select)
-      .find('option')
-      .not('[value=""]')
-      .should('have.length.at.least', 1)
-      .first()
-      .then(($opt) => {
-        cy.wrap($select).select($opt.val() as string, { force: true });
-      });
+    const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+    expect(options.length, `${label} options`).to.be.at.least(1);
+    cy.wrap($select).select(options[0].value, { force: true });
   });
 }
 
@@ -326,6 +322,7 @@ export function runProcurementHappyPath(
 
   cy.log('SC: criar e submeter');
   cy.loginAs('COORDINATOR');
+  stubPurchaseRequestLocales();
   cy.visit('/procurement/solicitacoes/nova', { timeout: 120000 });
   cy.contains('Nova solicitação de compra', { timeout: 90000 }).should('be.visible');
   cy.get('textarea', { timeout: 90000 }).first().should('be.visible');
@@ -391,8 +388,14 @@ export function runProcurementHappyPath(
   cy.visit('/procurement/aprovacoes-sc', { timeout: 120000 });
   cy.contains('Aprovações de SC', { timeout: 60000 }).should('be.visible');
   cy.intercept('POST', '**/api/purchase-requests/*/approve').as('approvePurchaseRequest');
-  cy.contains('button', 'Aprovar', { timeout: 90000 }).should('be.visible').click();
-  cy.contains('button', 'Confirmar', { timeout: 15000 }).should('be.visible').click();
+  cy.contains('tr', 'Necessidade E2E de parafusos para manutenção', { timeout: 90000 })
+    .should('be.visible')
+    .within(() => {
+      cy.get('[data-testid="pr-approve"]').should('be.visible').click();
+    });
+  cy.contains('[role="dialog"] button', 'Confirmar', { timeout: 15000 })
+    .should('be.visible')
+    .click();
   cy.wait('@approvePurchaseRequest', { timeout: 90000 })
     .its('response.statusCode')
     .should('be.oneOf', [200, 201, 204]);
@@ -494,31 +497,28 @@ export function runProcurementHappyPath(
     "//*[@role='dialog']//label[contains(.,'Cotação aprovada')]/following::select[1]",
     { timeout: 20000 },
   ).then(($select) => {
-    cy.wrap($select)
-      .find('option')
-      .not('[value=""]')
-      .should('have.length.at.least', 1)
-      .first()
-      .then(($opt) => {
-        cy.wrap($select).select($opt.val() as string, { force: true });
-      });
+    const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+    expect(options.length, 'approved quote options').to.be.at.least(1);
+    cy.wrap($select).select(options[0].value, { force: true });
   });
   // Modal refetches quote detail and may reset payment — wait before selecting.
-  cy.wait('@loadQuoteForOrder', { timeout: 90000 });
+  cy.wait('@loadQuoteForOrder', { timeout: 90000 })
+    .its('response.statusCode')
+    .should('eq', 200);
 
   getByXPath(
     "//*[@role='dialog']//label[contains(.,'Forma de pagamento')]/following::select[1]",
     { timeout: 20000 },
-  ).then(($select) => {
-    cy.wrap($select)
-      .find('option')
-      .not('[value=""]')
-      .should('have.length.at.least', 1)
-      .first()
-      .then(($opt) => {
-        cy.wrap($select).select($opt.val() as string, { force: true });
-      });
-  });
+  )
+    .should(($select) => {
+      const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+      expect(options.length, 'payment method options').to.be.at.least(1);
+    })
+    .then(($select) => {
+      const options = [...$select.find('option')].filter((o) => Boolean(o.value));
+      cy.wrap($select).select(options[0].value, { force: true });
+    })
+    .should('not.have.value', '');
 
   cy.intercept('POST', '**/api/purchase-orders').as('createPurchaseOrder');
   getByXPath("//*[@role='dialog']//button[contains(.,'Gerar pedido')]", { timeout: 30000 })
