@@ -79,8 +79,16 @@ async function proxyRequest(
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+      const payload = data as {
+        message?: string;
+        error?: string;
+        failed_items?: unknown;
+      };
       return NextResponse.json(
-        { error: (data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? 'Erro na requisição' },
+        {
+          error: payload.message ?? payload.error ?? 'Erro na requisição',
+          ...(Array.isArray(payload.failed_items) ? { failed_items: payload.failed_items } : {}),
+        },
         { status: response.status }
       );
     }
