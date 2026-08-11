@@ -41,11 +41,21 @@ export interface ConfirmApprovalBatchResult {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    throw new Error(
+    const base =
       (errData as { error?: string; message?: string }).error ??
-        (errData as { message?: string }).message ??
-        'Erro na requisição de pedidos agrupados'
-    );
+      (errData as { message?: string }).message ??
+      'Erro na requisição de pedidos agrupados';
+    const failedItems = (
+      errData as { failed_items?: { error?: string }[] }
+    ).failed_items;
+    const details =
+      Array.isArray(failedItems) && failedItems.length > 0
+        ? failedItems
+            .map((item) => item.error)
+            .filter((message): message is string => Boolean(message))
+            .join('; ')
+        : '';
+    throw new Error(details ? `${base}: ${details}` : base);
   }
   return response.json();
 }
