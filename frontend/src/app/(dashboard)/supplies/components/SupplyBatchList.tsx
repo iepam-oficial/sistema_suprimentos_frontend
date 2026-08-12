@@ -42,7 +42,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SupplyBatchDTO } from '@ti-assistant/contracts';
 import { formatBRL, sumMoney } from '@/utils/money';
-import { civilDateKeyFromIso } from '@/utils/civilDate';
+import { civilDateKeyFromIso, formatCivilDateBR } from '@/utils/civilDate';
 
 type InvoiceFileType = 'image' | 'pdf' | 'xml';
 
@@ -86,14 +86,6 @@ function toCivilDayKey(value: string): string | null {
   } catch {
     return null;
   }
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '-';
-  const key = toCivilDayKey(value);
-  if (!key) return '-';
-  const [year, month, day] = key.split('-');
-  return `${day}/${month}/${year}`;
 }
 
 function isWithinDateRange(
@@ -235,8 +227,8 @@ export function SupplyBatchList() {
       b.supplier?.name || '-',
       b.purchased_quantity ?? '-',
       formatBRL(b.unit_price),
-      formatDate(b.purchased_at),
-      formatDate(b.expires_at),
+      formatCivilDateBR(b.purchased_at),
+      formatCivilDateBR(b.expires_at),
       b.notes || '-',
     ]);
     autoTable(doc, {
@@ -350,8 +342,8 @@ export function SupplyBatchList() {
                           <Td>{b.supplier?.name || '-'}</Td>
                           <Td>{b.purchased_quantity ?? '-'}</Td>
                           <Td>{formatBRL(b.unit_price)}</Td>
-                          <Td>{formatDate(b.purchased_at)}</Td>
-                          <Td>{formatDate(b.expires_at)}</Td>
+                          <Td>{formatCivilDateBR(b.purchased_at)}</Td>
+                          <Td>{formatCivilDateBR(b.expires_at)}</Td>
                           <Td>{b.notes || '-'}</Td>
                           <Td>
                             <HStack spacing={2}>
