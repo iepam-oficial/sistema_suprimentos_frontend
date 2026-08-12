@@ -31,7 +31,7 @@ const TIME_LABELS: Record<string, string> = {
   '0': 'Todo período',
 };
 
-const EMPTY_FILTERS: ReportFiltersState = {
+export const EMPTY_FILTERS: ReportFiltersState = {
   timeRange: '30',
   locationId: '',
   sectorId: '',
@@ -77,18 +77,95 @@ export function hasNonDefaultFilters(filters: ReportFiltersState): boolean {
   );
 }
 
-export function ReportFiltersBar({ filters, filterOptions, onChange }: ReportFiltersProps) {
+function useFilterSelectProps() {
   const { colorMode } = useColorMode();
-  const selectProps = {
+  return {
     size: 'sm' as const,
     bg: colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)',
   };
+}
 
-  const sectorsForLocation =
+function getSectorsForLocation(
+  filters: ReportFiltersState,
+  filterOptions: FilterOptions | null
+) {
+  return (
     filterOptions?.sectors.filter(
       (s) => !filters.locationId || s.location_id === filters.locationId
-    ) ?? [];
+    ) ?? []
+  );
+}
 
+/** Stacked filter fields for the drawer (no chips). */
+export function ReportFiltersFields({ filters, filterOptions, onChange }: ReportFiltersProps) {
+  const selectProps = useFilterSelectProps();
+  const sectorsForLocation = getSectorsForLocation(filters, filterOptions);
+
+  return (
+    <VStack align="stretch" spacing={4} w="full">
+      <FormControl>
+        <FormLabel fontSize="sm" mb={1}>Período</FormLabel>
+        <Select
+          {...selectProps}
+          value={filters.timeRange}
+          onChange={(e) => onChange({ ...filters, timeRange: e.target.value })}
+        >
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="365">Último ano</option>
+          <option value="0">Todos</option>
+        </Select>
+      </FormControl>
+      <FormControl>
+        <FormLabel fontSize="sm" mb={1}>Local</FormLabel>
+        <Select
+          {...selectProps}
+          value={filters.locationId}
+          onChange={(e) =>
+            onChange({ ...filters, locationId: e.target.value, sectorId: '' })
+          }
+        >
+          <option value="">Todos</option>
+          {filterOptions?.locations.map((l) => (
+            <option key={l.id} value={l.id}>{l.name}</option>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl>
+        <FormLabel fontSize="sm" mb={1}>Setor</FormLabel>
+        <Select
+          {...selectProps}
+          value={filters.sectorId}
+          onChange={(e) => onChange({ ...filters, sectorId: e.target.value })}
+        >
+          <option value="">Todos</option>
+          {sectorsForLocation.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl>
+        <FormLabel fontSize="sm" mb={1}>Fornecedor</FormLabel>
+        <Select
+          {...selectProps}
+          value={filters.supplierId}
+          onChange={(e) => onChange({ ...filters, supplierId: e.target.value })}
+        >
+          <option value="">Todos</option>
+          {filterOptions?.suppliers.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </Select>
+      </FormControl>
+    </VStack>
+  );
+}
+
+/** Mobile / legacy bar: grid fields + neutral chips. */
+export function ReportFiltersBar({ filters, filterOptions, onChange }: ReportFiltersProps) {
+  const selectProps = useFilterSelectProps();
+  const sectorsForLocation = getSectorsForLocation(filters, filterOptions);
   const chips = getActiveFilterChips(filters, filterOptions);
   const showClear = hasNonDefaultFilters(filters);
 
@@ -156,7 +233,7 @@ export function ReportFiltersBar({ filters, filterOptions, onChange }: ReportFil
         <Wrap spacing={2}>
           {chips.map((chip) => (
             <WrapItem key={chip.key}>
-              <Tag size="sm" colorScheme="blue" variant="subtle">
+              <Tag size="sm" colorScheme="gray" variant="subtle">
                 <TagLabel>{chip.label}</TagLabel>
               </Tag>
             </WrapItem>

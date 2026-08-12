@@ -33,6 +33,8 @@ interface ReportViewerProps {
   loading: boolean;
   filters?: ReportFiltersState;
   filterOptions?: FilterOptions | null;
+  /** When true, omit title + export (toolbar owns them). Keeps description/chips. */
+  hideChrome?: boolean;
 }
 
 export function ReportViewer({
@@ -40,6 +42,7 @@ export function ReportViewer({
   loading,
   filters,
   filterOptions,
+  hideChrome = false,
 }: ReportViewerProps) {
   const { colorMode } = useColorMode();
   const dividerClr = colorMode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
@@ -74,37 +77,60 @@ export function ReportViewer({
 
   return (
     <VStack align="stretch" spacing={4} data-testid="reports-content">
-      <Flex
-        direction={{ base: 'column', md: 'row' }}
-        justify="space-between"
-        align={{ base: 'stretch', md: 'flex-start' }}
-        gap={4}
-        pb={3}
-        borderBottom="1px solid"
-        borderColor={dividerClr}
-      >
-        <Box flex={1}>
-          <Heading size="md" mb={1}>{data.title}</Heading>
-          <Text fontSize="sm" color="gray.500" mb={2}>{data.description}</Text>
-          {filterChips.length > 0 && (
-            <Wrap spacing={1}>
-              {filterChips.map((chip) => (
-                <WrapItem key={chip.key}>
-                  <Tag size="sm" variant="outline" colorScheme="gray">
-                    <TagLabel>{chip.label}</TagLabel>
-                  </Tag>
-                </WrapItem>
-              ))}
-            </Wrap>
-          )}
-        </Box>
-        <ReportExportActions
-          title={data.title}
-          tableHeaders={data.tableHeaders}
-          tableRows={data.tableRows}
-          fileBaseName={data.slug}
-        />
-      </Flex>
+      {!hideChrome ? (
+        <Flex
+          direction={{ base: 'column', md: 'row' }}
+          justify="space-between"
+          align={{ base: 'stretch', md: 'flex-start' }}
+          gap={4}
+          pb={3}
+          borderBottom="1px solid"
+          borderColor={dividerClr}
+        >
+          <Box flex={1}>
+            <Heading size="md" mb={1}>{data.title}</Heading>
+            <Text fontSize="sm" color="gray.500" mb={2}>{data.description}</Text>
+            {filterChips.length > 0 && (
+              <Wrap spacing={1}>
+                {filterChips.map((chip) => (
+                  <WrapItem key={chip.key}>
+                    <Tag size="sm" variant="outline" colorScheme="gray">
+                      <TagLabel>{chip.label}</TagLabel>
+                    </Tag>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            )}
+          </Box>
+          <ReportExportActions
+            title={data.title}
+            tableHeaders={data.tableHeaders}
+            tableRows={data.tableRows}
+            fileBaseName={data.slug}
+          />
+        </Flex>
+      ) : (
+        (data.description || filterChips.length > 0) && (
+          <Box pb={2} borderBottom="1px solid" borderColor={dividerClr}>
+            {data.description && (
+              <Text fontSize="sm" color="gray.500" mb={filterChips.length > 0 ? 2 : 0}>
+                {data.description}
+              </Text>
+            )}
+            {filterChips.length > 0 && (
+              <Wrap spacing={1}>
+                {filterChips.map((chip) => (
+                  <WrapItem key={chip.key}>
+                    <Tag size="sm" variant="outline" colorScheme="gray">
+                      <TagLabel>{chip.label}</TagLabel>
+                    </Tag>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            )}
+          </Box>
+        )
+      )}
 
       <Flex
         direction={{ base: 'column', lg: 'row' }}
