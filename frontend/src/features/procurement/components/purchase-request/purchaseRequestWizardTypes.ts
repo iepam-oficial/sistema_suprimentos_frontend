@@ -1,5 +1,8 @@
 import type { CreatePurchaseRequestInput, PurchaseRequestDTO } from '@ti-assistant/contracts';
 import { createClientKey } from '@/utils/clientKey';
+import { todayLocalIsoDate } from '@/utils/civilDate';
+
+export { todayLocalIsoDate } from '@/utils/civilDate';
 
 export interface PurchaseRequestItemFormRow {
   key: string;
@@ -15,14 +18,6 @@ export interface PurchaseRequestWizardForm {
   delivery_deadline: string;
   notes: string;
   items: PurchaseRequestItemFormRow[];
-}
-
-/** YYYY-MM-DD na data civil local (evita off-by-one de toISOString em UTC). */
-export function todayLocalIsoDate(now: Date = new Date()): string {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
 }
 
 export function isDeliveryDeadlineOnOrAfterToday(
