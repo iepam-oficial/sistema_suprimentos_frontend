@@ -43,3 +43,21 @@ export function civilDateKeyFromIso(iso: string): string {
   }
   return SAO_PAULO_DATE_FORMATTER.format(date);
 }
+
+/**
+ * DD/MM/YYYY do dia civil em America/Sao_Paulo. Aceita instante ISO ou
+ * YYYY-MM-DD e devolve `fallback` quando o valor é ausente ou inválido.
+ */
+export function formatCivilDateBR(
+  value: string | null | undefined,
+  fallback = '-'
+): string {
+  if (!value) return fallback;
+  try {
+    const key = DATE_ONLY_PATTERN.test(value) ? value : civilDateKeyFromIso(value);
+    const [year, month, day] = key.split('-');
+    return `${day}/${month}/${year}`;
+  } catch {
+    return fallback;
+  }
+}

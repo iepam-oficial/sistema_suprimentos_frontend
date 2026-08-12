@@ -36,6 +36,7 @@ import {
   CardBody,
   useBreakpointValue,
 } from '@chakra-ui/react'
+import { parseCivilDateOnlyToIso, todayLocalIsoDate } from '@/utils/civilDate'
 import {
   ArrowLeft,
   FileText,
@@ -122,7 +123,7 @@ export default function NewOrderPage() {
         problem_reported: formData.problem_reported,
         service_type: formData.service_type,
         total_price: formData.total_price,
-        entry_date: new Date().toISOString(),
+        entry_date: parseCivilDateOnlyToIso(todayLocalIsoDate()),
       };
       if (formData.order_number.trim()) dataToSend.order_number = formData.order_number;
       if (formData.client_name.trim()) dataToSend.client_name = formData.client_name;
