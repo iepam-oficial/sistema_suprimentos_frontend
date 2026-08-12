@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Text, useColorMode } from '@chakra-ui/react';
+import { Box, Text } from '@chakra-ui/react';
 import { ReactNode } from 'react';
 
 interface ReportChartCardProps {
@@ -11,12 +11,8 @@ interface ReportChartCardProps {
 }
 
 export function ReportChartCard({ title, subtitle, hint, children }: ReportChartCardProps) {
-  const { colorMode } = useColorMode();
-  const borderClr = colorMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
-  const bg = colorMode === 'dark' ? 'rgba(45,55,72,0.4)' : 'rgba(255,255,255,0.6)';
-
   return (
-    <Box p={4} rounded="lg" border="1px solid" borderColor={borderClr} bg={bg}>
+    <Box>
       {title && (
         <Text fontSize="sm" fontWeight="semibold" mb={subtitle || hint ? 1 : 3}>
           {title}

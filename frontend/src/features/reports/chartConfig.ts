@@ -117,3 +117,13 @@ export function getSliceColor(label: string, index: number, colorByLabel?: boole
   }
   return CHART_PALETTE[index % CHART_PALETTE.length];
 }
+
+/** Default chart height when `height` prop is omitted (donut/pie shorter than bars/area/line). */
+export function getDefaultChartHeight(
+  type: ChartType,
+  rowCount = 0
+): number {
+  if (type === 'donut' || type === 'pie') return 220;
+  if (type === 'bar-horizontal') return Math.max(280, rowCount * 36);
+  return 280;
+}

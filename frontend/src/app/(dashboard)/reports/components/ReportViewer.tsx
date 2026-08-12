@@ -2,9 +2,9 @@
 
 import {
   Box,
+  Divider,
   Flex,
   Heading,
-  SimpleGrid,
   Text,
   useColorMode,
   VStack,
@@ -21,14 +21,6 @@ import { ReportChart } from './ReportChart';
 import { ReportChartCard } from './ReportChartCard';
 import { ReportDetailTable } from './ReportDetailTable';
 import { ReportExportActions } from './ReportExportActions';
-
-const cardProps = (colorMode: string) => ({
-  p: 4,
-  rounded: 'lg',
-  border: '1px solid',
-  borderColor: colorMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-  bg: colorMode === 'dark' ? 'rgba(45,55,72,0.5)' : 'rgba(255,255,255,0.5)',
-});
 
 function isExecutiveSummary(
   data: ReportPayload | ExecutiveSummaryPayload
@@ -50,6 +42,7 @@ export function ReportViewer({
   filterOptions,
 }: ReportViewerProps) {
   const { colorMode } = useColorMode();
+  const dividerClr = colorMode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
 
   if (loading) {
     return <Text color="gray.500">Carregando relatório...</Text>;
@@ -80,12 +73,15 @@ export function ReportViewer({
     filters && filterOptions ? getActiveFilterChips(filters, filterOptions) : [];
 
   return (
-    <VStack align="stretch" spacing={6}>
+    <VStack align="stretch" spacing={4} data-testid="reports-content">
       <Flex
         direction={{ base: 'column', md: 'row' }}
         justify="space-between"
         align={{ base: 'stretch', md: 'flex-start' }}
         gap={4}
+        pb={3}
+        borderBottom="1px solid"
+        borderColor={dividerClr}
       >
         <Box flex={1}>
           <Heading size="md" mb={1}>{data.title}</Heading>
@@ -110,32 +106,48 @@ export function ReportViewer({
         />
       </Flex>
 
-      <SimpleGrid columns={{ base: 2, md: data.kpis.length > 2 ? 3 : 2 }} spacing={3}>
-        {data.kpis.map((kpi) => (
-          <Box key={kpi.label} {...cardProps(colorMode)}>
-            <Text fontSize="xs" color="gray.500">{kpi.label}</Text>
-            <Text fontSize="xl" fontWeight="bold">{kpi.value}</Text>
-          </Box>
-        ))}
-      </SimpleGrid>
-
-      <ReportChartCard
-        title="Visualização"
-        subtitle="Gráfico adaptado ao tipo de dado deste relatório"
-        hint={
-          truncated
-            ? 'O gráfico mostra os 10 principais itens; consulte a tabela para a lista completa.'
-            : undefined
-        }
+      <Flex
+        direction={{ base: 'column', lg: 'row' }}
+        gap={{ base: 4, lg: 6 }}
+        align="stretch"
       >
-        <ReportChart
-          slug={data.slug}
-          data={data.chartData}
-          type={data.chartType}
-          colorByLabel={colorByLabel}
-          dataKey={dataKey}
-        />
-      </ReportChartCard>
+        <VStack
+          align="stretch"
+          spacing={0}
+          flex={{ lg: '0 0 220px' }}
+          minW={{ lg: '180px' }}
+          maxW={{ lg: '280px' }}
+          divider={<Divider borderColor={dividerClr} />}
+          data-testid="reports-kpis"
+        >
+          {data.kpis.map((kpi) => (
+            <Box key={kpi.label} py={2}>
+              <Text fontSize="xs" color="gray.500">{kpi.label}</Text>
+              <Text fontSize="xl" fontWeight="bold">{kpi.value}</Text>
+            </Box>
+          ))}
+        </VStack>
+
+        <Box flex={1} minW={0} data-testid="reports-chart">
+          <ReportChartCard
+            title="Visualização"
+            subtitle="Gráfico adaptado ao tipo de dado deste relatório"
+            hint={
+              truncated
+                ? 'O gráfico mostra os 10 principais itens; consulte a tabela para a lista completa.'
+                : undefined
+            }
+          >
+            <ReportChart
+              slug={data.slug}
+              data={data.chartData}
+              type={data.chartType}
+              colorByLabel={colorByLabel}
+              dataKey={dataKey}
+            />
+          </ReportChartCard>
+        </Box>
+      </Flex>
 
       <ReportDetailTable
         headers={data.tableHeaders}
