@@ -58,6 +58,7 @@ import {
 } from '@/features/operations'
 import { filterOrders, generateOrdersPDF, type OrderFilters } from './utils/ordersUtils'
 import { formatBRL } from '@/utils/money'
+import { formatCivilDateBR } from '@/utils/civilDate'
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<ServiceOrderDTO[]>([])
@@ -197,7 +198,7 @@ export default function OrdersPage() {
               </Box>
               <Box>
                 <Text fontWeight="semibold" color={textColor} fontSize="sm">Data de Entrada</Text>
-                <Text color={textSecondary} fontSize="sm">{new Date(order.entry_date).toLocaleDateString()}</Text>
+                <Text color={textSecondary} fontSize="sm">{formatCivilDateBR(order.entry_date)}</Text>
               </Box>
               <Box>
                 <Text fontWeight="semibold" color={textColor} fontSize="sm">Valor Total</Text>
@@ -259,7 +260,7 @@ export default function OrdersPage() {
                     {order.exit_date ? 'Concluída' : 'Em andamento'}
                   </Badge>
                 </Td>
-                <Td color={textSecondary} fontSize="sm">{new Date(order.entry_date).toLocaleDateString()}</Td>
+                <Td color={textSecondary} fontSize="sm">{formatCivilDateBR(order.entry_date)}</Td>
                 <Td color={textColor} fontWeight="bold">{formatBRL(order.total_price)}</Td>
               </Tr>
             ))}

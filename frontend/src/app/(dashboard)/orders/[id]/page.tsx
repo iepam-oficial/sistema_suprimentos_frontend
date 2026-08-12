@@ -61,6 +61,7 @@ import {
 } from 'lucide-react'
 import jsPDF from 'jspdf'
 import { formatBRL } from '@/utils/money'
+import { formatCivilDateBR } from '@/utils/civilDate'
 
 export default function OrderDetailsPage({ params }: { params: { id: string } }) {
   const [order, setOrder] = useState<ServiceOrderDTO | null>(null)
@@ -220,8 +221,8 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
       ['Número de Série:', order.serial_number],
       ['Problema Reportado:', order.problem_reported],
       ['Tipo de Serviço:', order.service_type],
-      ['Data de Entrada:', new Date(order.entry_date).toLocaleDateString()],
-      ['Data de Saída:', order.exit_date ? new Date(order.exit_date).toLocaleDateString() : 'Em andamento'],
+      ['Data de Entrada:', formatCivilDateBR(order.entry_date)],
+      ['Data de Saída:', order.exit_date ? formatCivilDateBR(order.exit_date) : 'Em andamento'],
       ['Valor Total:', formatBRL(order.total_price)]
     ]
 
@@ -491,12 +492,12 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
             <VStack spacing={3} align="stretch">
               <Box>
                 <Text color={textSecondary} fontSize="sm" fontWeight="medium">Data de Entrada</Text>
-                <Text color={textColor} fontWeight="semibold">{new Date(order.entry_date).toLocaleDateString()}</Text>
+                <Text color={textColor} fontWeight="semibold">{formatCivilDateBR(order.entry_date)}</Text>
               </Box>
               {order.exit_date && (
                 <Box>
                   <Text color={textSecondary} fontSize="sm" fontWeight="medium">Data de Saída</Text>
-                  <Text color={textColor} fontWeight="semibold">{new Date(order.exit_date).toLocaleDateString()}</Text>
+                  <Text color={textColor} fontWeight="semibold">{formatCivilDateBR(order.exit_date)}</Text>
                 </Box>
               )}
             </VStack>
