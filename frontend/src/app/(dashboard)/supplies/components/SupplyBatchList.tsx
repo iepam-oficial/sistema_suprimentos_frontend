@@ -42,6 +42,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SupplyBatchDTO } from '@ti-assistant/contracts';
 import { formatBRL, sumMoney } from '@/utils/money';
+import { civilDateKeyFromIso } from '@/utils/civilDate';
 
 type InvoiceFileType = 'image' | 'pdf' | 'xml';
 
@@ -78,13 +79,21 @@ function getInvoiceAction(fileType?: InvoiceFileType | null) {
   }
 }
 
-function toDateOnly(value: string): string {
-  return value.slice(0, 10);
+/** Dia civil em America/Sao_Paulo; null quando o instante é inválido. */
+function toCivilDayKey(value: string): string | null {
+  try {
+    return civilDateKeyFromIso(value);
+  } catch {
+    return null;
+  }
 }
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '-';
-  return new Date(value).toLocaleDateString('pt-BR');
+  const key = toCivilDayKey(value);
+  if (!key) return '-';
+  const [year, month, day] = key.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 function isWithinDateRange(
@@ -93,9 +102,10 @@ function isWithinDateRange(
   to: string,
 ): boolean {
   if (!isoDate) return false;
-  const date = toDateOnly(isoDate);
-  if (from && date < from) return false;
-  if (to && date > to) return false;
+  const key = toCivilDayKey(isoDate);
+  if (!key) return false;
+  if (from && key < from) return false;
+  if (to && key > to) return false;
   return true;
 }
 
