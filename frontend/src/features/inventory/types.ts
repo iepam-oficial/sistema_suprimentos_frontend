@@ -88,14 +88,13 @@ export interface InventoryItem {
 /** Alocação com campos extras e relações expandidas usados na UI admin e colaborador */
 export type InventoryAllocation = Omit<
   InventoryAllocationDTO,
-  'inventory' | 'requester' | 'created_at' | 'notes' | 'return_date'
+  'inventory' | 'requester' | 'notes' | 'return_date'
 > & {
   destination_name?: string;
   destination_id?: string;
   locale_name?: string;
   location_name?: string;
   requester_sector?: string;
-  created_at: string;
   notes: string;
   return_date: string;
   requester_delivery_confirmation: boolean;
