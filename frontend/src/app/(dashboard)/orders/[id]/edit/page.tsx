@@ -36,6 +36,21 @@ import {
     InputLeftElement,
 } from '@chakra-ui/react'
 import { ArrowLeft } from 'lucide-react'
+import {
+    civilDateKeyFromIso,
+    parseCivilDateOnlyToIso,
+    todayLocalIsoDate,
+} from '@/utils/civilDate'
+
+/** YYYY-MM-DD do dia civil em SP para inputs type="date"; vazio se inválido. */
+function toCivilDateInputValue(iso: string | null | undefined): string {
+    if (!iso) return ''
+    try {
+        return civilDateKeyFromIso(iso)
+    } catch {
+        return ''
+    }
+}
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
     const [order, setOrder] = useState<ServiceOrderDTO | null>(null)
@@ -143,6 +158,16 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setOrder(prev => prev ? { ...prev, [name]: value } : null)
+    }
+
+    // O estado guarda sempre instantes; datas do formulário são o início do dia civil em SP.
+    const handleCivilDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target
+        setOrder(prev => {
+            if (!prev) return prev
+            if (!value) return name === 'exit_date' ? { ...prev, exit_date: null } : prev
+            return { ...prev, [name]: parseCivilDateOnlyToIso(value) }
+        })
     }
 
     const handleNumberChange = (value: string, name: string) => {
@@ -283,8 +308,8 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
                                 <Input
                                     name="entry_date"
                                     type="date"
-                                    value={new Date(order.entry_date).toISOString().split('T')[0]}
-                                    onChange={handleChange}
+                                    value={toCivilDateInputValue(order.entry_date)}
+                                    onChange={handleCivilDateChange}
                                 />
                             </FormControl>
                             <FormControl mt={4}>
@@ -296,7 +321,9 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
                                         const value = e.target.value;
                                         setOrder(prev => prev ? {
                                             ...prev,
-                                            exit_date: value === 'completed' ? new Date().toISOString() : null
+                                            exit_date: value === 'completed'
+                                                ? parseCivilDateOnlyToIso(todayLocalIsoDate())
+                                                : null
                                         } : null);
                                     }}
                                 >
@@ -309,8 +336,8 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
                                 <Input
                                     name="exit_date"
                                     type="date"
-                                    value={order.exit_date ? new Date(order.exit_date).toISOString().split('T')[0] : ''}
-                                    onChange={handleChange}
+                                    value={toCivilDateInputValue(order.exit_date)}
+                                    onChange={handleCivilDateChange}
                                     isDisabled={!order.exit_date}
                                 />
                             </FormControl>

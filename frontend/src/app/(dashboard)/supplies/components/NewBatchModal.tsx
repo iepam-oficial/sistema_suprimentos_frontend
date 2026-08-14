@@ -36,6 +36,7 @@ import type { CreateSupplyBatchInput, SupplierDTO, SupplyDTO } from '@/features/
 import type { SupplyBatchInvoiceFileType } from '@ti-assistant/contracts';
 import { formatBRL } from '@/utils/money';
 import { formatCurrencyBR, parseCurrencyBR, sanitizeCurrencyInput } from '@/utils/currencyInput';
+import { parseCivilDateOnlyToIso, todayLocalIsoDate } from '@/utils/civilDate';
 
 const inferInvoiceFileType = (file: File): SupplyBatchInvoiceFileType | null => {
   const name = file.name.toLowerCase();
@@ -73,7 +74,7 @@ const initialForm = {
   purchased_quantity: 1,
   unit_price: '',
   freight: '',
-  purchased_at: new Date().toISOString().slice(0, 10),
+  purchased_at: todayLocalIsoDate(),
   expires_at: '',
   notes: '',
   invoice_url: '',
@@ -244,10 +245,10 @@ export function NewBatchModal({ isOpen, onClose, onSuccess }: NewBatchModalProps
         unit_price: parseCurrencyBR(formData.unit_price),
         freight: parseCurrencyBR(formData.freight) || undefined,
         purchased_at: formData.purchased_at
-          ? new Date(formData.purchased_at).toISOString()
+          ? parseCivilDateOnlyToIso(formData.purchased_at)
           : undefined,
         expires_at: formData.expires_at
-          ? new Date(formData.expires_at).toISOString()
+          ? parseCivilDateOnlyToIso(formData.expires_at)
           : null,
         notes: formData.notes || null,
         invoice_url: invoiceUrl,

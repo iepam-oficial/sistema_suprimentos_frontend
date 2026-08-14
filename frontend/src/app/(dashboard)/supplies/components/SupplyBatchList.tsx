@@ -42,6 +42,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { SupplyBatchDTO } from '@ti-assistant/contracts';
 import { formatBRL, sumMoney } from '@/utils/money';
+import { civilDateKeyFromIso, formatCivilDateBR } from '@/utils/civilDate';
 
 type InvoiceFileType = 'image' | 'pdf' | 'xml';
 
@@ -78,13 +79,13 @@ function getInvoiceAction(fileType?: InvoiceFileType | null) {
   }
 }
 
-function toDateOnly(value: string): string {
-  return value.slice(0, 10);
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('pt-BR');
+/** Dia civil em America/Sao_Paulo; null quando o instante é inválido. */
+function toCivilDayKey(value: string): string | null {
+  try {
+    return civilDateKeyFromIso(value);
+  } catch {
+    return null;
+  }
 }
 
 function isWithinDateRange(
@@ -93,9 +94,10 @@ function isWithinDateRange(
   to: string,
 ): boolean {
   if (!isoDate) return false;
-  const date = toDateOnly(isoDate);
-  if (from && date < from) return false;
-  if (to && date > to) return false;
+  const key = toCivilDayKey(isoDate);
+  if (!key) return false;
+  if (from && key < from) return false;
+  if (to && key > to) return false;
   return true;
 }
 
@@ -225,8 +227,8 @@ export function SupplyBatchList() {
       b.supplier?.name || '-',
       b.purchased_quantity ?? '-',
       formatBRL(b.unit_price),
-      formatDate(b.purchased_at),
-      formatDate(b.expires_at),
+      formatCivilDateBR(b.purchased_at),
+      formatCivilDateBR(b.expires_at),
       b.notes || '-',
     ]);
     autoTable(doc, {
@@ -340,8 +342,8 @@ export function SupplyBatchList() {
                           <Td>{b.supplier?.name || '-'}</Td>
                           <Td>{b.purchased_quantity ?? '-'}</Td>
                           <Td>{formatBRL(b.unit_price)}</Td>
-                          <Td>{formatDate(b.purchased_at)}</Td>
-                          <Td>{formatDate(b.expires_at)}</Td>
+                          <Td>{formatCivilDateBR(b.purchased_at)}</Td>
+                          <Td>{formatCivilDateBR(b.expires_at)}</Td>
                           <Td>{b.notes || '-'}</Td>
                           <Td>
                             <HStack spacing={2}>

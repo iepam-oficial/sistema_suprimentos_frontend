@@ -24,6 +24,7 @@ import {
   type LocationDTO,
   type SectorDTO,
 } from '@/features/reference-data';
+import { fetchMe } from '@/features/identity';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -59,16 +60,26 @@ export default function NewSupportTicketPage() {
     }
 
     const load = async () => {
-      try {
-        const locData = await fetchLocations(token);
-        setLocations(locData);
-      } catch {
-        // formulário ainda funciona sem local
-      } finally {
-        setBootLoading(false);
+      const [locResult, meResult] = await Promise.allSettled([
+        fetchLocations(token),
+        fetchMe(token),
+      ]);
+      const locData = locResult.status === 'fulfilled' ? locResult.value : [];
+      const me = meResult.status === 'fulfilled' ? meResult.value : null;
+      const userLocation = me?.sector?.location;
+      const locationsList =
+        userLocation && !locData.some((l) => l.id === userLocation.id)
+          ? [{ id: userLocation.id, name: userLocation.name, branch: userLocation.branch }, ...locData]
+          : locData;
+      setLocations(locationsList);
+      if (userLocation?.id) {
+        setLocationId(userLocation.id);
+      }
+      if (me?.sector?.id) {
+        setSectorId(me.sector.id);
       }
     };
-    load();
+    load().finally(() => setBootLoading(false));
   }, [router]);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import type { ServiceOrderDTO } from '@/features/operations'
 import jsPDF from 'jspdf'
 import { formatBRL } from '@/utils/money'
+import { civilDateKeyFromIso, formatCivilDateBR } from '@/utils/civilDate'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, PieController } from 'chart.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend, PieController)
@@ -10,6 +11,15 @@ export interface OrderFilters {
     status: string
     date: string
     serialNumber: string
+}
+
+/** Dia civil em America/Sao_Paulo; null quando o instante é inválido. */
+const toCivilDayKey = (value: string): string | null => {
+    try {
+        return civilDateKeyFromIso(value)
+    } catch {
+        return null
+    }
 }
 
 export const filterOrders = (orders: ServiceOrderDTO[], filters: OrderFilters): ServiceOrderDTO[] => {
@@ -31,9 +41,8 @@ export const filterOrders = (orders: ServiceOrderDTO[], filters: OrderFilters): 
     }
 
     if (filters.date) {
-        const filterDate = new Date(filters.date).toISOString().split('T')[0]
         result = result.filter(order =>
-            order.entry_date.split('T')[0] === filterDate
+            toCivilDayKey(order.entry_date) === filters.date
         )
     }
 
@@ -92,7 +101,7 @@ export const generateOrdersPDF = async (
         filterY += 5
     }
     if (filters.date) {
-        doc.text(`Data: ${new Date(filters.date).toLocaleDateString()}`, margin, filterY)
+        doc.text(`Data: ${formatCivilDateBR(filters.date)}`, margin, filterY)
         filterY += 5
     }
     if (filters.serialNumber) {
@@ -129,7 +138,7 @@ export const generateOrdersPDF = async (
             order.model,
             order.serial_number,
             order.exit_date ? 'Concluída' : 'Em andamento',
-            new Date(order.entry_date).toLocaleDateString(),
+            formatCivilDateBR(order.entry_date),
             formatBRL(order.total_price)
         ]
 
