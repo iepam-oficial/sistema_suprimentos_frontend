@@ -1,11 +1,14 @@
 export type ReportSlug = 'executive-summary' | 'inventory-overview' | 'supplies-stock' | 'consumption-by-sector' | 'purchases-by-batch' | 'service-orders' | 'alerts-by-level' | 'supply-requests';
 export declare const VALID_REPORT_SLUGS: ReportSlug[];
 export interface ReportFilters {
-    timeRange: string;
+    timeRange?: string;
     locationId?: string;
     sectorId?: string;
     supplierId?: string;
     categoryId?: string;
+    subcategoryId?: string;
+    ncmIds?: string[];
+    cestCodes?: string[];
 }
 export interface ChartRow {
     label: string;
@@ -17,6 +20,10 @@ export interface ReportKpi {
     value: string | number;
 }
 export type ChartType = 'line' | 'area' | 'bar' | 'bar-horizontal' | 'pie' | 'donut';
+export interface ReportDetailBlock {
+    headers: string[];
+    rows: (string | number)[][];
+}
 export interface ReportPayload {
     slug: ReportSlug;
     title: string;
@@ -28,6 +35,10 @@ export interface ReportPayload {
     tableHeaders: string[];
     tableRows: (string | number)[][];
     chartType: ChartType;
+    columnKeys?: string[];
+    rowDetails?: (ReportDetailBlock | null)[];
+    detailColumnKeys?: string[];
+    detailHeaders?: string[];
 }
 export interface ConsumptionByDimension {
     label: string;
