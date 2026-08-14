@@ -59,6 +59,7 @@ export function MobileReports({
           filters={filters}
           filterOptions={filterOptions}
           onChange={onFiltersChange}
+          activeSlug={activeSlug}
         />
 
         <Box

@@ -14,7 +14,12 @@ import {
   TagLabel,
 } from '@chakra-ui/react';
 import { prepareChartDataForDisplay, resolveChartType } from '@/features/reports/chartConfig';
-import { ExecutiveSummaryPayload, FilterOptions, ReportPayload } from '@/features/reports/types';
+import {
+  ExecutiveSummaryPayload,
+  FilterOptions,
+  ReportPayload,
+  ReportSlug,
+} from '@/features/reports/types';
 import { ExecutiveSummaryView } from './ExecutiveSummaryView';
 import { getActiveFilterChips, ReportFiltersState } from './ReportFilters';
 import { ReportChart } from './ReportChart';
@@ -73,7 +78,11 @@ export function ReportViewer({
   );
 
   const filterChips =
-    filters && filterOptions ? getActiveFilterChips(filters, filterOptions) : [];
+    filters && filterOptions
+      ? getActiveFilterChips(filters, filterOptions, {
+          slug: data.slug as ReportSlug,
+        })
+      : [];
 
   return (
     <VStack align="stretch" spacing={4} data-testid="reports-content">

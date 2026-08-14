@@ -44,8 +44,10 @@ import {
   buildReportsQuery,
   EMPTY_FILTERS,
   hasNonDefaultFilters,
+  parseCsvParam,
   ReportFiltersFields,
   ReportFiltersState,
+  toReportFiltersQuery,
 } from './components/ReportFilters';
 import { ReportExportActions } from './components/ReportExportActions';
 import { ReportViewer } from './components/ReportViewer';
@@ -87,6 +89,10 @@ function ReportsPageContent() {
     locationId: searchParams.get('locationId') || '',
     sectorId: searchParams.get('sectorId') || '',
     supplierId: searchParams.get('supplierId') || '',
+    categoryId: searchParams.get('categoryId') || '',
+    subcategoryId: searchParams.get('subcategoryId') || '',
+    ncmIds: parseCsvParam(searchParams.get('ncmIds')),
+    cestCodes: parseCsvParam(searchParams.get('cestCodes')),
   });
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
   const [reportData, setReportData] = useState<ReportPayload | ExecutiveSummaryPayload | null>(null);
@@ -153,7 +159,11 @@ function ReportsPageContent() {
     async function loadReport() {
       setLoading(true);
       try {
-        const data = await fetchReport(token, activeSlug, filters);
+        const data = await fetchReport(
+          token,
+          activeSlug,
+          toReportFiltersQuery(activeSlug, filters)
+        );
         setReportData(data);
         syncUrl(activeSlug, filters);
       } catch (error) {
@@ -200,7 +210,7 @@ function ReportsPageContent() {
   const borderClr = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
   const headingClr = isDark ? 'white' : 'gray.900';
   const drawerBg = isDark ? 'gray.800' : 'white';
-  const filtersActive = hasNonDefaultFilters(filters);
+  const filtersActive = hasNonDefaultFilters(filters, activeSlug);
   const activeTitle =
     REPORT_CATALOG.find((r) => r.slug === activeSlug)?.title ??
     (isSimpleReport(reportData) ? reportData.title : 'Relatórios');
@@ -365,6 +375,7 @@ function ReportsPageContent() {
                   filters={filters}
                   filterOptions={filterOptions}
                   onChange={handleFiltersChange}
+                  activeSlug={activeSlug}
                 />
               )}
             </Box>
