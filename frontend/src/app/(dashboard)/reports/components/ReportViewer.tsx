@@ -187,6 +187,7 @@ export function ReportViewer({
       <ReportDetailTable
         headers={data.tableHeaders}
         rows={data.tableRows}
+        rowDetails={data.rowDetails}
         defaultOpen={data.tableRows.length <= 15}
       />
     </VStack>
