@@ -114,15 +114,16 @@ describe('reports-layout desktop', () => {
     );
   });
 
-  it('RL-6: deep link report + timeRange', () => {
+  it('RL-6: deep link report + timeRange (non-stock)', () => {
     cy.intercept('GET', '**/api/reports/**').as('getReport');
-    cy.visit('/reports?report=supplies-stock&timeRange=90', { timeout: 120000 });
+    cy.visit('/reports?report=alerts-by-level&timeRange=90', { timeout: 120000 });
     cy.wait('@getReport', { timeout: 60000 });
 
-    cy.url().should('include', 'report=supplies-stock');
+    cy.url().should('include', 'report=alerts-by-level');
     cy.url().should('include', 'timeRange=90');
-    cy.get('[data-testid="reports-select"]').should('have.value', 'supplies-stock');
+    cy.get('[data-testid="reports-select"]').should('have.value', 'alerts-by-level');
     cy.get('[data-testid="reports-filter-badge"]').should('be.visible');
     cy.get('[data-testid="reports-kpis"]').should('be.visible');
   });
 });
+
