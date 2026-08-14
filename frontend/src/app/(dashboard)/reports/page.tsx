@@ -228,6 +228,7 @@ function ReportsPageContent() {
     reportData.columnKeys &&
     reportData.columnKeys.length > 0
       ? {
+          slug: reportData.slug,
           columnKeys: reportData.columnKeys,
           detailColumnKeys: reportData.detailColumnKeys,
         }

@@ -2,6 +2,97 @@ export function defaultColumnSelection(keys: string[]): Record<string, boolean> 
   return Object.fromEntries(keys.map((key) => [key, true]));
 }
 
+export function columnSelectionStorageKey(slug: string): string {
+  return `reports:columns:${slug}`;
+}
+
+function isSelectionRecord(value: unknown): value is Record<string, boolean> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every((v) => typeof v === 'boolean');
+}
+
+/** True when stored selection keys match the current payload key set (order-independent). */
+export function columnKeysMatchSelection(
+  orderedKeys: string[],
+  stored: Record<string, boolean>,
+): boolean {
+  const storedKeys = Object.keys(stored);
+  if (storedKeys.length !== orderedKeys.length) {
+    return false;
+  }
+  const keySet = new Set(orderedKeys);
+  return storedKeys.every((key) => keySet.has(key));
+}
+
+type StorageReader = Pick<Storage, 'getItem'>;
+type StorageWriter = Pick<Storage, 'setItem'>;
+
+function getLocalStorage(): Storage | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Restore column selection for a report slug.
+ * Falls back to all-true defaults when missing, invalid, or keys no longer match.
+ */
+export function loadColumnSelection(
+  slug: string,
+  orderedKeys: string[],
+  storage?: StorageReader | null,
+): Record<string, boolean> {
+  const defaults = defaultColumnSelection(orderedKeys);
+  if (!slug || orderedKeys.length === 0) {
+    return defaults;
+  }
+
+  try {
+    const store = storage === undefined ? getLocalStorage() : storage;
+    if (!store) {
+      return defaults;
+    }
+    const raw = store.getItem(columnSelectionStorageKey(slug));
+    if (!raw) {
+      return defaults;
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!isSelectionRecord(parsed) || !columnKeysMatchSelection(orderedKeys, parsed)) {
+      return defaults;
+    }
+    return Object.fromEntries(orderedKeys.map((key) => [key, parsed[key]]));
+  } catch {
+    return defaults;
+  }
+}
+
+/** Persist column selection JSON under `reports:columns:${slug}`. */
+export function saveColumnSelection(
+  slug: string,
+  selection: Record<string, boolean>,
+  storage?: StorageWriter | null,
+): void {
+  if (!slug) {
+    return;
+  }
+  try {
+    const store = storage === undefined ? getLocalStorage() : storage;
+    if (!store) {
+      return;
+    }
+    store.setItem(columnSelectionStorageKey(slug), JSON.stringify(selection));
+  } catch {
+    // Ignore quota / private-mode failures
+  }
+}
+
 export function selectedKeys(
   selection: Record<string, boolean>,
   orderedKeys: string[],

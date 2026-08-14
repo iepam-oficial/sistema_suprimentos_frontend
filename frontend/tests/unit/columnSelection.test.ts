@@ -1,9 +1,13 @@
 import {
   buildStockExportTable,
   canExport,
+  columnKeysMatchSelection,
+  columnSelectionStorageKey,
   defaultColumnSelection,
   filterTableByKeys,
   flattenSupplyExport,
+  loadColumnSelection,
+  saveColumnSelection,
   selectedKeys,
 } from '@/features/reports/columnSelection';
 
@@ -13,6 +17,85 @@ describe('defaultColumnSelection', () => {
       a: true,
       b: true,
       c: true,
+    });
+  });
+});
+
+describe('column selection persistence', () => {
+  function createMemoryStorage(initial: Record<string, string> = {}) {
+    const store = { ...initial };
+    return {
+      getItem: (key: string) => (key in store ? store[key] : null),
+      setItem: (key: string, value: string) => {
+        store[key] = value;
+      },
+      _store: store,
+    };
+  }
+
+  it('builds storage key per slug', () => {
+    expect(columnSelectionStorageKey('supplies-stock')).toBe(
+      'reports:columns:supplies-stock',
+    );
+  });
+
+  it('columnKeysMatchSelection requires the same key set', () => {
+    expect(columnKeysMatchSelection(['a', 'b'], { a: true, b: false })).toBe(true);
+    expect(columnKeysMatchSelection(['a', 'b'], { a: true })).toBe(false);
+    expect(columnKeysMatchSelection(['a'], { a: true, b: false })).toBe(false);
+  });
+
+  it('saveColumnSelection writes JSON under the slug key', () => {
+    const storage = createMemoryStorage();
+    const selection = { name: true, qty: false };
+    saveColumnSelection('inventory-overview', selection, storage);
+    expect(storage._store['reports:columns:inventory-overview']).toBe(
+      JSON.stringify(selection),
+    );
+  });
+
+  it('loadColumnSelection restores when keys match', () => {
+    const selection = { name: false, batch: true };
+    const storage = createMemoryStorage({
+      'reports:columns:supplies-stock': JSON.stringify(selection),
+    });
+    expect(
+      loadColumnSelection('supplies-stock', ['name', 'batch'], storage),
+    ).toEqual(selection);
+  });
+
+  it('loadColumnSelection defaults all true when keys mismatch', () => {
+    const storage = createMemoryStorage({
+      'reports:columns:supplies-stock': JSON.stringify({ name: false }),
+    });
+    expect(
+      loadColumnSelection('supplies-stock', ['name', 'batch'], storage),
+    ).toEqual({ name: true, batch: true });
+  });
+
+  it('loadColumnSelection defaults when storage is empty or invalid', () => {
+    const empty = createMemoryStorage();
+    expect(loadColumnSelection('supplies-stock', ['a'], empty)).toEqual({
+      a: true,
+    });
+
+    const invalid = createMemoryStorage({
+      'reports:columns:supplies-stock': '{not-json',
+    });
+    expect(loadColumnSelection('supplies-stock', ['a'], invalid)).toEqual({
+      a: true,
+    });
+  });
+
+  it('isolates selection per slug', () => {
+    const storage = createMemoryStorage();
+    saveColumnSelection('supplies-stock', { a: false }, storage);
+    saveColumnSelection('inventory-overview', { b: true }, storage);
+    expect(loadColumnSelection('supplies-stock', ['a'], storage)).toEqual({
+      a: false,
+    });
+    expect(loadColumnSelection('inventory-overview', ['b'], storage)).toEqual({
+      b: true,
     });
   });
 });

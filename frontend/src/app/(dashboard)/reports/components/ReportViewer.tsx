@@ -63,6 +63,7 @@ export function ReportViewer({
     data.columnKeys &&
     data.columnKeys.length > 0
       ? {
+          slug: data.slug,
           columnKeys: data.columnKeys,
           detailColumnKeys: data.detailColumnKeys,
         }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -15,7 +15,8 @@ import {
 import { Columns3 } from 'lucide-react';
 import {
   canExport,
-  defaultColumnSelection,
+  loadColumnSelection,
+  saveColumnSelection,
 } from '@/features/reports/columnSelection';
 
 export interface ReportColumnPickerProps {
@@ -28,6 +29,7 @@ export interface ReportColumnPickerProps {
 }
 
 type ColumnSelectionPayload = {
+  slug?: string;
   columnKeys?: string[];
   detailColumnKeys?: string[];
 } | null | undefined;
@@ -41,6 +43,7 @@ function toggleKey(
 }
 
 export function useReportColumnSelection(payload: ColumnSelectionPayload) {
+  const slug = payload?.slug ?? '';
   const orderedKeys = useMemo(
     () => [...(payload?.columnKeys ?? []), ...(payload?.detailColumnKeys ?? [])],
     [payload?.columnKeys, payload?.detailColumnKeys],
@@ -48,15 +51,25 @@ export function useReportColumnSelection(payload: ColumnSelectionPayload) {
 
   const keysSignature = orderedKeys.join('\0');
 
-  const [selection, setSelection] = useState<Record<string, boolean>>(() =>
-    defaultColumnSelection(orderedKeys),
+  const [selection, setSelectionState] = useState<Record<string, boolean>>(() =>
+    loadColumnSelection(slug, orderedKeys),
   );
 
   useEffect(() => {
-    setSelection(defaultColumnSelection(orderedKeys));
+    setSelectionState(loadColumnSelection(slug, orderedKeys));
     // keysSignature tracks orderedKeys content across reference changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when key set changes
-  }, [keysSignature]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when slug/key set changes
+  }, [slug, keysSignature]);
+
+  const setSelection = useCallback(
+    (next: Record<string, boolean>) => {
+      setSelectionState(next);
+      if (slug && orderedKeys.length > 0) {
+        saveColumnSelection(slug, next);
+      }
+    },
+    [slug, orderedKeys.length],
+  );
 
   return {
     selection,
