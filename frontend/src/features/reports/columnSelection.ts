@@ -76,3 +76,46 @@ export function flattenSupplyExport(
 export function canExport(selection: Record<string, boolean>): boolean {
   return Object.values(selection).some(Boolean);
 }
+
+type StockExportPayload = {
+  slug: string;
+  columnKeys?: string[];
+  tableHeaders: string[];
+  tableRows: (string | number)[][];
+  detailColumnKeys?: string[];
+  detailHeaders?: string[];
+  rowDetails?: ({ headers: string[]; rows: (string | number)[][] } | null)[];
+};
+
+/**
+ * Export table for stock reports: flatten supplies-stock; filter inventory-overview.
+ * When columnKeys is absent, returns the full summary table unchanged.
+ */
+export function buildStockExportTable(
+  data: StockExportPayload,
+  selection: Record<string, boolean>,
+): { headers: string[]; rows: (string | number)[][] } {
+  const columnKeys = data.columnKeys;
+  if (!columnKeys?.length) {
+    return { headers: data.tableHeaders, rows: data.tableRows };
+  }
+
+  if (data.slug === 'supplies-stock') {
+    return flattenSupplyExport(
+      columnKeys,
+      data.tableHeaders,
+      data.tableRows,
+      data.detailColumnKeys ?? [],
+      data.detailHeaders ?? [],
+      data.rowDetails ?? data.tableRows.map(() => null),
+      selection,
+    );
+  }
+
+  return filterTableByKeys(
+    data.tableHeaders,
+    columnKeys,
+    data.tableRows,
+    selection,
+  );
+}

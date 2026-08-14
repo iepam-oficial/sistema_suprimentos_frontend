@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   Box,
   Divider,
@@ -13,7 +14,9 @@ import {
   Tag,
   TagLabel,
 } from '@chakra-ui/react';
+import { isStockReportSlug } from '@/features/reports/api/reportApi';
 import { prepareChartDataForDisplay, resolveChartType } from '@/features/reports/chartConfig';
+import { buildStockExportTable } from '@/features/reports/columnSelection';
 import {
   ExecutiveSummaryPayload,
   FilterOptions,
@@ -26,6 +29,7 @@ import { ReportChart } from './ReportChart';
 import { ReportChartCard } from './ReportChartCard';
 import { ReportDetailTable } from './ReportDetailTable';
 import { ReportExportActions } from './ReportExportActions';
+import { useReportColumnSelection } from './ReportColumnPicker';
 
 function isExecutiveSummary(
   data: ReportPayload | ExecutiveSummaryPayload
@@ -51,6 +55,36 @@ export function ReportViewer({
 }: ReportViewerProps) {
   const { colorMode } = useColorMode();
   const dividerClr = colorMode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
+
+  const stockColumnPayload =
+    data &&
+    !isExecutiveSummary(data) &&
+    isStockReportSlug(data.slug as ReportSlug) &&
+    data.columnKeys &&
+    data.columnKeys.length > 0
+      ? {
+          columnKeys: data.columnKeys,
+          detailColumnKeys: data.detailColumnKeys,
+        }
+      : null;
+
+  const {
+    selection: columnSelection,
+    canExport: columnCanExport,
+  } = useReportColumnSelection(stockColumnPayload);
+
+  const exportTable = useMemo(() => {
+    if (!data || isExecutiveSummary(data)) {
+      return { headers: [] as string[], rows: [] as (string | number)[][] };
+    }
+    if (stockColumnPayload) {
+      return buildStockExportTable(data, columnSelection);
+    }
+    return {
+      headers: data.tableHeaders,
+      rows: data.tableRows,
+    };
+  }, [data, stockColumnPayload, columnSelection]);
 
   if (loading) {
     return <Text color="gray.500">Carregando relatório...</Text>;
@@ -113,9 +147,10 @@ export function ReportViewer({
           </Box>
           <ReportExportActions
             title={data.title}
-            tableHeaders={data.tableHeaders}
-            tableRows={data.tableRows}
+            tableHeaders={exportTable.headers}
+            tableRows={exportTable.rows}
             fileBaseName={data.slug}
+            disabled={Boolean(stockColumnPayload) && !columnCanExport}
           />
         </Flex>
       ) : (

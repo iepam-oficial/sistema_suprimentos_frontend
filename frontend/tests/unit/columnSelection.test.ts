@@ -1,4 +1,5 @@
 import {
+  buildStockExportTable,
   canExport,
   defaultColumnSelection,
   filterTableByKeys,
@@ -117,5 +118,51 @@ describe('canExport', () => {
 
   it('returns true when at least one column is selected', () => {
     expect(canExport({ a: false, b: true })).toBe(true);
+  });
+});
+
+describe('buildStockExportTable', () => {
+  it('flattens supplies-stock with selection', () => {
+    const result = buildStockExportTable(
+      {
+        slug: 'supplies-stock',
+        columnKeys: ['name'],
+        tableHeaders: ['Nome'],
+        tableRows: [['Item']],
+        detailColumnKeys: ['batch'],
+        detailHeaders: ['Lote'],
+        rowDetails: [{ headers: ['Lote'], rows: [['L1']] }],
+      },
+      { name: true, batch: true },
+    );
+    expect(result).toEqual({
+      headers: ['Nome', 'Lote'],
+      rows: [['Item', 'L1']],
+    });
+  });
+
+  it('filters inventory-overview summary columns', () => {
+    const result = buildStockExportTable(
+      {
+        slug: 'inventory-overview',
+        columnKeys: ['a', 'b'],
+        tableHeaders: ['A', 'B'],
+        tableRows: [[1, 2]],
+      },
+      { a: false, b: true },
+    );
+    expect(result).toEqual({ headers: ['B'], rows: [[2]] });
+  });
+
+  it('returns full table when columnKeys are absent', () => {
+    const result = buildStockExportTable(
+      {
+        slug: 'consumption-by-sector',
+        tableHeaders: ['X'],
+        tableRows: [['y']],
+      },
+      {},
+    );
+    expect(result).toEqual({ headers: ['X'], rows: [['y']] });
   });
 });

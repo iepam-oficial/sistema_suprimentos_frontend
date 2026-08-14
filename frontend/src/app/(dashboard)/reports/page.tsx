@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
@@ -30,8 +30,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   fetchReport,
   fetchReportFilters,
+  isStockReportSlug,
   RateLimitError,
 } from '@/features/reports/api/reportApi';
+import { buildStockExportTable } from '@/features/reports/columnSelection';
 import { REPORT_CATALOG } from '@/features/reports/catalog';
 import {
   ExecutiveSummaryPayload,
@@ -40,6 +42,10 @@ import {
   ReportSlug,
 } from '@/features/reports/types';
 import { MobileReports } from './components/MobileReports';
+import {
+  ReportColumnPicker,
+  useReportColumnSelection,
+} from './components/ReportColumnPicker';
 import {
   buildReportsQuery,
   EMPTY_FILTERS,
@@ -216,6 +222,38 @@ function ReportsPageContent() {
     (isSimpleReport(reportData) ? reportData.title : 'Relatórios');
   const showToolbarExport = isSimpleReport(reportData) && !loading;
 
+  const stockColumnPayload =
+    isSimpleReport(reportData) &&
+    isStockReportSlug(reportData.slug) &&
+    reportData.columnKeys &&
+    reportData.columnKeys.length > 0
+      ? {
+          columnKeys: reportData.columnKeys,
+          detailColumnKeys: reportData.detailColumnKeys,
+        }
+      : null;
+
+  const {
+    selection: columnSelection,
+    setSelection: setColumnSelection,
+    canExport: columnCanExport,
+  } = useReportColumnSelection(stockColumnPayload);
+
+  const showColumnPicker = Boolean(stockColumnPayload) && !loading;
+
+  const exportTable = useMemo(() => {
+    if (!isSimpleReport(reportData)) {
+      return { headers: [] as string[], rows: [] as (string | number)[][] };
+    }
+    if (stockColumnPayload) {
+      return buildStockExportTable(reportData, columnSelection);
+    }
+    return {
+      headers: reportData.tableHeaders,
+      rows: reportData.tableRows,
+    };
+  }, [reportData, stockColumnPayload, columnSelection]);
+
   if (isMobile) {
     return (
       <MobileReports
@@ -306,16 +344,28 @@ function ReportsPageContent() {
             {activeTitle}
           </Text>
 
-          {showToolbarExport && (
+          {showColumnPicker && isSimpleReport(reportData) && (
+            <ReportColumnPicker
+              summaryKeys={reportData.columnKeys!}
+              summaryHeaders={reportData.tableHeaders}
+              detailKeys={reportData.detailColumnKeys}
+              detailHeaders={reportData.detailHeaders}
+              selection={columnSelection}
+              onChange={setColumnSelection}
+            />
+          )}
+
+          {showToolbarExport && isSimpleReport(reportData) ? (
             <Box data-testid="reports-export" flexShrink={0}>
               <ReportExportActions
                 title={reportData.title}
-                tableHeaders={reportData.tableHeaders}
-                tableRows={reportData.tableRows}
+                tableHeaders={exportTable.headers}
+                tableRows={exportTable.rows}
                 fileBaseName={reportData.slug}
+                disabled={showColumnPicker && !columnCanExport}
               />
             </Box>
-          )}
+          ) : null}
         </HStack>
 
         {/* Scrollable content */}
