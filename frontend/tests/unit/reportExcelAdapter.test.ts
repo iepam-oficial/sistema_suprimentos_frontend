@@ -175,6 +175,93 @@ describe('toExcelSheetsFromExecutive', () => {
 
     expect(sheets.some((s) => s.name.startsWith('Consumo'))).toBe(false)
   })
+
+  it('append sheets de detalhe por sections e Detalhes quando há rowDetails', () => {
+    const sheets = toExcelSheetsFromExecutive({
+      ...executiveBase,
+      sections: [
+        {
+          id: 'operations',
+          label: 'Operações',
+          tableHeaders: ['OS', 'Status'],
+          tableRows: [
+            ['OS-1', 'OPEN'],
+            ['OS-2', 'DONE'],
+          ],
+          detailHeaders: ['Item'],
+          detailColumnKeys: ['item'],
+          rowDetails: [
+            { headers: ['Item'], rows: [['Notebook']] },
+            null,
+          ],
+        },
+        {
+          id: 'consumption',
+          label: 'Consumo',
+          tableHeaders: ['Produto', 'Qtd'],
+          tableRows: [['Parafuso', 3]],
+        },
+        {
+          id: 'alerts',
+          label: 'Alertas',
+          tableHeaders: ['Nível', 'Msg'],
+          tableRows: [['Alto', 'Estoque baixo']],
+          rowDetails: [
+            { headers: ['Local'], rows: [['Norte']] },
+          ],
+        },
+      ],
+    })
+
+    expect(sheets.map((s) => s.name)).toEqual([
+      'KPIs',
+      'OS por mês',
+      'Inventário tipo',
+      'Alertas',
+      'Operações detalhe',
+      'Detalhes',
+      'Consumo detalhe',
+      'Alertas detalhe',
+      'Detalhes (2)',
+    ])
+
+    expect(sheets.find((s) => s.name === 'Operações detalhe')).toMatchObject({
+      head: ['OS', 'Status'],
+      body: [
+        ['OS-1', 'OPEN'],
+        ['OS-2', 'DONE'],
+      ],
+    })
+
+    expect(sheets.find((s) => s.name === 'Detalhes')).toMatchObject({
+      head: ['OS', 'Status', 'Item'],
+      body: [
+        ['OS-1', 'OPEN', 'Notebook'],
+        ['OS-2', 'DONE', ''],
+      ],
+    })
+
+    expect(sheets.find((s) => s.name === 'Consumo detalhe')).toMatchObject({
+      head: ['Produto', 'Qtd'],
+      body: [['Parafuso', 3]],
+    })
+
+    expect(sheets.find((s) => s.name === 'Alertas detalhe')).toMatchObject({
+      head: ['Nível', 'Msg'],
+      body: [['Alto', 'Estoque baixo']],
+    })
+  })
+
+  it('não adiciona sheets de detalhe quando sections é omitido', () => {
+    const sheets = toExcelSheetsFromExecutive(executiveBase)
+
+    expect(sheets.map((s) => s.name)).toEqual([
+      'KPIs',
+      'OS por mês',
+      'Inventário tipo',
+      'Alertas',
+    ])
+  })
 })
 
 const tabbedPayload: ReportPayload = {

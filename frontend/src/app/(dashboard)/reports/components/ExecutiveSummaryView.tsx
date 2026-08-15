@@ -46,6 +46,19 @@ function getInitialTabIndex(): number {
   return TAB_OPERACOES;
 }
 
+const EXEC_SECTION_BY_TAB = {
+  operations: 'operations',
+  consumption: 'consumption',
+  alerts: 'alerts',
+} as const;
+
+function findExecutiveSection(
+  sections: ExecutiveSummaryPayload['sections'],
+  id: (typeof EXEC_SECTION_BY_TAB)[keyof typeof EXEC_SECTION_BY_TAB],
+) {
+  return sections?.find((section) => section.id === id);
+}
+
 export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
   const [tabIndex, setTabIndex] = useState(getInitialTabIndex);
   const summaryWithConsumption = data as ExecutiveSummaryWithConsumption;
@@ -74,6 +87,10 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
   );
   const hasConsumptionData =
     consumptionByPolo.length > 0 || consumptionByCategory.length > 0;
+
+  const operationsSection = findExecutiveSection(data.sections, EXEC_SECTION_BY_TAB.operations);
+  const consumptionSection = findExecutiveSection(data.sections, EXEC_SECTION_BY_TAB.consumption);
+  const alertsSection = findExecutiveSection(data.sections, EXEC_SECTION_BY_TAB.alerts);
 
   const combinedHeaders = ['Indicador', 'Valor'];
   const combinedRows = [
@@ -159,11 +176,19 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
                 </ReportChartCard>
               </SimpleGrid>
 
-              <ReportDetailTable
-                headers={combinedHeaders}
-                rows={combinedRows}
-                defaultOpen={false}
-              />
+              {operationsSection ? (
+                <ReportDetailTable
+                  headers={operationsSection.tableHeaders}
+                  rows={operationsSection.tableRows}
+                  rowDetails={operationsSection.rowDetails}
+                />
+              ) : (
+                <ReportDetailTable
+                  headers={combinedHeaders}
+                  rows={combinedRows}
+                  defaultOpen={false}
+                />
+              )}
             </VStack>
           </TabPanel>
 
@@ -208,21 +233,39 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
                   Nenhum dado de consumo encontrado para os filtros selecionados.
                 </Text>
               )}
+
+              {consumptionSection ? (
+                <ReportDetailTable
+                  headers={consumptionSection.tableHeaders}
+                  rows={consumptionSection.tableRows}
+                  rowDetails={consumptionSection.rowDetails}
+                />
+              ) : null}
             </VStack>
           </TabPanel>
 
           <TabPanel px={0} pt={4}>
-            <ReportChartCard
-              title="Alertas por nível"
-              subtitle="Distribuição por gravidade"
-            >
-              <ReportChart
-                data={alertData}
-                type={getExecutiveChartType('alerts', alertData.length)}
-                colorByLabel
-                emptyMessage="Nenhum alerta"
-              />
-            </ReportChartCard>
+            <VStack align="stretch" spacing={6}>
+              <ReportChartCard
+                title="Alertas por nível"
+                subtitle="Distribuição por gravidade"
+              >
+                <ReportChart
+                  data={alertData}
+                  type={getExecutiveChartType('alerts', alertData.length)}
+                  colorByLabel
+                  emptyMessage="Nenhum alerta"
+                />
+              </ReportChartCard>
+
+              {alertsSection ? (
+                <ReportDetailTable
+                  headers={alertsSection.tableHeaders}
+                  rows={alertsSection.tableRows}
+                  rowDetails={alertsSection.rowDetails}
+                />
+              ) : null}
+            </VStack>
           </TabPanel>
         </TabPanels>
       </Tabs>

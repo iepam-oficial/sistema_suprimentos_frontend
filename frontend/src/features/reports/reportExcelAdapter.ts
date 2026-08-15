@@ -10,7 +10,17 @@ import {
   getReportTabs,
   getSummaryTable,
 } from '@/features/reports/reportTabs'
-import type { ExecutiveSummaryPayload, ReportPayload } from '@/features/reports/types'
+import type {
+  ExecutiveDetailSection,
+  ExecutiveSummaryPayload,
+  ReportPayload,
+} from '@/features/reports/types'
+
+const EXECUTIVE_SECTION_SHEET_NAMES: Record<string, string> = {
+  operations: 'Operações detalhe',
+  consumption: 'Consumo detalhe',
+  alerts: 'Alertas detalhe',
+}
 
 type ConsumptionItem = {
   label: string
@@ -188,28 +198,54 @@ export function toExcelSheetsFromTabbedReport(
   return sheets
 }
 
+function buildExecutiveSectionDetailsTable(
+  section: ExecutiveDetailSection,
+): { headers: string[]; rows: (string | number)[][] } | null {
+  if (!section.rowDetails) {
+    return null
+  }
+
+  return buildDetailsTable({
+    slug: 'executive-summary',
+    title: section.label,
+    description: '',
+    kpis: [],
+    chartData: [],
+    chartType: 'bar',
+    tableHeaders: section.tableHeaders,
+    tableRows: section.tableRows,
+    columnKeys: section.columnKeys,
+    rowDetails: section.rowDetails,
+    detailHeaders: section.detailHeaders,
+    detailColumnKeys: section.detailColumnKeys,
+  })
+}
+
 export function toExcelSheetsFromExecutive(data: ExecutiveExcelInput): ExcelSheetInput[] {
+  const usedNames = new Set<string>()
+  const name = (raw: string) => sanitizeSheetName(raw, usedNames)
+
   const sheets: ExcelSheetInput[] = [
     {
-      name: 'KPIs',
+      name: name('KPIs'),
       title: data.title,
       head: ['Indicador', 'Valor'],
       body: data.kpis.map((kpi) => [kpi.label, kpi.value]),
     },
     {
-      name: 'OS por mês',
+      name: name('OS por mês'),
       title: data.title,
       head: ['Mês', 'Quantidade'],
       body: data.serviceOrdersByMonth.map((row) => [row.month, row.count]),
     },
     {
-      name: 'Inventário tipo',
+      name: name('Inventário tipo'),
       title: data.title,
       head: ['Tipo', 'Quantidade'],
       body: data.inventoryByType.map((row) => [row.type, row.count]),
     },
     {
-      name: 'Alertas',
+      name: name('Alertas'),
       title: data.title,
       head: ['Nível', 'Quantidade'],
       body: data.alertsByLevel.map((row) => [row.level, row.count]),
@@ -219,7 +255,7 @@ export function toExcelSheetsFromExecutive(data: ExecutiveExcelInput): ExcelShee
   const consumptionByPolo = data.consumptionByPolo ?? []
   if (consumptionByPolo.length > 0) {
     sheets.push({
-      name: 'Consumo polo',
+      name: name('Consumo polo'),
       title: data.title,
       head: ['Polo', 'Quantidade'],
       body: consumptionByPolo.map((item) => [item.label, consumptionValue(item)]),
@@ -229,11 +265,32 @@ export function toExcelSheetsFromExecutive(data: ExecutiveExcelInput): ExcelShee
   const consumptionByCategory = data.consumptionByCategory ?? []
   if (consumptionByCategory.length > 0) {
     sheets.push({
-      name: 'Consumo categoria',
+      name: name('Consumo categoria'),
       title: data.title,
       head: ['Categoria', 'Quantidade'],
       body: consumptionByCategory.map((item) => [item.label, consumptionValue(item)]),
     })
+  }
+
+  for (const section of data.sections ?? []) {
+    const detailSheetName =
+      EXECUTIVE_SECTION_SHEET_NAMES[section.id] ?? `${section.label} detalhe`
+    sheets.push({
+      name: name(detailSheetName),
+      title: data.title,
+      head: section.tableHeaders,
+      body: section.tableRows,
+    })
+
+    const details = buildExecutiveSectionDetailsTable(section)
+    if (details) {
+      sheets.push({
+        name: name('Detalhes'),
+        title: data.title,
+        head: details.headers,
+        body: details.rows,
+      })
+    }
   }
 
   return sheets
