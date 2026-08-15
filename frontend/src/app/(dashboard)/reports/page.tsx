@@ -35,6 +35,9 @@ import {
 } from '@/features/reports/api/reportApi';
 import { buildStockExportTable } from '@/features/reports/columnSelection';
 import { REPORT_CATALOG } from '@/features/reports/catalog';
+import { reportExportFileName } from '@/features/reports/reportExportFileName';
+import { toExcelSheetsFromReportPayload } from '@/features/reports/reportExcelAdapter';
+import { buildPdfExportTable } from '@/features/reports/reportPdfColumns';
 import {
   ExecutiveSummaryPayload,
   FilterOptions,
@@ -242,7 +245,7 @@ function ReportsPageContent() {
 
   const showColumnPicker = Boolean(stockColumnPayload) && !loading;
 
-  const exportTable = useMemo(() => {
+  const excelTable = useMemo(() => {
     if (!isSimpleReport(reportData)) {
       return { headers: [] as string[], rows: [] as (string | number)[][] };
     }
@@ -254,6 +257,18 @@ function ReportsPageContent() {
       rows: reportData.tableRows,
     };
   }, [reportData, stockColumnPayload, columnSelection]);
+
+  const excelSheets = useMemo(() => {
+    if (!isSimpleReport(reportData)) return [];
+    return toExcelSheetsFromReportPayload(reportData, excelTable);
+  }, [reportData, excelTable]);
+
+  const pdfTable = useMemo(() => {
+    if (!isSimpleReport(reportData)) {
+      return { headers: [] as string[], rows: [] as (string | number)[][] };
+    }
+    return buildPdfExportTable(reportData);
+  }, [reportData]);
 
   if (isMobile) {
     return (
@@ -359,10 +374,12 @@ function ReportsPageContent() {
           {showToolbarExport && isSimpleReport(reportData) ? (
             <Box data-testid="reports-export" flexShrink={0}>
               <ReportExportActions
-                title={reportData.title}
-                tableHeaders={exportTable.headers}
-                tableRows={exportTable.rows}
-                fileBaseName={reportData.slug}
+                excelFileName={reportExportFileName(reportData.slug, 'xlsx')}
+                sheets={excelSheets}
+                pdfTitle={reportData.title}
+                pdfHeaders={pdfTable.headers}
+                pdfRows={pdfTable.rows}
+                pdfFileName={reportExportFileName(reportData.slug, 'pdf')}
                 disabled={showColumnPicker && !columnCanExport}
               />
             </Box>

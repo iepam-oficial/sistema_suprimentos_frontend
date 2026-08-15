@@ -17,6 +17,9 @@ import {
 import { isStockReportSlug } from '@/features/reports/api/reportApi';
 import { prepareChartDataForDisplay, resolveChartType } from '@/features/reports/chartConfig';
 import { buildStockExportTable } from '@/features/reports/columnSelection';
+import { reportExportFileName } from '@/features/reports/reportExportFileName';
+import { toExcelSheetsFromReportPayload } from '@/features/reports/reportExcelAdapter';
+import { buildPdfExportTable } from '@/features/reports/reportPdfColumns';
 import {
   ExecutiveSummaryPayload,
   FilterOptions,
@@ -74,7 +77,7 @@ export function ReportViewer({
     canExport: columnCanExport,
   } = useReportColumnSelection(stockColumnPayload);
 
-  const exportTable = useMemo(() => {
+  const excelTable = useMemo(() => {
     if (!data || isExecutiveSummary(data)) {
       return { headers: [] as string[], rows: [] as (string | number)[][] };
     }
@@ -86,6 +89,18 @@ export function ReportViewer({
       rows: data.tableRows,
     };
   }, [data, stockColumnPayload, columnSelection]);
+
+  const excelSheets = useMemo(() => {
+    if (!data || isExecutiveSummary(data)) return [];
+    return toExcelSheetsFromReportPayload(data, excelTable);
+  }, [data, excelTable]);
+
+  const pdfTable = useMemo(() => {
+    if (!data || isExecutiveSummary(data)) {
+      return { headers: [] as string[], rows: [] as (string | number)[][] };
+    }
+    return buildPdfExportTable(data);
+  }, [data]);
 
   if (loading) {
     return <Text color="gray.500">Carregando relatório...</Text>;
@@ -147,10 +162,12 @@ export function ReportViewer({
             )}
           </Box>
           <ReportExportActions
-            title={data.title}
-            tableHeaders={exportTable.headers}
-            tableRows={exportTable.rows}
-            fileBaseName={data.slug}
+            excelFileName={reportExportFileName(data.slug, 'xlsx')}
+            sheets={excelSheets}
+            pdfTitle={data.title}
+            pdfHeaders={pdfTable.headers}
+            pdfRows={pdfTable.rows}
+            pdfFileName={reportExportFileName(data.slug, 'pdf')}
             disabled={Boolean(stockColumnPayload) && !columnCanExport}
           />
         </Flex>
