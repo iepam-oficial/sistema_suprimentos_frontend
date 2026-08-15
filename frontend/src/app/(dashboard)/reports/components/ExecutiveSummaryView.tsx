@@ -14,6 +14,8 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { getExecutiveChartType } from '@/features/reports/chartConfig';
+import { toExcelSheetsFromExecutive } from '@/features/reports/reportExcelAdapter';
+import { reportExportFileName } from '@/features/reports/reportExportFileName';
 import { ExecutiveSummaryPayload } from '@/features/reports/types';
 import { ReportChart } from './ReportChart';
 import { ReportChartCard } from './ReportChartCard';
@@ -85,6 +87,7 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
       String(item.count),
     ]),
   ];
+  const sheets = toExcelSheetsFromExecutive(data);
 
   return (
     <VStack align="stretch" spacing={6} data-testid="reports-content">
@@ -97,10 +100,12 @@ export function ExecutiveSummaryView({ data }: ExecutiveSummaryViewProps) {
 
       <Box data-testid="reports-export">
         <ReportExportActions
-          title={data.title}
-          tableHeaders={combinedHeaders}
-          tableRows={combinedRows}
-          fileBaseName="resumo-executivo"
+          excelFileName={reportExportFileName('executive-summary', 'xlsx')}
+          sheets={sheets}
+          pdfTitle={data.title}
+          pdfHeaders={combinedHeaders}
+          pdfRows={combinedRows}
+          pdfFileName={reportExportFileName('executive-summary', 'pdf')}
         />
       </Box>
 
