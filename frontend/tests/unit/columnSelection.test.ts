@@ -98,6 +98,82 @@ describe('column selection persistence', () => {
       b: true,
     });
   });
+
+  /**
+   * Detail-enriched reports reuse the same `reports:columns:${slug}` helpers
+   * as stock (via useReportColumnSelection → load/saveColumnSelection).
+   */
+  describe('detail-enriched slugs', () => {
+    const supplyRequestsKeys = [
+      'protocol',
+      'status',
+      'requester',
+      'item_name',
+      'qty',
+    ];
+    const consumptionKeys = ['sector', 'item', 'qty'];
+
+    it('builds storage key for detail-enriched slugs', () => {
+      expect(columnSelectionStorageKey('supply-requests')).toBe(
+        'reports:columns:supply-requests',
+      );
+      expect(columnSelectionStorageKey('consumption-by-sector')).toBe(
+        'reports:columns:consumption-by-sector',
+      );
+    });
+
+    it('persists and restores selection including detail column keys', () => {
+      const selection = {
+        protocol: true,
+        status: false,
+        requester: true,
+        item_name: false,
+        qty: true,
+      };
+      const storage = createMemoryStorage();
+      saveColumnSelection('supply-requests', selection, storage);
+      expect(storage._store['reports:columns:supply-requests']).toBe(
+        JSON.stringify(selection),
+      );
+      expect(
+        loadColumnSelection('supply-requests', supplyRequestsKeys, storage),
+      ).toEqual(selection);
+    });
+
+    it('defaults all true when no preference for a detail-enriched slug', () => {
+      const storage = createMemoryStorage();
+      expect(
+        loadColumnSelection('purchases-by-batch', ['batch', 'supplier'], storage),
+      ).toEqual({ batch: true, supplier: true });
+    });
+
+    it('restores prior selection after switching away and back', () => {
+      const storage = createMemoryStorage();
+      const requestsSelection = {
+        protocol: false,
+        status: true,
+        requester: true,
+        item_name: true,
+        qty: false,
+      };
+      const consumptionSelection = {
+        sector: true,
+        item: false,
+        qty: true,
+      };
+
+      saveColumnSelection('supply-requests', requestsSelection, storage);
+      saveColumnSelection('consumption-by-sector', consumptionSelection, storage);
+
+      // Simulate viewing another slug, then returning
+      expect(
+        loadColumnSelection('consumption-by-sector', consumptionKeys, storage),
+      ).toEqual(consumptionSelection);
+      expect(
+        loadColumnSelection('supply-requests', supplyRequestsKeys, storage),
+      ).toEqual(requestsSelection);
+    });
+  });
 });
 
 describe('selectedKeys', () => {

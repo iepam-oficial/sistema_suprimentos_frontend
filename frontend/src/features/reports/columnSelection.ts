@@ -2,6 +2,7 @@ export function defaultColumnSelection(keys: string[]): Record<string, boolean> 
   return Object.fromEntries(keys.map((key) => [key, true]));
 }
 
+/** localStorage key for any report slug (stock or detail-enriched). */
 export function columnSelectionStorageKey(slug: string): string {
   return `reports:columns:${slug}`;
 }
