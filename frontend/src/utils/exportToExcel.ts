@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx'
+
 export interface ExcelKpi {
   label: string
   value: string | number
@@ -75,7 +77,6 @@ export async function exportToExcel(options: ExportToExcelOptions): Promise<void
     throw new Error('exportToExcel requires at least one sheet')
   }
 
-  const XLSX = await import('xlsx')
   const workbook = XLSX.utils.book_new()
   const usedNames = new Set<string>()
 
