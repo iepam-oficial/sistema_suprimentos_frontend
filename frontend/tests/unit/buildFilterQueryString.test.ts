@@ -32,8 +32,14 @@ describe('buildFilterQueryString', () => {
 
   it('envia timeRange (default 30) para outros slugs', () => {
     expect(buildFilterQueryString({}, 'executive-summary')).toBe('?timeRange=30')
-    expect(buildFilterQueryString({ timeRange: '90' }, 'alerts-by-level')).toBe(
+    expect(buildFilterQueryString({ timeRange: '90' }, 'supply-requests')).toBe(
       '?timeRange=90'
+    )
+  })
+
+  it('omite timeRange em alerts-by-level', () => {
+    expect(buildFilterQueryString({ timeRange: '90' }, 'alerts-by-level')).toBe(
+      ''
     )
   })
 

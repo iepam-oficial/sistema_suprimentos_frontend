@@ -26,11 +26,13 @@ import {
 import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
 import { useFiscalNcmSearch } from '@/features/financeiro/hooks/useFiscalNcmSearch';
 import type { FiscalNcmDTO } from '@ti-assistant/contracts';
+import { buildFilterQueryString } from '@/features/reports/api/reportApi';
 import {
-  buildFilterQueryString,
-  isStockReportSlug,
-  type ReportFiltersQuery,
-} from '@/features/reports/api/reportApi';
+  EMPTY_FILTERS,
+  getFilterFieldVisibility,
+  toReportFiltersQuery,
+  type ReportFiltersState,
+} from '@/features/reports/reportFilterVisibility';
 import { FilterOptions, ReportSlug } from '@/features/reports/types';
 import {
   fetchCategories,
@@ -39,16 +41,13 @@ import {
   type SubcategoryDTO,
 } from '@/features/reference-data';
 
-export interface ReportFiltersState {
-  timeRange: string;
-  locationId: string;
-  sectorId: string;
-  supplierId: string;
-  categoryId: string;
-  subcategoryId: string;
-  ncmIds: string[];
-  cestCodes: string[];
-}
+export {
+  EMPTY_FILTERS,
+  getFilterFieldVisibility,
+  toReportFiltersQuery,
+  type FilterFieldVisibility,
+  type ReportFiltersState,
+} from '@/features/reports/reportFilterVisibility';
 
 const TIME_LABELS: Record<string, string> = {
   '7': '7 dias',
@@ -58,74 +57,12 @@ const TIME_LABELS: Record<string, string> = {
   '0': 'Todo período',
 };
 
-export const EMPTY_FILTERS: ReportFiltersState = {
-  timeRange: '30',
-  locationId: '',
-  sectorId: '',
-  supplierId: '',
-  categoryId: '',
-  subcategoryId: '',
-  ncmIds: [],
-  cestCodes: [],
-};
-
 export function parseCsvParam(raw: string | null): string[] {
   if (!raw) return [];
   return raw
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-}
-
-export interface FilterFieldVisibility {
-  period: boolean;
-  location: boolean;
-  sector: boolean;
-  supplier: boolean;
-  category: boolean;
-  subcategory: boolean;
-  ncm: boolean;
-  cest: boolean;
-}
-
-export function getFilterFieldVisibility(slug: ReportSlug): FilterFieldVisibility {
-  const stock = isStockReportSlug(slug);
-  const suppliesStock = slug === 'supplies-stock';
-  return {
-    period: !stock,
-    location: !suppliesStock,
-    sector: !suppliesStock,
-    supplier: true,
-    category: stock,
-    subcategory: stock,
-    ncm: stock,
-    cest: stock,
-  };
-}
-
-export function toReportFiltersQuery(
-  slug: ReportSlug,
-  filters: ReportFiltersState
-): ReportFiltersQuery {
-  const q: ReportFiltersQuery = {};
-  const stock = isStockReportSlug(slug);
-
-  if (!stock) {
-    q.timeRange = filters.timeRange;
-  }
-  if (slug !== 'supplies-stock') {
-    if (filters.locationId) q.locationId = filters.locationId;
-    if (filters.sectorId) q.sectorId = filters.sectorId;
-  }
-  if (filters.supplierId) q.supplierId = filters.supplierId;
-
-  if (stock) {
-    if (filters.categoryId) q.categoryId = filters.categoryId;
-    if (filters.subcategoryId) q.subcategoryId = filters.subcategoryId;
-    if (filters.ncmIds.length) q.ncmIds = filters.ncmIds;
-    if (filters.cestCodes.length) q.cestCodes = filters.cestCodes;
-  }
-  return q;
 }
 
 interface ReportFiltersProps {
@@ -165,7 +102,7 @@ export function getActiveFilterChips(
     const sec = filterOptions?.sectors.find((s) => s.id === filters.sectorId);
     chips.push({ key: 'sectorId', label: sec?.name ?? 'Setor' });
   }
-  if (filters.supplierId) {
+  if (filters.supplierId && (!visibility || visibility.supplier)) {
     const sup = filterOptions?.suppliers.find((s) => s.id === filters.supplierId);
     chips.push({ key: 'supplierId', label: sup?.name ?? 'Fornecedor' });
   }
@@ -203,8 +140,9 @@ export function hasNonDefaultFilters(
   filters: ReportFiltersState,
   slug?: ReportSlug
 ): boolean {
-  const stock = slug ? isStockReportSlug(slug) : false;
-  const periodNonDefault = !stock && filters.timeRange !== '30';
+  const visibility = slug ? getFilterFieldVisibility(slug) : null;
+  const periodNonDefault =
+    (!visibility || visibility.period) && filters.timeRange !== '30';
   return (
     periodNonDefault ||
     !!filters.locationId ||

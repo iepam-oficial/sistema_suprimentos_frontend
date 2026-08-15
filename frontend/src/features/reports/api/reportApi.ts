@@ -28,8 +28,28 @@ const STOCK_REPORT_SLUGS: ReadonlySet<ReportSlug> = new Set([
   'inventory-overview',
 ]);
 
+const DETAIL_ENRICHED_SLUGS: ReadonlySet<ReportSlug> = new Set([
+  'supply-requests',
+  'consumption-by-sector',
+  'purchases-by-batch',
+  'service-orders',
+  'alerts-by-level',
+  'executive-summary',
+]);
+
 export function isStockReportSlug(slug: ReportSlug): boolean {
   return STOCK_REPORT_SLUGS.has(slug);
+}
+
+export function isDetailEnrichedSlug(slug: ReportSlug): boolean {
+  return DETAIL_ENRICHED_SLUGS.has(slug);
+}
+
+function shouldSendTimeRange(slug?: ReportSlug): boolean {
+  if (!slug) return true;
+  if (isStockReportSlug(slug)) return false;
+  if (slug === 'alerts-by-level') return false;
+  return true;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -53,7 +73,7 @@ export function buildFilterQueryString(
 ): string {
   const params = new URLSearchParams();
 
-  if (!slug || !isStockReportSlug(slug)) {
+  if (shouldSendTimeRange(slug)) {
     params.set('timeRange', filters.timeRange ?? '30');
   }
 
