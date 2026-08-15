@@ -18,7 +18,10 @@ import { isStockReportSlug } from '@/features/reports/api/reportApi';
 import { prepareChartDataForDisplay, resolveChartType } from '@/features/reports/chartConfig';
 import { buildStockExportTable } from '@/features/reports/columnSelection';
 import { reportExportFileName } from '@/features/reports/reportExportFileName';
-import { toExcelSheetsFromReportPayload } from '@/features/reports/reportExcelAdapter';
+import {
+  toExcelSheetsFromReportPayload,
+  toExcelSheetsFromTabbedReport,
+} from '@/features/reports/reportExcelAdapter';
 import { buildPdfExportTable } from '@/features/reports/reportPdfColumns';
 import {
   ExecutiveSummaryPayload,
@@ -93,8 +96,13 @@ export function ReportViewer({
 
   const excelSheets = useMemo(() => {
     if (!data || isExecutiveSummary(data)) return [];
+    if (data.tabDimensionKey || data.summaryHeaders) {
+      return toExcelSheetsFromTabbedReport(data, excelTable, {
+        columnSelection: stockColumnPayload ? columnSelection : undefined,
+      });
+    }
     return toExcelSheetsFromReportPayload(data, excelTable);
-  }, [data, excelTable]);
+  }, [data, excelTable, stockColumnPayload, columnSelection]);
 
   const pdfTable = useMemo(() => {
     if (!data || isExecutiveSummary(data)) {

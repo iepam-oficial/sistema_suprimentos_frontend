@@ -36,7 +36,10 @@ import {
 import { buildStockExportTable } from '@/features/reports/columnSelection';
 import { REPORT_CATALOG } from '@/features/reports/catalog';
 import { reportExportFileName } from '@/features/reports/reportExportFileName';
-import { toExcelSheetsFromReportPayload } from '@/features/reports/reportExcelAdapter';
+import {
+  toExcelSheetsFromReportPayload,
+  toExcelSheetsFromTabbedReport,
+} from '@/features/reports/reportExcelAdapter';
 import { buildPdfExportTable } from '@/features/reports/reportPdfColumns';
 import {
   ExecutiveSummaryPayload,
@@ -260,8 +263,13 @@ function ReportsPageContent() {
 
   const excelSheets = useMemo(() => {
     if (!isSimpleReport(reportData)) return [];
+    if (reportData.tabDimensionKey || reportData.summaryHeaders) {
+      return toExcelSheetsFromTabbedReport(reportData, excelTable, {
+        columnSelection: stockColumnPayload ? columnSelection : undefined,
+      });
+    }
     return toExcelSheetsFromReportPayload(reportData, excelTable);
-  }, [reportData, excelTable]);
+  }, [reportData, excelTable, stockColumnPayload, columnSelection]);
 
   const pdfTable = useMemo(() => {
     if (!isSimpleReport(reportData)) {

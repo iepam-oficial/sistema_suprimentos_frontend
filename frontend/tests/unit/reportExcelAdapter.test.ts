@@ -1,6 +1,7 @@
 import {
   toExcelSheetsFromExecutive,
   toExcelSheetsFromReportPayload,
+  toExcelSheetsFromTabbedReport,
 } from '@/features/reports/reportExcelAdapter'
 import type { ExecutiveSummaryPayload, ReportPayload } from '@/features/reports/types'
 
@@ -173,5 +174,145 @@ describe('toExcelSheetsFromExecutive', () => {
     })
 
     expect(sheets.some((s) => s.name.startsWith('Consumo'))).toBe(false)
+  })
+})
+
+const tabbedPayload: ReportPayload = {
+  slug: 'supply-requests',
+  title: 'Requisições',
+  description: 'Por status',
+  kpis: [{ label: 'Total', value: 4 }],
+  chartData: [],
+  tableHeaders: ['ID', 'Status', 'Qtd'],
+  tableRows: [
+    ['r1', 'PENDING', 2],
+    ['r2', 'APPROVED', 1],
+    ['r3', 'PENDING', 5],
+  ],
+  chartType: 'bar',
+  columnKeys: ['id', 'status_code', 'qty'],
+  tabDimensionKey: 'status_code',
+  tabValues: [
+    { value: 'PENDING', label: 'Pendente' },
+    { value: 'APPROVED', label: 'Aprovado' },
+  ],
+  summaryHeaders: ['Status', 'Qtd'],
+  summaryRows: [
+    ['Pendente', 2],
+    ['Aprovado', 1],
+  ],
+  detailHeaders: ['Item'],
+  detailColumnKeys: ['item'],
+  rowDetails: [
+    { headers: ['Item'], rows: [['Parafuso']] },
+    null,
+    { headers: ['Item'], rows: [['Porca'], ['Arruela']] },
+  ],
+}
+
+const tabbedMainTable = {
+  headers: ['ID', 'Status', 'Qtd'],
+  rows: [
+    ['r1', 'PENDING', 2],
+    ['r2', 'APPROVED', 1],
+    ['r3', 'PENDING', 5],
+  ] as (string | number)[][],
+}
+
+describe('toExcelSheetsFromTabbedReport', () => {
+  it('produz Resumo + Todas + uma sheet por tabValue + Detalhes', () => {
+    const sheets = toExcelSheetsFromTabbedReport(tabbedPayload, tabbedMainTable)
+
+    expect(sheets).toHaveLength(5)
+    expect(sheets.map((s) => s.name)).toEqual([
+      'Resumo',
+      'Todas',
+      'Pendente',
+      'Aprovado',
+      'Detalhes',
+    ])
+
+    expect(sheets[0]).toMatchObject({
+      name: 'Resumo',
+      title: 'Requisições',
+      kpis: [{ label: 'Total', value: 4 }],
+      head: ['Status', 'Qtd'],
+      body: [
+        ['Pendente', 2],
+        ['Aprovado', 1],
+      ],
+    })
+
+    expect(sheets[1]).toMatchObject({
+      name: 'Todas',
+      head: tabbedMainTable.headers,
+      body: tabbedMainTable.rows,
+    })
+
+    expect(sheets[2]).toMatchObject({
+      name: 'Pendente',
+      body: [
+        ['r1', 'PENDING', 2],
+        ['r3', 'PENDING', 5],
+      ],
+    })
+
+    expect(sheets[3]).toMatchObject({
+      name: 'Aprovado',
+      body: [['r2', 'APPROVED', 1]],
+    })
+  })
+
+  it('inclui planilha Detalhes com flatten row↔rowDetails', () => {
+    const sheets = toExcelSheetsFromTabbedReport(tabbedPayload, tabbedMainTable)
+    const detalhes = sheets.find((s) => s.name === 'Detalhes')
+
+    expect(detalhes).toBeDefined()
+    expect(detalhes).toMatchObject({
+      name: 'Detalhes',
+      title: 'Requisições',
+      head: ['ID', 'Status', 'Qtd', 'Item'],
+      body: [
+        ['r1', 'PENDING', 2, 'Parafuso'],
+        ['r2', 'APPROVED', 1, ''],
+        ['r3', 'PENDING', 5, 'Porca'],
+        ['r3', 'PENDING', 5, 'Arruela'],
+      ],
+    })
+
+    const withoutDetails = toExcelSheetsFromTabbedReport(
+      { ...tabbedPayload, rowDetails: undefined, detailColumnKeys: undefined, detailHeaders: undefined },
+      tabbedMainTable,
+    )
+    expect(withoutDetails.map((s) => s.name)).toEqual([
+      'Resumo',
+      'Todas',
+      'Pendente',
+      'Aprovado',
+    ])
+  })
+
+  it('sanitiza nomes de aba para no máximo 31 caracteres', () => {
+    const longLabel =
+      'Status muito longo que ultrapassa o limite de trinta e um caracteres do Excel'
+    const sheets = toExcelSheetsFromTabbedReport(
+      {
+        ...tabbedPayload,
+        tabValues: [{ value: 'PENDING', label: longLabel }],
+        rowDetails: undefined,
+        detailColumnKeys: undefined,
+        detailHeaders: undefined,
+      },
+      tabbedMainTable,
+    )
+
+    expect(sheets.map((s) => s.name)).toEqual([
+      'Resumo',
+      'Todas',
+      longLabel.slice(0, 31),
+    ])
+    for (const sheet of sheets) {
+      expect(sheet.name.length).toBeLessThanOrEqual(31)
+    }
   })
 })
