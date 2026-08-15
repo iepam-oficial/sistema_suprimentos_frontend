@@ -32,6 +32,7 @@ import { ReportChart } from './ReportChart';
 import { ReportChartCard } from './ReportChartCard';
 import { ReportDetailTable } from './ReportDetailTable';
 import { ReportExportActions } from './ReportExportActions';
+import { ReportTabbedViewer } from './ReportTabbedViewer';
 import { useReportColumnSelection } from './ReportColumnPicker';
 
 function isExecutiveSummary(
@@ -114,6 +115,8 @@ export function ReportViewer({
     return <ExecutiveSummaryView data={data} />;
   }
 
+  const isTabbedReport = Boolean(data.tabDimensionKey || data.summaryHeaders);
+
   const colorByLabel = data.slug === 'alerts-by-level';
   const dataKey =
     data.slug === 'purchases-by-batch' || data.chartValueKey === 'value'
@@ -194,55 +197,61 @@ export function ReportViewer({
         )
       )}
 
-      <Flex
-        direction={{ base: 'column', lg: 'row' }}
-        gap={{ base: 4, lg: 6 }}
-        align="stretch"
-      >
-        <VStack
-          align="stretch"
-          spacing={0}
-          flex={{ lg: '0 0 220px' }}
-          minW={{ lg: '180px' }}
-          maxW={{ lg: '280px' }}
-          divider={<Divider borderColor={dividerClr} />}
-          data-testid="reports-kpis"
-        >
-          {data.kpis.map((kpi) => (
-            <Box key={kpi.label} py={2}>
-              <Text fontSize="xs" color="gray.500">{kpi.label}</Text>
-              <Text fontSize="xl" fontWeight="bold">{kpi.value}</Text>
-            </Box>
-          ))}
-        </VStack>
-
-        <Box flex={1} minW={0} data-testid="reports-chart">
-          <ReportChartCard
-            title="Visualização"
-            subtitle="Gráfico adaptado ao tipo de dado deste relatório"
-            hint={
-              truncated
-                ? 'O gráfico mostra os 10 principais itens; consulte a tabela para a lista completa.'
-                : undefined
-            }
+      {isTabbedReport ? (
+        <ReportTabbedViewer data={data} hideChrome={hideChrome} />
+      ) : (
+        <>
+          <Flex
+            direction={{ base: 'column', lg: 'row' }}
+            gap={{ base: 4, lg: 6 }}
+            align="stretch"
           >
-            <ReportChart
-              slug={data.slug}
-              data={data.chartData}
-              type={data.chartType}
-              colorByLabel={colorByLabel}
-              dataKey={dataKey}
-            />
-          </ReportChartCard>
-        </Box>
-      </Flex>
+            <VStack
+              align="stretch"
+              spacing={0}
+              flex={{ lg: '0 0 220px' }}
+              minW={{ lg: '180px' }}
+              maxW={{ lg: '280px' }}
+              divider={<Divider borderColor={dividerClr} />}
+              data-testid="reports-kpis"
+            >
+              {data.kpis.map((kpi) => (
+                <Box key={kpi.label} py={2}>
+                  <Text fontSize="xs" color="gray.500">{kpi.label}</Text>
+                  <Text fontSize="xl" fontWeight="bold">{kpi.value}</Text>
+                </Box>
+              ))}
+            </VStack>
 
-      <ReportDetailTable
-        headers={data.tableHeaders}
-        rows={data.tableRows}
-        rowDetails={data.rowDetails}
-        defaultOpen={data.tableRows.length <= 15}
-      />
+            <Box flex={1} minW={0} data-testid="reports-chart">
+              <ReportChartCard
+                title="Visualização"
+                subtitle="Gráfico adaptado ao tipo de dado deste relatório"
+                hint={
+                  truncated
+                    ? 'O gráfico mostra os 10 principais itens; consulte a tabela para a lista completa.'
+                    : undefined
+                }
+              >
+                <ReportChart
+                  slug={data.slug}
+                  data={data.chartData}
+                  type={data.chartType}
+                  colorByLabel={colorByLabel}
+                  dataKey={dataKey}
+                />
+              </ReportChartCard>
+            </Box>
+          </Flex>
+
+          <ReportDetailTable
+            headers={data.tableHeaders}
+            rows={data.tableRows}
+            rowDetails={data.rowDetails}
+            defaultOpen={data.tableRows.length <= 15}
+          />
+        </>
+      )}
     </VStack>
   );
 }
