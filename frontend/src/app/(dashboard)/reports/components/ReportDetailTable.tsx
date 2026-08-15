@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   Box,
   Button,
   Collapse,
   Heading,
   HStack,
+  IconButton,
   Select,
   Table,
   Tbody,
@@ -17,42 +18,65 @@ import {
   Tr,
   useColorMode,
 } from '@chakra-ui/react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
+import type { ReportDetailBlock } from '@ti-assistant/contracts';
 
 interface ReportDetailTableProps {
   headers: string[];
   rows: (string | number)[][];
+  rowDetails?: (ReportDetailBlock | null)[];
   defaultOpen?: boolean;
 }
 
 const PAGE_SIZES = [10, 25, 50];
 
+function hasDetailRows(detail: ReportDetailBlock | null | undefined): detail is ReportDetailBlock {
+  return Boolean(detail && detail.rows.length > 0);
+}
+
 export function ReportDetailTable({
   headers,
   rows,
+  rowDetails,
   defaultOpen,
 }: ReportDetailTableProps) {
   const { colorMode } = useColorMode();
   const [isOpen, setIsOpen] = useState(defaultOpen ?? rows.length <= 15);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(() => new Set());
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const safePage = Math.min(page, totalPages - 1);
-  const slice = rows.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  const pageStart = safePage * pageSize;
+  const slice = rows.slice(pageStart, pageStart + pageSize);
 
   const borderClr = colorMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  const nestedBg = colorMode === 'dark' ? 'whiteAlpha.50' : 'blackAlpha.50';
+  const showExpandColumn = Boolean(rowDetails?.some(hasDetailRows));
+  const colSpan = headers.length + (showExpandColumn ? 1 : 0);
+
+  const toggleRow = (absoluteIndex: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(absoluteIndex)) {
+        next.delete(absoluteIndex);
+      } else {
+        next.add(absoluteIndex);
+      }
+      return next;
+    });
+  };
 
   return (
     <Box
-      rounded="lg"
-      border="1px solid"
+      data-testid="reports-table"
+      borderTop="1px solid"
       borderColor={borderClr}
-      overflow="hidden"
+      pt={3}
     >
       <HStack
-        px={4}
-        py={3}
+        py={2}
         justify="space-between"
         cursor="pointer"
         onClick={() => setIsOpen((o) => !o)}
@@ -75,7 +99,7 @@ export function ReportDetailTable({
       </HStack>
 
       <Collapse in={isOpen}>
-        <Box px={4} pb={4} overflowX="auto">
+        <Box pb={2} overflowX="auto">
           {rows.length > PAGE_SIZES[0] && (
             <HStack mb={3} justify="flex-end" spacing={3}>
               <Text fontSize="xs" color="gray.500">
@@ -119,6 +143,7 @@ export function ReportDetailTable({
           <Table size="sm" variant="simple">
             <Thead>
               <Tr>
+                {showExpandColumn && <Th w="40px" px={1} />}
                 {headers.map((h) => (
                   <Th key={h}>{h}</Th>
                 ))}
@@ -127,18 +152,69 @@ export function ReportDetailTable({
             <Tbody>
               {slice.length === 0 ? (
                 <Tr>
-                  <Td colSpan={headers.length} color="gray.500">
+                  <Td colSpan={colSpan} color="gray.500">
                     Sem registros
                   </Td>
                 </Tr>
               ) : (
-                slice.map((row, i) => (
-                  <Tr key={`${safePage}-${i}`}>
-                    {row.map((cell, j) => (
-                      <Td key={j}>{cell}</Td>
-                    ))}
-                  </Tr>
-                ))
+                slice.map((row, i) => {
+                  const absoluteIndex = pageStart + i;
+                  const detail = rowDetails?.[absoluteIndex];
+                  const expandable = hasDetailRows(detail);
+                  const isExpanded = expandedRows.has(absoluteIndex);
+
+                  return (
+                    <Fragment key={`${safePage}-${absoluteIndex}`}>
+                      <Tr>
+                        {showExpandColumn && (
+                          <Td px={1} w="40px">
+                            {expandable ? (
+                              <IconButton
+                                aria-label={isExpanded ? 'Recolher lotes' : 'Expandir lotes'}
+                                data-testid={`reports-row-expand-${absoluteIndex}`}
+                                size="xs"
+                                variant="ghost"
+                                icon={
+                                  isExpanded
+                                    ? <ChevronDown size={14} />
+                                    : <ChevronRight size={14} />
+                                }
+                                onClick={() => toggleRow(absoluteIndex)}
+                              />
+                            ) : null}
+                          </Td>
+                        )}
+                        {row.map((cell, j) => (
+                          <Td key={j}>{cell}</Td>
+                        ))}
+                      </Tr>
+                      {expandable && isExpanded && (
+                        <Tr>
+                          <Td colSpan={colSpan} bg={nestedBg} py={3} px={4}>
+                            <Table size="sm" variant="simple">
+                              <Thead>
+                                <Tr>
+                                  {detail.headers.map((h) => (
+                                    <Th key={h}>{h}</Th>
+                                  ))}
+                                </Tr>
+                              </Thead>
+                              <Tbody>
+                                {detail.rows.map((detailRow, di) => (
+                                  <Tr key={di}>
+                                    {detailRow.map((cell, dj) => (
+                                      <Td key={dj}>{cell}</Td>
+                                    ))}
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </Td>
+                        </Tr>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </Tbody>
           </Table>

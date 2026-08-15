@@ -1,28 +1,47 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Badge,
   Box,
-  Grid,
-  GridItem,
-  Heading,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
+  Flex,
+  HStack,
+  IconButton,
+  Select,
   Skeleton,
+  Text,
+  Tooltip,
   useBreakpointValue,
   useColorMode,
+  useDisclosure,
   useToast,
+  Button,
   VStack,
-  HStack,
-  Text,
-  Badge,
-  Flex,
 } from '@chakra-ui/react';
+import { Filter } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   fetchReport,
   fetchReportFilters,
+  isDetailEnrichedSlug,
+  isStockReportSlug,
   RateLimitError,
 } from '@/features/reports/api/reportApi';
+import { buildStockExportTable } from '@/features/reports/columnSelection';
 import { REPORT_CATALOG } from '@/features/reports/catalog';
+import { reportExportFileName } from '@/features/reports/reportExportFileName';
+import {
+  toExcelSheetsFromReportPayload,
+  toExcelSheetsFromTabbedReport,
+} from '@/features/reports/reportExcelAdapter';
+import { buildPdfExportTable } from '@/features/reports/reportPdfColumns';
 import {
   ExecutiveSummaryPayload,
   FilterOptions,
@@ -30,12 +49,20 @@ import {
   ReportSlug,
 } from '@/features/reports/types';
 import { MobileReports } from './components/MobileReports';
-import { ReportCatalog } from './components/ReportCatalog';
+import {
+  ReportColumnPicker,
+  useReportColumnSelection,
+} from './components/ReportColumnPicker';
 import {
   buildReportsQuery,
-  ReportFiltersBar,
+  EMPTY_FILTERS,
+  hasNonDefaultFilters,
+  parseCsvParam,
+  ReportFiltersFields,
   ReportFiltersState,
+  toReportFiltersQuery,
 } from './components/ReportFilters';
+import { ReportExportActions } from './components/ReportExportActions';
 import { ReportViewer } from './components/ReportViewer';
 
 const DEFAULT_SLUG: ReportSlug = 'executive-summary';
@@ -52,14 +79,10 @@ function resolveSlugFromParams(report: string | null): ReportSlug {
   return found ? found.slug : DEFAULT_SLUG;
 }
 
-/** Thin horizontal rule used as a section divider */
-function Divider({ colorMode }: { colorMode: string }) {
-  return (
-    <Box
-      h="1px"
-      bg={colorMode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}
-    />
-  );
+function isSimpleReport(
+  data: ReportPayload | ExecutiveSummaryPayload | null
+): data is ReportPayload {
+  return !!data && data.slug !== 'executive-summary';
 }
 
 function ReportsPageContent() {
@@ -69,6 +92,7 @@ function ReportsPageContent() {
   const isMobile = useBreakpointValue({ base: true, lg: false });
   const { colorMode } = useColorMode();
   const isDark = colorMode === 'dark';
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const [activeSlug, setActiveSlug] = useState<ReportSlug>(() =>
     resolveSlugFromParams(searchParams.get('report'))
@@ -78,6 +102,10 @@ function ReportsPageContent() {
     locationId: searchParams.get('locationId') || '',
     sectorId: searchParams.get('sectorId') || '',
     supplierId: searchParams.get('supplierId') || '',
+    categoryId: searchParams.get('categoryId') || '',
+    subcategoryId: searchParams.get('subcategoryId') || '',
+    ncmIds: parseCsvParam(searchParams.get('ncmIds')),
+    cestCodes: parseCsvParam(searchParams.get('cestCodes')),
   });
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
   const [reportData, setReportData] = useState<ReportPayload | ExecutiveSummaryPayload | null>(null);
@@ -144,7 +172,11 @@ function ReportsPageContent() {
     async function loadReport() {
       setLoading(true);
       try {
-        const data = await fetchReport(token, activeSlug, filters);
+        const data = await fetchReport(
+          token,
+          activeSlug,
+          toReportFiltersQuery(activeSlug, filters)
+        );
         setReportData(data);
         syncUrl(activeSlug, filters);
       } catch (error) {
@@ -186,12 +218,67 @@ function ReportsPageContent() {
   const handleSlugChange = (slug: ReportSlug) => setActiveSlug(slug);
   const handleFiltersChange = (f: ReportFiltersState) => setFilters(f);
 
-  /* ── tokens ─────────────────────────────────────────────────── */
-  const pageBg     = isDark ? 'gray.950'              : 'gray.50';
-  const panelBg    = isDark ? 'gray.900'              : 'white';
-  const borderClr  = isDark ? 'rgba(255,255,255,0.08)': 'rgba(0,0,0,0.08)';
-  const mutedText  = isDark ? 'gray.400'              : 'gray.500';
-  const headingClr = isDark ? 'white'                 : 'gray.900';
+  const pageBg = isDark ? 'gray.950' : 'gray.50';
+  const panelBg = isDark ? 'gray.900' : 'white';
+  const borderClr = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const headingClr = isDark ? 'white' : 'gray.900';
+  const drawerBg = isDark ? 'gray.800' : 'white';
+  const filtersActive = hasNonDefaultFilters(filters, activeSlug);
+  const activeTitle =
+    REPORT_CATALOG.find((r) => r.slug === activeSlug)?.title ??
+    (isSimpleReport(reportData) ? reportData.title : 'Relatórios');
+  const showToolbarExport = isSimpleReport(reportData) && !loading;
+
+  const columnPickerPayload =
+    isSimpleReport(reportData) &&
+    reportData.columnKeys &&
+    reportData.columnKeys.length > 0 &&
+    (isStockReportSlug(reportData.slug) ||
+      isDetailEnrichedSlug(reportData.slug))
+      ? {
+          slug: reportData.slug,
+          columnKeys: reportData.columnKeys,
+          detailColumnKeys: reportData.detailColumnKeys,
+        }
+      : null;
+
+  const {
+    selection: columnSelection,
+    setSelection: setColumnSelection,
+    canExport: columnCanExport,
+  } = useReportColumnSelection(columnPickerPayload);
+
+  const showColumnPicker = Boolean(columnPickerPayload) && !loading;
+
+  const excelTable = useMemo(() => {
+    if (!isSimpleReport(reportData)) {
+      return { headers: [] as string[], rows: [] as (string | number)[][] };
+    }
+    if (columnPickerPayload) {
+      return buildStockExportTable(reportData, columnSelection);
+    }
+    return {
+      headers: reportData.tableHeaders,
+      rows: reportData.tableRows,
+    };
+  }, [reportData, columnPickerPayload, columnSelection]);
+
+  const excelSheets = useMemo(() => {
+    if (!isSimpleReport(reportData)) return [];
+    if (reportData.tabDimensionKey || reportData.summaryHeaders) {
+      return toExcelSheetsFromTabbedReport(reportData, excelTable, {
+        columnSelection: columnPickerPayload ? columnSelection : undefined,
+      });
+    }
+    return toExcelSheetsFromReportPayload(reportData, excelTable);
+  }, [reportData, excelTable, columnPickerPayload, columnSelection]);
+
+  const pdfTable = useMemo(() => {
+    if (!isSimpleReport(reportData)) {
+      return { headers: [] as string[], rows: [] as (string | number)[][] };
+    }
+    return buildPdfExportTable(reportData);
+  }, [reportData]);
 
   if (isMobile) {
     return (
@@ -208,205 +295,185 @@ function ReportsPageContent() {
   }
 
   return (
-    <Flex
-      direction="column"
-      minH="100vh"
-      bg={pageBg}
-      px={{ base: 4, md: 8, xl: 10 }}
-      py={8}
-      gap={0}
-    >
-      {/* ── Page header ──────────────────────────────────────── */}
+    <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg={pageBg} px={2} py={2}>
       <Flex
-        align="flex-end"
-        justify="space-between"
-        mb={6}
-        pb={6}
-        borderBottom="1px solid"
-        borderColor={borderClr}
-      >
-        <VStack align="flex-start" spacing={1}>
-          <Text
-            fontSize="xs"
-            fontWeight="600"
-            letterSpacing="0.12em"
-            textTransform="uppercase"
-            color={mutedText}
-          >
-            Painel de dados
-          </Text>
-          <Heading
-            size="xl"
-            fontWeight="700"
-            color={headingClr}
-            letterSpacing="-0.02em"
-          >
-            Relatórios
-          </Heading>
-        </VStack>
-
-        {/* Live indicator */}
-        <HStack spacing={2} mb={1}>
-          <Box
-            w="7px"
-            h="7px"
-            borderRadius="full"
-            bg="green.400"
-            boxShadow="0 0 0 3px rgba(72,187,120,0.25)"
-          />
-          <Text fontSize="xs" fontWeight="500" color={mutedText}>
-            Dados em tempo real
-          </Text>
-        </HStack>
-      </Flex>
-
-      {/* ── Filters bar ──────────────────────────────────────── */}
-      <Box
-        mb={6}
-        p={4}
+        direction="column"
+        flex="1"
+        minH={0}
         bg={panelBg}
         border="1px solid"
         borderColor={borderClr}
-        borderRadius="12px"
-        boxShadow={isDark ? 'none' : 'sm'}
+        borderRadius="md"
+        overflow="hidden"
       >
-        {filtersLoading ? (
-          <Skeleton height="48px" borderRadius="8px" />
-        ) : (
-          <ReportFiltersBar
-            filters={filters}
-            filterOptions={filterOptions}
-            onChange={handleFiltersChange}
-          />
-        )}
-      </Box>
-
-      {/* ── Main two-column grid ──────────────────────────────── */}
-      <Grid
-        templateColumns={{ base: '1fr', xl: '280px 1fr' }}
-        gap={5}
-        flex={1}
-        alignItems="start"
-      >
-        {/* Left: catalog sidebar */}
-        <GridItem>
-          <Box
-            bg={panelBg}
-            border="1px solid"
-            borderColor={borderClr}
-            borderRadius="12px"
-            boxShadow={isDark ? 'none' : 'sm'}
-            overflow="hidden"
-            position="sticky"
-            top="24px"
+        {/* Toolbar: Select → Filter → title → Export */}
+        <HStack
+          data-testid="reports-toolbar"
+          spacing={2}
+          px={3}
+          py={2}
+          flexShrink={0}
+          borderBottom="1px solid"
+          borderColor={borderClr}
+          flexWrap="wrap"
+        >
+          <Select
+            data-testid="reports-select"
+            size="sm"
+            maxW="260px"
+            value={activeSlug}
+            onChange={(e) => handleSlugChange(e.target.value as ReportSlug)}
+            bg={isDark ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
           >
-            {/* Sidebar header */}
-            <Flex
-              px={4}
-              py={3}
-              align="center"
-              justify="space-between"
-              borderBottom="1px solid"
-              borderColor={borderClr}
-            >
-              <Text
-                fontSize="xs"
-                fontWeight="700"
-                letterSpacing="0.1em"
-                textTransform="uppercase"
-                color={mutedText}
-              >
-                Categorias
-              </Text>
-              <Badge
-                fontSize="10px"
-                px={2}
-                py={0.5}
-                borderRadius="full"
-                colorScheme="blue"
-                variant="subtle"
-              >
-                {REPORT_CATALOG.length}
-              </Badge>
-            </Flex>
+            {REPORT_CATALOG.map((r) => (
+              <option key={r.slug} value={r.slug}>
+                {r.title}
+              </option>
+            ))}
+          </Select>
 
-            <Box
-              overflowY="auto"
-              maxH="calc(100vh - 280px)"
-              px={2}
-              py={2}
-              css={{
-                '&::-webkit-scrollbar': { width: '4px' },
-                '&::-webkit-scrollbar-track': { background: 'transparent' },
-                '&::-webkit-scrollbar-thumb': {
-                  background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
-                  borderRadius: '99px',
-                },
-              }}
-            >
-              <ReportCatalog activeSlug={activeSlug} onSelect={handleSlugChange} />
-            </Box>
-          </Box>
-        </GridItem>
-
-        {/* Right: report viewer */}
-        <GridItem>
-          <Box
-            bg={panelBg}
-            border="1px solid"
-            borderColor={borderClr}
-            borderRadius="12px"
-            boxShadow={isDark ? 'none' : 'sm'}
-            overflow="hidden"
-            minH="500px"
-          >
-            {/* Viewer toolbar */}
-            <Flex
-              px={5}
-              py={3}
-              align="center"
-              borderBottom="1px solid"
-              borderColor={borderClr}
-            >
-              <Box
-                w="10px"
-                h="10px"
-                borderRadius="full"
-                bg={loading ? 'orange.400' : 'green.400'}
-                boxShadow={
-                  loading
-                    ? '0 0 0 3px rgba(251,140,0,0.2)'
-                    : '0 0 0 3px rgba(72,187,120,0.2)'
-                }
-                mr={3}
-                transition="background 0.3s"
+          <Tooltip label="Filtros">
+            <Box position="relative">
+              <IconButton
+                data-testid="reports-filter-button"
+                aria-label="Filtros"
+                icon={<Filter size={16} />}
+                size="sm"
+                variant="ghost"
+                onClick={onOpen}
+                isLoading={filtersLoading}
               />
-              <Text fontSize="xs" fontWeight="600" color={mutedText}>
-                {loading ? 'Carregando relatório…' : 'Relatório carregado'}
-              </Text>
-            </Flex>
-
-            {/* Content */}
-            <Box p={6}>
-              {loading ? (
-                <VStack spacing={4} align="stretch">
-                  <Skeleton height="80px"  borderRadius="8px" />
-                  <Skeleton height="260px" borderRadius="8px" />
-                  <Skeleton height="160px" borderRadius="8px" />
-                </VStack>
-              ) : (
-                <ReportViewer
-                  data={reportData}
-                  loading={false}
-                  filters={filters}
-                  filterOptions={filterOptions}
+              {filtersActive && (
+                <Badge
+                  data-testid="reports-filter-badge"
+                  position="absolute"
+                  top="-1"
+                  right="-1"
+                  borderRadius="full"
+                  boxSize="2.5"
+                  colorScheme="blue"
+                  p={0}
                 />
               )}
             </Box>
-          </Box>
-        </GridItem>
-      </Grid>
-    </Flex>
+          </Tooltip>
+
+          <Text
+            data-testid="reports-active-title"
+            flex="1"
+            minW="120px"
+            fontSize="sm"
+            fontWeight="600"
+            color={headingClr}
+            noOfLines={1}
+          >
+            {activeTitle}
+          </Text>
+
+          {showColumnPicker && isSimpleReport(reportData) && (
+            <ReportColumnPicker
+              summaryKeys={reportData.columnKeys!}
+              summaryHeaders={reportData.tableHeaders}
+              detailKeys={reportData.detailColumnKeys}
+              detailHeaders={reportData.detailHeaders}
+              selection={columnSelection}
+              onChange={setColumnSelection}
+            />
+          )}
+
+          {showToolbarExport && isSimpleReport(reportData) ? (
+            <Box data-testid="reports-export" flexShrink={0}>
+              <ReportExportActions
+                excelFileName={reportExportFileName(reportData.slug, 'xlsx')}
+                sheets={excelSheets}
+                pdfTitle={reportData.title}
+                pdfHeaders={pdfTable.headers}
+                pdfRows={pdfTable.rows}
+                pdfFileName={reportExportFileName(reportData.slug, 'pdf')}
+                disabled={showColumnPicker && !columnCanExport}
+              />
+            </Box>
+          ) : null}
+        </HStack>
+
+        {/* Scrollable content */}
+        <Box
+          flex="1"
+          minH={0}
+          overflowY="auto"
+          p={4}
+          css={{
+            '&::-webkit-scrollbar': { width: '4px' },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
+            '&::-webkit-scrollbar-thumb': {
+              background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
+              borderRadius: '99px',
+            },
+          }}
+        >
+          {loading ? (
+            <VStack spacing={4} align="stretch">
+              <Skeleton height="80px" borderRadius="8px" />
+              <Skeleton height="260px" borderRadius="8px" />
+              <Skeleton height="160px" borderRadius="8px" />
+            </VStack>
+          ) : (
+            <ReportViewer
+              data={reportData}
+              loading={false}
+              filters={filters}
+              filterOptions={filterOptions}
+              hideChrome
+              columnSelection={showColumnPicker ? columnSelection : undefined}
+            />
+          )}
+        </Box>
+      </Flex>
+
+      <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="sm">
+        <DrawerOverlay />
+        <DrawerContent
+          data-testid="reports-filter-drawer"
+          bg={drawerBg}
+          borderLeft="1px solid"
+          borderColor={borderClr}
+        >
+          <DrawerCloseButton />
+          <DrawerHeader borderBottom="1px solid" borderColor={borderClr}>
+            <HStack spacing={2}>
+              <Filter size={20} />
+              <Text>Filtros</Text>
+            </HStack>
+          </DrawerHeader>
+          <DrawerBody>
+            <Box pt={4}>
+              {filtersLoading ? (
+                <Skeleton height="200px" borderRadius="8px" />
+              ) : (
+                <ReportFiltersFields
+                  filters={filters}
+                  filterOptions={filterOptions}
+                  onChange={handleFiltersChange}
+                  activeSlug={activeSlug}
+                />
+              )}
+            </Box>
+          </DrawerBody>
+          <DrawerFooter borderTop="1px solid" borderColor={borderClr}>
+            <Button
+              data-testid="reports-filter-clear"
+              variant="outline"
+              size="sm"
+              w="full"
+              onClick={() => handleFiltersChange(EMPTY_FILTERS)}
+              isDisabled={!filtersActive}
+            >
+              Limpar filtros
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    </Box>
   );
 }
 
@@ -414,14 +481,30 @@ export default function ReportsPage() {
   return (
     <Suspense
       fallback={
-        <Box p={8} minH="100vh" bg="gray.50">
-          <Skeleton height="36px" width="180px" mb={2} borderRadius="8px" />
-          <Skeleton height="16px" width="120px" mb={8} borderRadius="6px" />
-          <Skeleton height="72px" mb={5} borderRadius="12px" />
-          <Grid templateColumns="280px 1fr" gap={5}>
-            <Skeleton height="480px" borderRadius="12px" />
-            <Skeleton height="480px" borderRadius="12px" />
-          </Grid>
+        <Box h="100vh" display="flex" flexDirection="column" overflow="hidden" bg="gray.50" px={2} py={2}>
+          <Flex
+            direction="column"
+            flex="1"
+            minH={0}
+            bg="white"
+            border="1px solid"
+            borderColor="rgba(0,0,0,0.08)"
+            borderRadius="md"
+            overflow="hidden"
+          >
+            <HStack spacing={2} px={3} py={2} borderBottom="1px solid" borderColor="rgba(0,0,0,0.08)">
+              <Skeleton height="32px" width="220px" borderRadius="6px" />
+              <Skeleton height="32px" width="32px" borderRadius="6px" />
+              <Skeleton height="20px" flex="1" borderRadius="6px" />
+            </HStack>
+            <Box flex="1" p={4}>
+              <VStack spacing={4} align="stretch">
+                <Skeleton height="80px" borderRadius="8px" />
+                <Skeleton height="260px" borderRadius="8px" />
+                <Skeleton height="160px" borderRadius="8px" />
+              </VStack>
+            </Box>
+          </Flex>
         </Box>
       }
     >

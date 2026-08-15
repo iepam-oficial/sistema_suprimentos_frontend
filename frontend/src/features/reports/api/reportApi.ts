@@ -13,10 +13,43 @@ export class RateLimitError extends Error {
 }
 
 export interface ReportFiltersQuery {
-  timeRange: string;
+  timeRange?: string;
   locationId?: string;
   sectorId?: string;
   supplierId?: string;
+  categoryId?: string;
+  subcategoryId?: string;
+  ncmIds?: string[];
+  cestCodes?: string[];
+}
+
+const STOCK_REPORT_SLUGS: ReadonlySet<ReportSlug> = new Set([
+  'supplies-stock',
+  'inventory-overview',
+]);
+
+const DETAIL_ENRICHED_SLUGS: ReadonlySet<ReportSlug> = new Set([
+  'supply-requests',
+  'consumption-by-sector',
+  'purchases-by-batch',
+  'service-orders',
+  'alerts-by-level',
+  'executive-summary',
+]);
+
+export function isStockReportSlug(slug: ReportSlug): boolean {
+  return STOCK_REPORT_SLUGS.has(slug);
+}
+
+export function isDetailEnrichedSlug(slug: ReportSlug): boolean {
+  return DETAIL_ENRICHED_SLUGS.has(slug);
+}
+
+function shouldSendTimeRange(slug?: ReportSlug): boolean {
+  if (!slug) return true;
+  if (isStockReportSlug(slug)) return false;
+  if (slug === 'alerts-by-level') return false;
+  return true;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -34,11 +67,26 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-export function buildFilterQueryString(filters: ReportFiltersQuery): string {
-  const params = new URLSearchParams({ timeRange: filters.timeRange });
+export function buildFilterQueryString(
+  filters: ReportFiltersQuery,
+  slug?: ReportSlug
+): string {
+  const params = new URLSearchParams();
+
+  if (shouldSendTimeRange(slug)) {
+    params.set('timeRange', filters.timeRange ?? '30');
+  }
+
   if (filters.locationId) params.set('locationId', filters.locationId);
   if (filters.sectorId) params.set('sectorId', filters.sectorId);
   if (filters.supplierId) params.set('supplierId', filters.supplierId);
+  if (filters.categoryId) params.set('categoryId', filters.categoryId);
+  if (filters.subcategoryId) params.set('subcategoryId', filters.subcategoryId);
+  if (filters.ncmIds?.length) params.set('ncmIds', filters.ncmIds.join(','));
+  if (filters.cestCodes?.length) {
+    params.set('cestCodes', filters.cestCodes.join(','));
+  }
+
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }
@@ -55,7 +103,7 @@ export async function fetchReport(
   slug: ReportSlug,
   filters: ReportFiltersQuery
 ): Promise<ReportPayload | ExecutiveSummaryPayload> {
-  const qs = buildFilterQueryString(filters);
+  const qs = buildFilterQueryString(filters, slug);
   const response = await fetch(`/api/reports/${slug}${qs}`, {
     headers: { Authorization: `Bearer ${token}` },
   });

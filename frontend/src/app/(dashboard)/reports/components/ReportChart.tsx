@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { formatBRL } from '@/utils/money';
 import {
+  getDefaultChartHeight,
   getSliceColor,
   prepareChartDataForDisplay,
   resolveChartType,
@@ -65,10 +66,12 @@ export function ReportChart({
   const resolvedType = slug ? resolveChartType(slug, backendType, data) : backendType;
   const { displayData, truncated } = prepareChartDataForDisplay(data, resolvedType, dataKey);
 
+  const defaultHeight = getDefaultChartHeight(resolvedType, displayData.length);
+
   if (!displayData.length) {
     return (
       <Box
-        h={height ?? 280}
+        h={height ?? defaultHeight}
         display="flex"
         alignItems="center"
         justifyContent="center"
@@ -88,7 +91,7 @@ export function ReportChart({
   const valueLabel = dataKey === 'value' ? 'Valor (R$)' : 'Quantidade';
 
   if (resolvedType === 'donut' || resolvedType === 'pie') {
-    const h = height ?? 300;
+    const h = height ?? defaultHeight;
     const innerRadius = resolvedType === 'donut' ? '55%' : 0;
     return (
       <Box h={h}>
@@ -127,7 +130,7 @@ export function ReportChart({
   }
 
   if (resolvedType === 'bar-horizontal') {
-    const h = height ?? Math.max(280, chartData.length * 36);
+    const h = height ?? defaultHeight;
     return (
       <Box h={h}>
         {truncated && (
@@ -167,7 +170,7 @@ export function ReportChart({
     );
   }
 
-  const cartesianHeight = height ?? 280;
+  const cartesianHeight = height ?? defaultHeight;
 
   if (resolvedType === 'area') {
     return (

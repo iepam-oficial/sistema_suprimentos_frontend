@@ -1,48 +1,81 @@
 'use client';
 
-import { Button, HStack } from '@chakra-ui/react';
+import { Box, Button, HStack, Tooltip } from '@chakra-ui/react';
 import { Download, FileText } from 'lucide-react';
+import type { ExcelSheetInput } from '@/utils/exportToExcel';
+import { exportToExcel } from '@/utils/exportToExcel';
 import { exportToPDF } from '@/utils/exportToPDF';
-import { exportToCSV } from '@/utils/exportToCSV';
 
 interface ReportExportActionsProps {
-  title: string;
-  tableHeaders: string[];
-  tableRows: (string | number)[][];
-  fileBaseName: string;
+  excelFileName: string;
+  sheets: ExcelSheetInput[];
+  pdfTitle: string;
+  pdfHeaders: string[];
+  pdfRows: (string | number)[][];
+  pdfFileName: string;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export function ReportExportActions({
-  title,
-  tableHeaders,
-  tableRows,
-  fileBaseName,
+  excelFileName,
+  sheets,
+  pdfTitle,
+  pdfHeaders,
+  pdfRows,
+  pdfFileName,
+  disabled = false,
+  disabledReason = 'Selecione ao menos uma coluna para exportar.',
 }: ReportExportActionsProps) {
-  const handlePDF = () => {
-    exportToPDF({
-      title,
-      head: tableHeaders,
-      body: tableRows,
-      fileName: `${fileBaseName}.pdf`,
-    });
+  const handleExcel = () => {
+    if (disabled) return;
+    exportToExcel({ fileName: excelFileName, sheets }).catch(console.error);
   };
 
-  const handleCSV = () => {
-    exportToCSV({
-      head: tableHeaders,
-      body: tableRows,
-      fileName: `${fileBaseName}.csv`,
+  const handlePDF = () => {
+    if (disabled) return;
+    exportToPDF({
+      title: pdfTitle,
+      head: pdfHeaders,
+      body: pdfRows,
+      fileName: pdfFileName,
     });
   };
 
   return (
     <HStack spacing={2}>
-      <Button size="sm" leftIcon={<FileText size={16} />} onClick={handlePDF} colorScheme="red" variant="outline">
-        Exportar PDF
-      </Button>
-      <Button size="sm" leftIcon={<Download size={16} />} onClick={handleCSV} colorScheme="green" variant="outline">
-        Exportar CSV
-      </Button>
+      <Tooltip label={disabledReason} isDisabled={!disabled}>
+        <Box>
+          <Button
+            size="sm"
+            leftIcon={<Download size={16} />}
+            onClick={handleExcel}
+            colorScheme="green"
+            variant="outline"
+            isDisabled={disabled}
+            title={disabled ? disabledReason : undefined}
+            data-testid="reports-export-excel"
+          >
+            Exportar Excel
+          </Button>
+        </Box>
+      </Tooltip>
+      <Tooltip label={disabledReason} isDisabled={!disabled}>
+        <Box>
+          <Button
+            size="sm"
+            leftIcon={<FileText size={16} />}
+            onClick={handlePDF}
+            colorScheme="red"
+            variant="outline"
+            isDisabled={disabled}
+            title={disabled ? disabledReason : undefined}
+            data-testid="reports-export-pdf"
+          >
+            Exportar PDF
+          </Button>
+        </Box>
+      </Tooltip>
     </HStack>
   );
 }

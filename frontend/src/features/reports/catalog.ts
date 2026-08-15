@@ -57,5 +57,3 @@ export const REPORT_CATALOG: ReportCatalogItem[] = [
     group: 'Suprimentos',
   },
 ];
-
-export const REPORT_GROUPS = Array.from(new Set(REPORT_CATALOG.map((r) => r.group)));
