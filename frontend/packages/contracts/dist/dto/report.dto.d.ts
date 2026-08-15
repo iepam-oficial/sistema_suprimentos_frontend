@@ -24,6 +24,11 @@ export interface ReportDetailBlock {
     headers: string[];
     rows: (string | number)[][];
 }
+/** Valor de aba de dimensão (ex.: status PENDING → Pendente). */
+export interface ReportTabValue {
+    value: string;
+    label: string;
+}
 export interface ReportPayload {
     slug: ReportSlug;
     title: string;
@@ -39,11 +44,28 @@ export interface ReportPayload {
     rowDetails?: (ReportDetailBlock | null)[];
     detailColumnKeys?: string[];
     detailHeaders?: string[];
+    /** Headers/rows da aba Resumo (agregado). */
+    summaryHeaders?: string[];
+    summaryRows?: (string | number)[][];
+    /** columnKey da dimensão das abas (ex.: status_code). */
+    tabDimensionKey?: string;
+    /** Abas de dimensão ordenadas. */
+    tabValues?: ReportTabValue[];
 }
 export interface ConsumptionByDimension {
     label: string;
     count: number;
     value: number;
+}
+export interface ExecutiveDetailSection {
+    id: string;
+    label: string;
+    tableHeaders: string[];
+    tableRows: (string | number)[][];
+    columnKeys?: string[];
+    rowDetails?: (ReportDetailBlock | null)[];
+    detailHeaders?: string[];
+    detailColumnKeys?: string[];
 }
 export interface ExecutiveSummaryPayload {
     slug: 'executive-summary';
@@ -63,6 +85,7 @@ export interface ExecutiveSummaryPayload {
     }[];
     consumptionByPolo: ConsumptionByDimension[];
     consumptionByCategory: ConsumptionByDimension[];
+    sections?: ExecutiveDetailSection[];
 }
 export interface FilterOptions {
     locations: {
