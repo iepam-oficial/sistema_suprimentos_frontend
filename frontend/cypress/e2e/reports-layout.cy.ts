@@ -61,6 +61,8 @@ describe('reports-layout desktop', () => {
     cy.url().should('include', 'report=supplies-stock');
     cy.get('[data-testid="reports-active-title"]').should('contain.text', 'Estoque');
     cy.get('[data-testid="reports-export"]').should('be.visible');
+    cy.get('[data-testid="reports-export-excel"]').should('be.visible');
+    cy.contains('Exportar CSV').should('not.exist');
     cy.get('[data-testid="reports-kpis"]', { timeout: 30000 }).should('be.visible');
     cy.get('[data-testid="reports-chart"]').should('be.visible');
     cy.get('[data-testid="reports-table"]').should('be.visible');
@@ -70,6 +72,12 @@ describe('reports-layout desktop', () => {
     cy.intercept('GET', '**/api/reports/**').as('getReport');
     cy.visit('/reports?report=executive-summary', { timeout: 120000 });
     cy.wait('@getReport', { timeout: 60000 });
+
+    cy.get('[data-testid="reports-export"]').should('be.visible');
+    cy.get('[data-testid="reports-export"]')
+      .find('[data-testid="reports-export-excel"]')
+      .should('be.visible');
+    cy.contains('Exportar CSV').should('not.exist');
 
     cy.get('[data-testid="reports-exec-tab-operacoes"]').should(
       'have.attr',

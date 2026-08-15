@@ -15,6 +15,9 @@ describe('reports-stock', () => {
 
     cy.get('[data-testid="reports-select"]').should('have.value', 'supplies-stock');
     cy.get('[data-testid="reports-column-picker"]').should('be.visible');
+    cy.get('[data-testid="reports-export"]').should('be.visible');
+    cy.get('[data-testid="reports-export-excel"]').should('be.visible');
+    cy.contains('Exportar CSV').should('not.exist');
 
     cy.get('[data-testid="reports-filter-button"]').click();
     cy.get('[data-testid="reports-filter-drawer"]').should('be.visible');
