@@ -26,7 +26,10 @@ import {
 import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
 import { useFiscalNcmSearch } from '@/features/financeiro/hooks/useFiscalNcmSearch';
 import type { FiscalNcmDTO } from '@ti-assistant/contracts';
-import { buildFilterQueryString } from '@/features/reports/api/reportApi';
+import {
+  buildFilterQueryString,
+  isStockReportSlug,
+} from '@/features/reports/api/reportApi';
 import {
   EMPTY_FILTERS,
   getFilterFieldVisibility,
