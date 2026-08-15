@@ -12,7 +12,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import { Columns3 } from 'lucide-react';
+import { Columns } from 'lucide-react';
 import {
   canExport,
   loadColumnSelection,
@@ -98,7 +98,7 @@ export function ReportColumnPicker({
         as={Button}
         size="sm"
         variant="outline"
-        leftIcon={<Columns3 size={16} />}
+        leftIcon={<Columns size={16} />}
         data-testid="reports-column-picker"
       >
         Colunas
