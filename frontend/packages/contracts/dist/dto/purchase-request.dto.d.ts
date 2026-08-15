@@ -1,4 +1,5 @@
 import type { PurchaseRequestPriority, PurchaseRequestStatus } from '../enums';
+import type { AbcClass } from './abc-classification.dto';
 import type { ChartOfAccountDTO } from './finance.dto';
 import type { UserDTO, UserRefDTO } from './user.dto';
 export interface PurchaseRequestItemDTO {
@@ -9,6 +10,7 @@ export interface PurchaseRequestItemDTO {
     supply_id?: string | null;
     inventory_id?: string | null;
     sort_order: number;
+    abc_classification: AbcClass | null;
 }
 export interface PurchaseRequestApprovalDTO {
     id: string;

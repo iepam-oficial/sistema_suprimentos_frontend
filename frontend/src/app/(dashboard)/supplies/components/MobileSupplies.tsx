@@ -26,12 +26,17 @@ import {
 } from '@chakra-ui/react';
 import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiAlertTriangle, FiPackage } from 'react-icons/fi';
 import { Supply } from '../utils/types';
-import type { SupplyVisibilityFilter } from '../utils/filterUtils';
+import type { SupplyAbcFilter, SupplyVisibilityFilter } from '../utils/filterUtils';
 import { SupplyModal } from '@/features/catalog/components/SupplyModal';
 import { SupplyInternalCodeDisplay } from '@/features/catalog/components/SupplyInternalCodeDisplay';
 import { useState } from 'react';
 import type { CreateSupplyInput } from '@/features/catalog/types';
 import type { CategoryDTO } from '@/features/reference-data';
+import {
+    abcBadgeColorScheme,
+    abcBadgeLabel,
+    formatAbcDisplay,
+} from '@/features/catalog/abcClassification';
 
 interface MobileSuppliesProps {
     supplies: Supply[];
@@ -40,8 +45,10 @@ interface MobileSuppliesProps {
     onSearch: (term: string) => void;
     selectedCategory: string;
     selectedVisibility: SupplyVisibilityFilter;
+    selectedAbc: SupplyAbcFilter;
     onCategoryChange: (category: string) => void;
     onVisibilityChange: (visibility: SupplyVisibilityFilter) => void;
+    onAbcChange: (abc: SupplyAbcFilter) => void;
     filtersActive: boolean;
     onClearFilters: () => void;
     onDelete: (id: string) => void;
@@ -59,8 +66,10 @@ export function MobileSupplies({
     onSearch,
     selectedCategory,
     selectedVisibility,
+    selectedAbc,
     onCategoryChange,
     onVisibilityChange,
+    onAbcChange,
     filtersActive,
     onClearFilters,
     onDelete,
@@ -202,6 +211,18 @@ export function MobileSupplies({
                                             <Badge size="sm" colorScheme="purple">
                                                 {supply.category?.label ?? '—'}
                                             </Badge>
+                                            {supply.abc_classification != null ? (
+                                                <Badge
+                                                    size="sm"
+                                                    colorScheme={abcBadgeColorScheme(supply.abc_classification)}
+                                                >
+                                                    {abcBadgeLabel(supply.abc_classification)}
+                                                </Badge>
+                                            ) : (
+                                                <Text fontSize="xs" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'}>
+                                                    {formatAbcDisplay(null)}
+                                                </Text>
+                                            )}
                                             {isManager && (
                                                 <Badge size="sm" colorScheme={supply.visible_to_requesters ? 'green' : 'gray'}>
                                                     {supply.visible_to_requesters ? 'Visível' : 'Oculto'}
@@ -277,6 +298,23 @@ export function MobileSupplies({
                                     </Select>
                                 </FormControl>
                             )}
+                            <FormControl>
+                                <FormLabel>Classe ABC</FormLabel>
+                                <Select
+                                    value={selectedAbc}
+                                    onChange={(e) => onAbcChange(e.target.value as SupplyAbcFilter)}
+                                    size="sm"
+                                    bg={colorMode === 'dark' ? 'rgba(45, 55, 72, 0.5)' : 'rgba(255, 255, 255, 0.5)'}
+                                    backdropFilter="blur(12px)"
+                                    borderColor={colorMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
+                                >
+                                    <option value="">Todas</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="UNCLASSIFIED">Não classificado</option>
+                                </Select>
+                            </FormControl>
                         </VStack>
                     </DrawerBody>
                     <DrawerFooter borderTopWidth="1px">

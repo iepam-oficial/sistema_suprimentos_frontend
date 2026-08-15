@@ -20,6 +20,9 @@ import {
     NumberInputStepper,
     NumberIncrementStepper,
     NumberDecrementStepper,
+    Text,
+    Badge,
+    SimpleGrid,
 } from '@chakra-ui/react';
 import type { Supply, CreateSupplyInput } from '@/features/catalog/types';
 import { initializeFormData } from '@/features/catalog/utils/supplyForm';
@@ -32,6 +35,12 @@ import { Image as ImageIcon } from 'lucide-react';
 import { ImageSourceDialog } from '@/features/catalog/components/ImageSourceDialog';
 import { SupplyInternalCodeDisplay } from '@/features/catalog/components/SupplyInternalCodeDisplay';
 import { fetchSubcategoriesByCategory, type CategoryDTO, type SubcategoryDTO } from '@/features/reference-data';
+import {
+    abcBadgeColorScheme,
+    abcBadgeLabel,
+    formatAbcDisplay,
+} from '@/features/catalog/abcClassification';
+import { formatBRL } from '@/utils/money';
 
 interface SupplyModalProps {
     isOpen: boolean;
@@ -45,6 +54,21 @@ interface SupplyModalProps {
         description?: string;
     };
     onInternalCodeGenerated?: (supply: Supply) => void;
+}
+
+function formatAbcPercent(value: number | null | undefined): string {
+    if (value == null) return '—';
+    return `${value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
+}
+
+function formatAbcDate(value: string | null | undefined): string {
+    if (!value) return '—';
+    return new Date(value).toLocaleDateString('pt-BR');
+}
+
+function formatAbcPeriodValue(value: number | null | undefined): string {
+    if (value == null) return '—';
+    return formatBRL(value);
 }
 
 function buildCreateFormData(prefill?: SupplyModalProps['prefill']) {
@@ -245,6 +269,51 @@ export function SupplyModal({ isOpen, onClose, onSubmit, categories, initialData
                                             onInternalCodeGenerated?.(dto as Supply);
                                         }}
                                     />
+                                </Box>
+                            )}
+
+                            {initialData && (
+                                <Box
+                                    gridColumn="1 / -1"
+                                    borderWidth="1px"
+                                    borderRadius="md"
+                                    p={3}
+                                >
+                                    <Text fontWeight="semibold" mb={2} fontSize="sm">
+                                        Classificação ABC
+                                    </Text>
+                                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                                        <FormControl>
+                                            <FormLabel fontSize="sm">Classe</FormLabel>
+                                            {initialData.abc_classification != null ? (
+                                                <Badge
+                                                    colorScheme={abcBadgeColorScheme(initialData.abc_classification)}
+                                                >
+                                                    {abcBadgeLabel(initialData.abc_classification)}
+                                                </Badge>
+                                            ) : (
+                                                <Text fontSize="sm">{formatAbcDisplay(null)}</Text>
+                                            )}
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel fontSize="sm">Valor de consumo (período)</FormLabel>
+                                            <Text fontSize="sm">
+                                                {formatAbcPeriodValue(initialData.abc_period_value)}
+                                            </Text>
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel fontSize="sm">Percentual acumulado</FormLabel>
+                                            <Text fontSize="sm">
+                                                {formatAbcPercent(initialData.abc_cumulative_percent)}
+                                            </Text>
+                                        </FormControl>
+                                        <FormControl>
+                                            <FormLabel fontSize="sm">Última classificação</FormLabel>
+                                            <Text fontSize="sm">
+                                                {formatAbcDate(initialData.abc_classified_at)}
+                                            </Text>
+                                        </FormControl>
+                                    </SimpleGrid>
                                 </Box>
                             )}
 

@@ -1,13 +1,16 @@
+import { matchesAbcFilter, type AbcFilterValue } from '@/features/catalog/abcClassification';
 import { normalizeInternalCodeForSearch } from '@/utils/internalCode';
 import { Supply } from './types';
 
 export type SupplyVisibilityFilter = '' | 'visible' | 'hidden';
+export type { AbcFilterValue as SupplyAbcFilter };
 
 export const filterSupplies = (
     supplies: Supply[],
     searchTerm: string,
     selectedCategory: string,
-    visibility: SupplyVisibilityFilter = ''
+    visibility: SupplyVisibilityFilter = '',
+    abcClassification: AbcFilterValue = ''
 ): Supply[] => {
     return Array.isArray(supplies) ? supplies.filter(supply => {
         const normalizedSearchForCode = normalizeInternalCodeForSearch(searchTerm).toLowerCase();
@@ -24,7 +27,9 @@ export const filterSupplies = (
             (visibility === 'visible' && supply.visible_to_requesters === true) ||
             (visibility === 'hidden' && supply.visible_to_requesters === false);
 
-        return matchesSearch && matchesCategory && matchesVisibility;
+        const matchesAbc = matchesAbcFilter(supply.abc_classification, abcClassification);
+
+        return matchesSearch && matchesCategory && matchesVisibility && matchesAbc;
     }) : [];
 };
 

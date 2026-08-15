@@ -1,4 +1,4 @@
-export { fetchManagerOpsDashboard } from './api';
+export { fetchManagerOpsDashboard, fetchAbcClassificationSummary } from './api';
 
 export {
   useManagerOpsDashboard,
@@ -15,4 +15,5 @@ export { ManagerOpsSpendChart } from './components/ManagerOpsSpendChart';
 export { ManagerOpsSuppliersTable } from './components/ManagerOpsSuppliersTable';
 export { ManagerOpsKanban } from './components/ManagerOpsKanban';
 export { ManagerOpsStockHealth } from './components/ManagerOpsStockHealth';
+export { ManagerOpsAbcClassificationCard } from './components/ManagerOpsAbcClassificationCard';
 export { ManagerOpsCalendar } from './components/ManagerOpsCalendar';

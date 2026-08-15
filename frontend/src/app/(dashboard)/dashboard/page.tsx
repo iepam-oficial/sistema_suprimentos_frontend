@@ -16,6 +16,7 @@ import {
 import { ManagerOpsConsumptionPeriod } from '@ti-assistant/contracts';
 import { useAuthSession } from '@/features/identity';
 import {
+  ManagerOpsAbcClassificationCard,
   ManagerOpsAlertsPanel,
   ManagerOpsCalendar,
   ManagerOpsConsumptionChart,
@@ -100,6 +101,8 @@ export default function DashboardPage() {
             <ManagerOpsKanban columns={data?.kanban ?? []} loading={loading} />
 
             <ManagerOpsStockHealth stockHealth={data?.stockHealth ?? null} loading={loading} />
+
+            <ManagerOpsAbcClassificationCard />
 
             <ManagerOpsCalendar events={data?.calendar ?? []} loading={loading} />
 
