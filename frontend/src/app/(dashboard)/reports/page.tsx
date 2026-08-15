@@ -30,6 +30,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   fetchReport,
   fetchReportFilters,
+  isDetailEnrichedSlug,
   isStockReportSlug,
   RateLimitError,
 } from '@/features/reports/api/reportApi';
@@ -228,11 +229,12 @@ function ReportsPageContent() {
     (isSimpleReport(reportData) ? reportData.title : 'Relatórios');
   const showToolbarExport = isSimpleReport(reportData) && !loading;
 
-  const stockColumnPayload =
+  const columnPickerPayload =
     isSimpleReport(reportData) &&
-    isStockReportSlug(reportData.slug) &&
     reportData.columnKeys &&
-    reportData.columnKeys.length > 0
+    reportData.columnKeys.length > 0 &&
+    (isStockReportSlug(reportData.slug) ||
+      isDetailEnrichedSlug(reportData.slug))
       ? {
           slug: reportData.slug,
           columnKeys: reportData.columnKeys,
@@ -244,32 +246,32 @@ function ReportsPageContent() {
     selection: columnSelection,
     setSelection: setColumnSelection,
     canExport: columnCanExport,
-  } = useReportColumnSelection(stockColumnPayload);
+  } = useReportColumnSelection(columnPickerPayload);
 
-  const showColumnPicker = Boolean(stockColumnPayload) && !loading;
+  const showColumnPicker = Boolean(columnPickerPayload) && !loading;
 
   const excelTable = useMemo(() => {
     if (!isSimpleReport(reportData)) {
       return { headers: [] as string[], rows: [] as (string | number)[][] };
     }
-    if (stockColumnPayload) {
+    if (columnPickerPayload) {
       return buildStockExportTable(reportData, columnSelection);
     }
     return {
       headers: reportData.tableHeaders,
       rows: reportData.tableRows,
     };
-  }, [reportData, stockColumnPayload, columnSelection]);
+  }, [reportData, columnPickerPayload, columnSelection]);
 
   const excelSheets = useMemo(() => {
     if (!isSimpleReport(reportData)) return [];
     if (reportData.tabDimensionKey || reportData.summaryHeaders) {
       return toExcelSheetsFromTabbedReport(reportData, excelTable, {
-        columnSelection: stockColumnPayload ? columnSelection : undefined,
+        columnSelection: columnPickerPayload ? columnSelection : undefined,
       });
     }
     return toExcelSheetsFromReportPayload(reportData, excelTable);
-  }, [reportData, excelTable, stockColumnPayload, columnSelection]);
+  }, [reportData, excelTable, columnPickerPayload, columnSelection]);
 
   const pdfTable = useMemo(() => {
     if (!isSimpleReport(reportData)) {
@@ -422,6 +424,7 @@ function ReportsPageContent() {
               filters={filters}
               filterOptions={filterOptions}
               hideChrome
+              columnSelection={showColumnPicker ? columnSelection : undefined}
             />
           )}
         </Box>

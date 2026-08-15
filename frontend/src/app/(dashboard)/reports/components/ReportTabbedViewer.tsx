@@ -14,6 +14,7 @@ import {
   useColorMode,
   VStack,
 } from '@chakra-ui/react';
+import { filterTableByKeys } from '@/features/reports/columnSelection';
 import { prepareChartDataForDisplay, resolveChartType } from '@/features/reports/chartConfig';
 import {
   filterRowsByTab,
@@ -32,6 +33,8 @@ export interface ReportTabbedViewerProps {
   displayHeaders?: string[];
   displayRows?: (string | number)[][];
   displayRowDetails?: (ReportDetailBlock | null)[];
+  /** When set with data.columnKeys, filters visible table columns after tab filter. */
+  columnSelection?: Record<string, boolean>;
   hideChrome?: boolean;
 }
 
@@ -49,11 +52,24 @@ function EmptyTabMessage() {
   );
 }
 
+function applyColumnSelection(
+  headers: string[],
+  rows: (string | number)[][],
+  columnKeys: string[] | undefined,
+  columnSelection: Record<string, boolean> | undefined,
+): { headers: string[]; rows: (string | number)[][] } {
+  if (!columnSelection || !columnKeys?.length) {
+    return { headers, rows };
+  }
+  return filterTableByKeys(headers, columnKeys, rows, columnSelection);
+}
+
 export function ReportTabbedViewer({
   data,
   displayHeaders,
   displayRows,
   displayRowDetails,
+  columnSelection,
 }: ReportTabbedViewerProps) {
   const { colorMode } = useColorMode();
   const dividerClr = colorMode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
@@ -61,9 +77,17 @@ export function ReportTabbedViewer({
   const tabs = useMemo(() => getReportTabs(data), [data]);
   const [tabIndex, setTabIndex] = useState(0);
 
-  const headers = displayHeaders ?? data.tableHeaders;
-  const rows = displayRows ?? data.tableRows;
-  const rowDetails = displayRowDetails ?? data.rowDetails;
+  // Prefer columnSelection (applied after tab filter). Fall back to pre-filtered display*.
+  const useSelectionFilter = Boolean(columnSelection && data.columnKeys?.length);
+  const headers = useSelectionFilter
+    ? data.tableHeaders
+    : (displayHeaders ?? data.tableHeaders);
+  const rows = useSelectionFilter
+    ? data.tableRows
+    : (displayRows ?? data.tableRows);
+  const rowDetails = useSelectionFilter
+    ? data.rowDetails
+    : (displayRowDetails ?? data.rowDetails);
 
   const colorByLabel = data.slug === 'alerts-by-level';
   const dataKey =
@@ -160,21 +184,29 @@ export function ReportTabbedViewer({
               );
             }
 
+            // Always tab-filter on full-width rows so tabDimensionKey indices stay valid.
             const { tableRows: panelRows, rowDetails: panelDetails } =
               filterRowsByTab({
                 tabId: tab.id,
                 tabDimensionKey: data.tabDimensionKey,
                 columnKeys: data.columnKeys,
-                tableRows: rows,
-                rowDetails,
+                tableRows: useSelectionFilter ? data.tableRows : rows,
+                rowDetails: useSelectionFilter ? data.rowDetails : rowDetails,
               });
+
+            const visible = applyColumnSelection(
+              useSelectionFilter ? data.tableHeaders : headers,
+              panelRows,
+              data.columnKeys,
+              useSelectionFilter ? columnSelection : undefined,
+            );
 
             return (
               <TabPanel key={tab.id} px={0} pt={4}>
                 {panelRows.length > 0 ? (
                   <ReportDetailTable
-                    headers={headers}
-                    rows={panelRows}
+                    headers={visible.headers}
+                    rows={visible.rows}
                     rowDetails={panelDetails}
                     defaultOpen={panelRows.length <= 15}
                   />

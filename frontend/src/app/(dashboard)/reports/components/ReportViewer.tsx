@@ -14,9 +14,15 @@ import {
   Tag,
   TagLabel,
 } from '@chakra-ui/react';
-import { isStockReportSlug } from '@/features/reports/api/reportApi';
+import {
+  isDetailEnrichedSlug,
+  isStockReportSlug,
+} from '@/features/reports/api/reportApi';
 import { prepareChartDataForDisplay, resolveChartType } from '@/features/reports/chartConfig';
-import { buildStockExportTable } from '@/features/reports/columnSelection';
+import {
+  buildStockExportTable,
+  canExport,
+} from '@/features/reports/columnSelection';
 import { reportExportFileName } from '@/features/reports/reportExportFileName';
 import {
   toExcelSheetsFromReportPayload,
@@ -33,15 +39,28 @@ import { ExecutiveSummaryView } from './ExecutiveSummaryView';
 import { getActiveFilterChips, ReportFiltersState } from './ReportFilters';
 import { ReportChart } from './ReportChart';
 import { ReportChartCard } from './ReportChartCard';
+import {
+  ReportColumnPicker,
+  useReportColumnSelection,
+} from './ReportColumnPicker';
 import { ReportDetailTable } from './ReportDetailTable';
 import { ReportExportActions } from './ReportExportActions';
 import { ReportTabbedViewer } from './ReportTabbedViewer';
-import { useReportColumnSelection } from './ReportColumnPicker';
 
 function isExecutiveSummary(
   data: ReportPayload | ExecutiveSummaryPayload
 ): data is ExecutiveSummaryPayload {
   return data.slug === 'executive-summary';
+}
+
+function canUseColumnPicker(
+  slug: ReportSlug,
+  columnKeys: string[] | undefined,
+): boolean {
+  return Boolean(
+    columnKeys?.length &&
+      (isStockReportSlug(slug) || isDetailEnrichedSlug(slug)),
+  );
 }
 
 interface ReportViewerProps {
@@ -51,6 +70,8 @@ interface ReportViewerProps {
   filterOptions?: FilterOptions | null;
   /** When true, omit title + export (toolbar owns them). Keeps description/chips. */
   hideChrome?: boolean;
+  /** Controlled selection from parent toolbar (keeps TabbedViewer in sync). */
+  columnSelection?: Record<string, boolean>;
 }
 
 export function ReportViewer({
@@ -59,16 +80,15 @@ export function ReportViewer({
   filters,
   filterOptions,
   hideChrome = false,
+  columnSelection: controlledSelection,
 }: ReportViewerProps) {
   const { colorMode } = useColorMode();
   const dividerClr = colorMode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
 
-  const stockColumnPayload =
+  const columnPickerPayload =
     data &&
     !isExecutiveSummary(data) &&
-    isStockReportSlug(data.slug as ReportSlug) &&
-    data.columnKeys &&
-    data.columnKeys.length > 0
+    canUseColumnPicker(data.slug as ReportSlug, data.columnKeys)
       ? {
           slug: data.slug,
           columnKeys: data.columnKeys,
@@ -77,32 +97,39 @@ export function ReportViewer({
       : null;
 
   const {
-    selection: columnSelection,
-    canExport: columnCanExport,
-  } = useReportColumnSelection(stockColumnPayload);
+    selection: localSelection,
+    setSelection: setLocalSelection,
+    canExport: localCanExport,
+  } = useReportColumnSelection(columnPickerPayload);
+
+  const columnSelection = controlledSelection ?? localSelection;
+  const columnCanExport = controlledSelection
+    ? canExport(controlledSelection)
+    : localCanExport;
+  const showInlinePicker = Boolean(columnPickerPayload) && !hideChrome;
 
   const excelTable = useMemo(() => {
     if (!data || isExecutiveSummary(data)) {
       return { headers: [] as string[], rows: [] as (string | number)[][] };
     }
-    if (stockColumnPayload) {
+    if (columnPickerPayload) {
       return buildStockExportTable(data, columnSelection);
     }
     return {
       headers: data.tableHeaders,
       rows: data.tableRows,
     };
-  }, [data, stockColumnPayload, columnSelection]);
+  }, [data, columnPickerPayload, columnSelection]);
 
   const excelSheets = useMemo(() => {
     if (!data || isExecutiveSummary(data)) return [];
     if (data.tabDimensionKey || data.summaryHeaders) {
       return toExcelSheetsFromTabbedReport(data, excelTable, {
-        columnSelection: stockColumnPayload ? columnSelection : undefined,
+        columnSelection: columnPickerPayload ? columnSelection : undefined,
       });
     }
     return toExcelSheetsFromReportPayload(data, excelTable);
-  }, [data, excelTable, stockColumnPayload, columnSelection]);
+  }, [data, excelTable, columnPickerPayload, columnSelection]);
 
   const pdfTable = useMemo(() => {
     if (!data || isExecutiveSummary(data)) {
@@ -172,15 +199,27 @@ export function ReportViewer({
               </Wrap>
             )}
           </Box>
-          <ReportExportActions
-            excelFileName={reportExportFileName(data.slug, 'xlsx')}
-            sheets={excelSheets}
-            pdfTitle={data.title}
-            pdfHeaders={pdfTable.headers}
-            pdfRows={pdfTable.rows}
-            pdfFileName={reportExportFileName(data.slug, 'pdf')}
-            disabled={Boolean(stockColumnPayload) && !columnCanExport}
-          />
+          <Flex gap={2} align="center" flexShrink={0}>
+            {showInlinePicker && (
+              <ReportColumnPicker
+                summaryKeys={data.columnKeys!}
+                summaryHeaders={data.tableHeaders}
+                detailKeys={data.detailColumnKeys}
+                detailHeaders={data.detailHeaders}
+                selection={columnSelection}
+                onChange={setLocalSelection}
+              />
+            )}
+            <ReportExportActions
+              excelFileName={reportExportFileName(data.slug, 'xlsx')}
+              sheets={excelSheets}
+              pdfTitle={data.title}
+              pdfHeaders={pdfTable.headers}
+              pdfRows={pdfTable.rows}
+              pdfFileName={reportExportFileName(data.slug, 'pdf')}
+              disabled={Boolean(columnPickerPayload) && !columnCanExport}
+            />
+          </Flex>
         </Flex>
       ) : (
         (data.description || filterChips.length > 0) && (
@@ -206,7 +245,11 @@ export function ReportViewer({
       )}
 
       {isTabbedReport ? (
-        <ReportTabbedViewer data={data} hideChrome={hideChrome} />
+        <ReportTabbedViewer
+          data={data}
+          columnSelection={columnPickerPayload ? columnSelection : undefined}
+          hideChrome={hideChrome}
+        />
       ) : (
         <>
           <Flex
