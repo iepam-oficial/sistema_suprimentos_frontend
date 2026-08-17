@@ -1,4 +1,5 @@
 import type { MovementType, SupplyBatchOrigin, SupplyMovementType, SupplyTransactionType } from '../enums';
+import type { AbcClass } from './abc-classification.dto';
 import type { FiscalNcmDTO } from './fiscal.dto';
 import type {
   InvoiceLineFiscalSnapshot,
@@ -63,6 +64,10 @@ export interface SupplyDTO {
   internal_code?: string | null;
   ncm_id?: string | null;
   ncm?: Pick<FiscalNcmDTO, 'id' | 'code' | 'description'> | null;
+  abc_classification: AbcClass | null;
+  abc_period_value: number | null;
+  abc_cumulative_percent: number | null;
+  abc_classified_at: string | null;
   created_at: string;
   updated_at: string;
   category?: CategoryRefDTO;

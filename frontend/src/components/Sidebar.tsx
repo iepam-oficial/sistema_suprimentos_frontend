@@ -233,6 +233,9 @@ function useSidebarMenuModel() {
       : []),
     ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
     ...(isAdmin ? [{ label: 'Códigos internos', href: '/settings/catalog-codes' }] : []),
+    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+      ? [{ label: 'Classificação ABC', href: '/settings/abc-classification' }]
+      : []),
   ];
 
   const comprasItems: NavItem[] = [

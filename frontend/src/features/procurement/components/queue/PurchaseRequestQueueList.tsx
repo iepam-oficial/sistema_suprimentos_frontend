@@ -21,6 +21,7 @@ export function PurchaseRequestQueueList({
       error={error}
       emptyMessage="Nenhuma solicitação aguardando cotação."
       showCreator
+      highlightClassA
       getDetailHref={(id) => `/procurement/fila-compras/${id}`}
     />
   );

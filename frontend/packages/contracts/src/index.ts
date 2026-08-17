@@ -7,6 +7,7 @@ export * from './dto/demand-supply.dto';
 export * from './dto/inventory.dto';
 export * from './dto/depreciation-rate.dto';
 export * from './dto/catalog.dto';
+export * from './dto/abc-classification.dto';
 export * from './dto/support-ticket.dto';
 export * from './dto/event.dto';
 export * from './dto/finance.dto';

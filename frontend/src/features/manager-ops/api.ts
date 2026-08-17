@@ -1,4 +1,5 @@
 import type {
+  AbcClassificationSummaryDTO,
   ManagerOpsDashboardDTO,
   ManagerOpsFilters,
 } from '@ti-assistant/contracts';
@@ -17,6 +18,15 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
+}
+
+export async function fetchAbcClassificationSummary(
+  token: string
+): Promise<AbcClassificationSummaryDTO> {
+  const response = await fetch('/api/supplies/abc-classification/summary', {
+    headers: authHeaders(token),
+  });
+  return handleResponse<AbcClassificationSummaryDTO>(response);
 }
 
 function buildDashboardQuery(filters: ManagerOpsFilters = {}): string {

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import type { PurchaseRequestDTO, PurchaseRequestPriority } from '@ti-assistant/contracts';
 import {
   PurchaseRequestPageShell,
   PurchaseRequestQueueList,
@@ -11,23 +10,9 @@ import {
   usePurchaseRequests,
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
+import { sortPurchaseRequestQueue } from '@/features/procurement/lib/sortPurchaseRequestQueue';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
-
-const PRIORITY_ORDER: Record<PurchaseRequestPriority, number> = {
-  URGENT: 4,
-  HIGH: 3,
-  MEDIUM: 2,
-  LOW: 1,
-};
-
-function sortQueueItems(items: PurchaseRequestDTO[]): PurchaseRequestDTO[] {
-  return [...items].sort((a, b) => {
-    const priorityDiff = PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority];
-    if (priorityDiff !== 0) return priorityDiff;
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-  });
-}
 
 export default function PurchaseRequestQueuePage() {
   const router = useRouter();
@@ -39,7 +24,7 @@ export default function PurchaseRequestQueuePage() {
     limit: 100,
   });
 
-  const sortedItems = useMemo(() => sortQueueItems(items), [items]);
+  const sortedItems = useMemo(() => sortPurchaseRequestQueue(items), [items]);
 
   usePollingRefresh({
     enabled: authorized,

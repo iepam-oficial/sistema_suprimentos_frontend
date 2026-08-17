@@ -52,18 +52,24 @@ import { NewBatchModal } from './components/NewBatchModal';
 import { MobileSupplies } from './components/MobileSupplies';
 import { useUser } from '@/features/identity';
 import { Supply } from './utils/types';
-import { filterSupplies, type SupplyVisibilityFilter } from './utils/filterUtils';
+import { filterSupplies, type SupplyAbcFilter, type SupplyVisibilityFilter } from './utils/filterUtils';
 import { exportSuppliesBelowMinimum } from './utils/exportUtils';
 import { SupplyBatchList } from './components/SupplyBatchList';
 import { useRouter } from 'next/navigation';
 import { fetchCategories as fetchCategoriesApi, type CategoryDTO } from '@/features/reference-data';
 import type { CreateSupplyInput } from '@/features/catalog/types';
+import {
+    abcBadgeColorScheme,
+    abcBadgeLabel,
+    formatAbcDisplay,
+} from '@/features/catalog/abcClassification';
 
 export default function SuppliesPage() {
     const [supplies, setSupplies] = useState<Supply[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [selectedVisibility, setSelectedVisibility] = useState<SupplyVisibilityFilter>('');
+    const [selectedAbc, setSelectedAbc] = useState<SupplyAbcFilter>('');
     const [categories, setCategories] = useState<CategoryDTO[]>([]);
     const { isOpen, onOpen, onClose } = useDisclosure();
     const { isOpen: isFilterOpen, onOpen: onFilterOpen, onClose: onFilterClose } = useDisclosure();
@@ -268,12 +274,19 @@ export default function SuppliesPage() {
         onClose();
     };
 
-    const filteredSupplies = filterSupplies(supplies, searchTerm, selectedCategory, selectedVisibility);
-    const filtersActive = Boolean(selectedCategory || selectedVisibility);
+    const filteredSupplies = filterSupplies(
+        supplies,
+        searchTerm,
+        selectedCategory,
+        selectedVisibility,
+        selectedAbc
+    );
+    const filtersActive = Boolean(selectedCategory || selectedVisibility || selectedAbc);
 
     const clearFilters = () => {
         setSelectedCategory('');
         setSelectedVisibility('');
+        setSelectedAbc('');
     };
 
     if (isMobile) {
@@ -286,8 +299,10 @@ export default function SuppliesPage() {
                     onSearch={setSearchTerm}
                     selectedCategory={selectedCategory}
                     selectedVisibility={selectedVisibility}
+                    selectedAbc={selectedAbc}
                     onCategoryChange={setSelectedCategory}
                     onVisibilityChange={setSelectedVisibility}
+                    onAbcChange={setSelectedAbc}
                     filtersActive={filtersActive}
                     onClearFilters={clearFilters}
                     onDelete={handleDelete}
@@ -431,6 +446,7 @@ export default function SuppliesPage() {
                                 <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Mínimo</Th>
                                 <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Unidade</Th>
                                 <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Categoria</Th>
+                                <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Classe ABC</Th>
                                 {isManager && (
                                     <Th py={2} color={colorMode === 'dark' ? 'gray.300' : 'gray.600'} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'}>Visível</Th>
                                 )}
@@ -492,6 +508,24 @@ export default function SuppliesPage() {
                                             {cell.value}
                                         </Td>
                                     ))}
+                                    <Td py={1.5} px={2}>
+                                        {supply.abc_classification != null ? (
+                                            <Badge
+                                                size="sm"
+                                                colorScheme={abcBadgeColorScheme(supply.abc_classification)}
+                                            >
+                                                {abcBadgeLabel(supply.abc_classification)}
+                                            </Badge>
+                                        ) : (
+                                            <Text
+                                                as="span"
+                                                color={colorMode === 'dark' ? 'white' : 'gray.800'}
+                                                fontSize="sm"
+                                            >
+                                                {formatAbcDisplay(null)}
+                                            </Text>
+                                        )}
+                                    </Td>
                                     {isManager && (
                                         <Td py={1.5} px={2}>
                                             <Badge size="sm" colorScheme={supply.visible_to_requesters ? 'green' : 'gray'}>
@@ -576,6 +610,22 @@ export default function SuppliesPage() {
                                     </Select>
                                 </FormControl>
                             )}
+                            <FormControl>
+                                <FormLabel color={textColor} fontSize="sm">Classe ABC</FormLabel>
+                                <Select
+                                    value={selectedAbc}
+                                    onChange={(e) => setSelectedAbc(e.target.value as SupplyAbcFilter)}
+                                    bg={inputBg}
+                                    borderColor={inputBorder}
+                                    size="sm"
+                                >
+                                    <option value="">Todas</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="UNCLASSIFIED">Não classificado</option>
+                                </Select>
+                            </FormControl>
                         </VStack>
                     </DrawerBody>
                     <DrawerFooter borderTop="1px solid" borderColor={drawerBorder}>

@@ -23,6 +23,7 @@ __exportStar(require("./dto/demand-supply.dto"), exports);
 __exportStar(require("./dto/inventory.dto"), exports);
 __exportStar(require("./dto/depreciation-rate.dto"), exports);
 __exportStar(require("./dto/catalog.dto"), exports);
+__exportStar(require("./dto/abc-classification.dto"), exports);
 __exportStar(require("./dto/support-ticket.dto"), exports);
 __exportStar(require("./dto/event.dto"), exports);
 __exportStar(require("./dto/finance.dto"), exports);
