@@ -1,3 +1,5 @@
+import { isDashboardPath } from '@/utils/dashboardNav'
+
 const PROTECTED_PATH_PREFIXES = [
   '/dashboard',
   '/orders',
@@ -76,7 +78,11 @@ export function resolvePostLoginPath(
   options?: { from?: string | null },
 ): string | null {
   const fromPath = normalizeFromPath(options?.from)
-  if (fromPath && isFromAllowedForRole(fromPath, role)) {
+  if (
+    fromPath &&
+    !isDashboardPath(fromPath) &&
+    isFromAllowedForRole(fromPath, role)
+  ) {
     return fromPath
   }
   return getPostLoginPath(role)

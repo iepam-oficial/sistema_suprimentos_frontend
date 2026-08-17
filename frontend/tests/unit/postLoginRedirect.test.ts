@@ -32,6 +32,21 @@ describe('postLoginRedirect', () => {
       resolvePostLoginPath('COORDINATOR', { from: '/support-tickets/abc' }),
     ).toBe('/support-tickets/abc')
     expect(
+      resolvePostLoginPath('DIRECTOR', { from: '/procurement/solicitacoes/abc' }),
+    ).toBe('/procurement/solicitacoes/abc')
+  })
+
+  it('ignores Dashboard ?from= and uses role default', () => {
+    expect(
+      resolvePostLoginPath('ADMIN', { from: '/dashboard/financeiro' }),
+    ).toBe('/dashboard')
+    expect(
+      resolvePostLoginPath('MANAGER', { from: '/dashboard/financeiro' }),
+    ).toBe('/dashboard')
+    expect(
+      resolvePostLoginPath('DIRECTOR', { from: '/dashboard' }),
+    ).toBe('/dashboard/financeiro')
+    expect(
       resolvePostLoginPath('DIRECTOR', { from: '/dashboard/financeiro' }),
     ).toBe('/dashboard/financeiro')
   })

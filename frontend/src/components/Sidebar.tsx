@@ -5,7 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Menu as MenuIcon,
   X,
-  Home,
   Wrench,
   Settings,
   LogOut,
@@ -29,6 +28,9 @@ import {
   Truck,
   TrendingDown,
   Barcode,
+  LayoutDashboard,
+  LineChart,
+  Home,
   LucideIcon,
 } from 'lucide-react';
 import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
@@ -48,6 +50,12 @@ import {
   useSidebarHover,
   type FlyoutGroupId,
 } from '@/components/useSidebarHover';
+import {
+  canAccessDashboard,
+  DASHBOARD_FINANCE_PATH,
+  DASHBOARD_OPERATIONAL_PATH,
+  isDashboardPath,
+} from '@/utils/dashboardNav';
 
 /** Mobile drawer width (unchanged). */
 const SIDEBAR_WIDTH = 256;
@@ -143,6 +151,8 @@ function useSidebarMenuModel() {
     !!user && canCreateSupportTicket(user.role) && pathname.startsWith('/support-tickets');
 
   const isMenuItemActive = (href: string) => {
+    if (href === DASHBOARD_OPERATIONAL_PATH) return pathname === DASHBOARD_OPERATIONAL_PATH;
+    if (href === DASHBOARD_FINANCE_PATH) return pathname.startsWith(DASHBOARD_FINANCE_PATH);
     if (href === '/maintenance-schedules') return pathname.startsWith('/maintenance-schedules');
     if (href === '/support-tickets') return pathname.startsWith('/support-tickets');
     if (href === '/procurement/solicitacoes') return pathname.startsWith('/procurement/solicitacoes');
@@ -158,14 +168,16 @@ function useSidebarMenuModel() {
     return pathname === href;
   };
 
-  const menuItems: NavItem[] = [
-    ...(user && ['ADMIN', 'MANAGER', 'DIRECTOR'].includes(user.role)
-      ? [{ icon: Home, label: 'Dashboard', href: '/dashboard' }]
-      : []),
-    ...(user?.role === 'DIRECTOR'
-      ? [{ icon: BarChart, label: 'Dashboard Financeiro', href: '/dashboard/financeiro' }]
-      : []),
-  ];
+  /** Top-level loose items (dashboard moved to `dashboardItems` group — T6/T7). */
+  const menuItems: NavItem[] = [];
+
+  const dashboardItems: NavItem[] =
+    user && canAccessDashboard(user.role)
+      ? [
+          { icon: LayoutDashboard, label: 'Operacional', href: DASHBOARD_OPERATIONAL_PATH },
+          { icon: LineChart, label: 'Financeiro', href: DASHBOARD_FINANCE_PATH },
+        ]
+      : [];
 
   const estoqueItems: NavItem[] = [
     ...(user?.role === 'MANAGER' ? [{ icon: Package, label: 'Inventário', href: '/inventory' }] : []),
@@ -265,6 +277,7 @@ function useSidebarMenuModel() {
       : []),
   ];
 
+  const dashboardActive = isDashboardPath(pathname);
   const estoqueActive = estoqueItems.some((item) => isMenuItemActive(item.href));
   const operacoesActive = operacoesItems.some((item) => isMenuItemActive(item.href));
   const financeiroActive = financeiroItems.some((item) => isMenuItemActive(item.href));
@@ -281,11 +294,13 @@ function useSidebarMenuModel() {
     user,
     pathname,
     menuItems,
+    dashboardItems,
     estoqueItems,
     operacoesItems,
     financeiroItems,
     settingsItems,
     comprasItems,
+    dashboardActive,
     estoqueActive,
     operacoesActive,
     financeiroActive,
@@ -364,11 +379,13 @@ function DesktopSidebarRail() {
     user,
     pathname,
     menuItems,
+    dashboardItems,
     estoqueItems,
     operacoesItems,
     financeiroItems,
     settingsItems,
     comprasItems,
+    dashboardActive,
     estoqueActive,
     operacoesActive,
     financeiroActive,
@@ -397,6 +414,17 @@ function DesktopSidebarRail() {
     badgeLabel?: string;
     isSettings?: boolean;
   }[] = [
+    ...(dashboardItems.length > 0
+      ? [
+          {
+            id: 'dashboard' as const,
+            label: 'Dashboard',
+            icon: Home,
+            items: dashboardItems,
+            isActive: dashboardActive,
+          },
+        ]
+      : []),
     ...(estoqueItems.length > 0
       ? [
           {
@@ -609,6 +637,7 @@ function DesktopSidebarRail() {
 /** Mobile accordion sidebar — behavior preserved from pre-rail feature. */
 function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: boolean }) {
   const router = useRouter();
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isEstoqueOpen, setIsEstoqueOpen] = useState(false);
   const [isOperacoesOpen, setIsOperacoesOpen] = useState(false);
   const [isComprasOpen, setIsComprasOpen] = useState(false);
@@ -619,11 +648,13 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
     user,
     pathname,
     menuItems,
+    dashboardItems,
     estoqueItems,
     operacoesItems,
     financeiroItems,
     settingsItems,
     comprasItems,
+    dashboardActive,
     estoqueActive,
     operacoesActive,
     financeiroActive,
@@ -731,6 +762,32 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
             onClick={() => handleNavigation(item.href)}
           />
         ))}
+
+        {dashboardItems.length > 0 && (
+          <>
+            {renderGroupToggle({
+              label: 'Dashboard',
+              icon: Home,
+              isOpen: isDashboardOpen,
+              isActive: dashboardActive,
+              onToggle: () => setIsDashboardOpen(!isDashboardOpen),
+            })}
+            {isDashboardOpen && (
+              <div className="mt-1 space-y-0.5 pl-4">
+                {dashboardItems.map((item) => (
+                  <SidebarNavLink
+                    key={item.href}
+                    icon={item.icon}
+                    label={item.label}
+                    size="sm"
+                    isActive={isMenuItemActive(item.href)}
+                    onClick={() => handleNavigation(item.href)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         {estoqueItems.length > 0 && (
           <>
