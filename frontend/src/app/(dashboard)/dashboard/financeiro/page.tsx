@@ -8,7 +8,6 @@ import {
   Box,
   Center,
   Flex,
-  Heading,
   SimpleGrid,
   Spinner,
   Text,
@@ -16,7 +15,7 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import type { ExecutiveFinanceFilters as ExecutiveFinanceFiltersState } from '@ti-assistant/contracts';
-import { PoloMetric, UserRole } from '@ti-assistant/contracts';
+import { PoloMetric } from '@ti-assistant/contracts';
 import { useAuthSession } from '@/features/identity';
 import {
   DrilldownBreadcrumb,
@@ -36,6 +35,7 @@ import {
   useExecutiveDrilldown,
   useExecutiveFinanceDashboard,
 } from '@/features/executive-finance';
+import { canAccessDashboard } from '@/utils/dashboardNav';
 
 export default function ExecutiveFinanceDashboardPage() {
   const router = useRouter();
@@ -44,25 +44,23 @@ export default function ExecutiveFinanceDashboardPage() {
     getDefaultExecutiveFinanceFilters
   );
 
-  const isDirector = user?.role === UserRole.DIRECTOR;
+  const canAccess = Boolean(user?.role && canAccessDashboard(user.role));
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || !isDirector) {
+    if (!user || !canAccess) {
       router.replace('/unauthorized');
     }
-  }, [authLoading, user, isDirector, router]);
+  }, [authLoading, user, canAccess, router]);
 
   const { data, loading, error, isStale } = useExecutiveFinanceDashboard(filters);
   const drilldown = useExecutiveDrilldown(filters, setFilters);
   const alerts = data?.alerts ?? [];
   const hasAlerts = alerts.length > 0;
 
-  const textColor = useColorModeValue('gray.800', 'white');
-  const textSecondary = useColorModeValue('gray.500', 'gray.400');
   const bg = useColorModeValue('gray.50', 'gray.900');
 
-  if (authLoading || !user || !isDirector) {
+  if (authLoading || !user || !canAccess) {
     return (
       <Center minH="60vh">
         <Spinner size="lg" />
@@ -79,15 +77,6 @@ export default function ExecutiveFinanceDashboardPage() {
       py={{ base: 2, md: 3 }}
       px={{ base: 3, md: 4, lg: 5 }}
     >
-      <Box>
-        <Heading size="md" color={textColor} fontWeight="bold" letterSpacing="tight">
-          Dashboard Financeiro
-        </Heading>
-        <Text color={textSecondary} fontSize="sm">
-          Visão executiva consolidada — Diretoria
-        </Text>
-      </Box>
-
       {(isStale || error) && (
         <Alert status="warning" borderRadius="md" py={2}>
           <AlertIcon />

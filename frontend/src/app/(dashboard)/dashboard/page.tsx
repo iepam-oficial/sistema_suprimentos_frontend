@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Alert,
   AlertIcon,
   Box,
   Center,
   Flex,
-  Heading,
   Spinner,
   Text,
   VStack,
@@ -29,22 +29,32 @@ import {
   ManagerOpsTopConsumed,
   useManagerOpsDashboard,
 } from '@/features/manager-ops';
+import { canAccessDashboard } from '@/utils/dashboardNav';
 
 export default function DashboardPage() {
-  const { loading: authLoading } = useAuthSession();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuthSession();
   const [consumptionPeriod, setConsumptionPeriod] = useState<ManagerOpsConsumptionPeriod>(
     ManagerOpsConsumptionPeriod.MONTH
   );
   const { data, loading, error, isStale } = useManagerOpsDashboard({ consumptionPeriod });
 
-  const textColor = useColorModeValue('gray.800', 'white');
+  const canAccess = Boolean(user && canAccessDashboard(user.role));
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!canAccess) {
+      router.replace('/unauthorized');
+    }
+  }, [authLoading, canAccess, router]);
+
   const textSecondary = useColorModeValue('gray.500', 'gray.400');
   const bg = useColorModeValue('gray.50', 'gray.900');
 
   const alerts = data?.alerts ?? [];
   const hasAlerts = alerts.length > 0;
 
-  if (authLoading || (loading && !data)) {
+  if (authLoading || !canAccess || (loading && !data)) {
     return (
       <Center minH="60vh">
         <VStack spacing={4}>
@@ -66,15 +76,6 @@ export default function DashboardPage() {
       py={{ base: 2, md: 3 }}
       px={{ base: 3, md: 4, lg: 5 }}
     >
-      <Box>
-        <Heading size="md" color={textColor} fontWeight="bold" letterSpacing="tight">
-          Dashboard
-        </Heading>
-        <Text color={textSecondary} fontSize="sm">
-          Visão operacional do sistema de suprimentos
-        </Text>
-      </Box>
-
       {(isStale || error) && (
         <Alert status="warning" borderRadius="md" py={2}>
           <AlertIcon />

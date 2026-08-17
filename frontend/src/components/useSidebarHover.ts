@@ -5,6 +5,7 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 export const CLOSE_DELAY_MS = 220;
 
 export type FlyoutGroupId =
+  | 'dashboard'
   | 'estoque'
   | 'operacoes'
   | 'compras'

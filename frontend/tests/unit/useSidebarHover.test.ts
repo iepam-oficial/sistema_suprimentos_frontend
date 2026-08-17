@@ -42,6 +42,14 @@ describe('createSidebarHoverController', () => {
     expect(controller.getState()).toEqual({ isExpanded: true, flyoutGroup: 'compras' });
   });
 
+  it('accepts dashboard as flyout group on group enter', () => {
+    const { controller } = setup();
+    controller.onShellEnter();
+    const id: FlyoutGroupId = 'dashboard';
+    controller.onGroupEnter(id);
+    expect(controller.getState()).toEqual({ isExpanded: true, flyoutGroup: 'dashboard' });
+  });
+
   it('swaps flyout group when entering another group', () => {
     const { controller } = setup();
     controller.onShellEnter();
