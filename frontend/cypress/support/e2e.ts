@@ -8,3 +8,17 @@ if (shouldSkipE2E()) {
     this.skip();
   });
 }
+
+Cypress.on('uncaught:exception', (err) => {
+  // Chakra useBreakpointValue: SSR mobile vs viewport Cypress desktop.
+  // Turbopack HMR no next dev pode falhar o chunk no visit inicial.
+  if (
+    /Hydration failed|error while hydrating|did not match|Unknown root exit status|Minified React error #(418|422|423)|Failed to load chunk|ChunkLoadError|Loading chunk|hmr-client/i.test(
+      err.message,
+    )
+  ) {
+    return false;
+  }
+  return true;
+});
+

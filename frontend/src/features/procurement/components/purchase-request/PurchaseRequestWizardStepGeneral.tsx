@@ -11,12 +11,17 @@ import {
   VStack,
   useToast,
 } from '@chakra-ui/react';
+import type { PurchaseRequestPriority } from '@ti-assistant/contracts';
 import { useAuthSession } from '@/features/identity';
 import { fetchLocalesByUserLocation, type LocaleDTO } from '@/features/reference-data';
+import { canSetPriorityInWizard } from '@/features/procurement/lib/purchaseRequestAccess';
+import { purchaseRequestPriorityLabel } from '@/features/procurement/types';
 import {
   todayLocalIsoDate,
   type PurchaseRequestWizardForm,
 } from './purchaseRequestWizardTypes';
+
+const WIZARD_PRIORITIES: PurchaseRequestPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 interface PurchaseRequestWizardStepGeneralProps {
   form: PurchaseRequestWizardForm;
@@ -29,7 +34,8 @@ export function PurchaseRequestWizardStepGeneral({
   onChange,
   isDisabled = false,
 }: PurchaseRequestWizardStepGeneralProps) {
-  const { token } = useAuthSession();
+  const { token, user } = useAuthSession();
+  const showPriority = canSetPriorityInWizard(user?.role ?? '');
   const toast = useToast();
   const [locales, setLocales] = useState<LocaleDTO[]>([]);
   const [loadingLocales, setLoadingLocales] = useState(false);
@@ -143,6 +149,25 @@ export function PurchaseRequestWizardStepGeneral({
           />
         </FormControl>
       </SimpleGrid>
+
+      {showPriority && (
+        <FormControl>
+          <FormLabel>Prioridade</FormLabel>
+          <Select
+            value={form.priority}
+            onChange={(e) =>
+              onChange({ ...form, priority: e.target.value as PurchaseRequestPriority })
+            }
+            isDisabled={isDisabled}
+          >
+            {WIZARD_PRIORITIES.map((priority) => (
+              <option key={priority} value={priority}>
+                {purchaseRequestPriorityLabel(priority)}
+              </option>
+            ))}
+          </Select>
+        </FormControl>
+      )}
 
       <FormControl>
         <FormLabel>Observações</FormLabel>

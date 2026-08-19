@@ -39,6 +39,7 @@ import { useLogout } from '@/hooks/useLogout';
 import { hasEmployeeSelfServiceAccess } from '@ti-assistant/contracts';
 import { canCreateSupportTicket } from '@/features/support-tickets/types';
 import { useProcurementMenuBadges } from '@/features/procurement';
+import { SC_PAGE_ROLES } from '@/features/procurement/lib/purchaseRequestAccess';
 import { formatBadgeCount } from '@/features/procurement/utils/menuBadgeFormat';
 import {
   MENU_BADGE_PATH_BY_ROUTE,
@@ -251,7 +252,7 @@ function useSidebarMenuModel() {
   ];
 
   const comprasItems: NavItem[] = [
-    ...(user && ['COORDINATOR', 'ADMIN'].includes(user.role)
+    ...(user && (SC_PAGE_ROLES as readonly string[]).includes(user.role)
       ? [{ icon: ClipboardList, label: 'Solicitações de Compra', href: '/procurement/solicitacoes' }]
       : []),
     ...(user && ['DIRECTOR', 'ADMIN'].includes(user.role)

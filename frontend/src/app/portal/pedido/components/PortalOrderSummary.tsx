@@ -62,7 +62,7 @@ function SummaryContent({ context }: PortalOrderSummaryProps) {
 }
 
 export function PortalOrderSummary({ context }: PortalOrderSummaryProps) {
-  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isMobile = useBreakpointValue({ base: true, md: false }, { ssr: false });
   const { headingColor } = useGlassTokens();
 
   if (isMobile) {

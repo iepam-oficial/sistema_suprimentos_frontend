@@ -22,8 +22,20 @@ Cypress.Commands.add('loginAs', (role: E2eRole) => {
   cy.intercept('POST', '**/api/auth/login').as(alias);
   // Visit first so Chakra controlled inputs mount before typing.
   cy.visit('/', { timeout: 120000 });
+  cy.get('#email', { timeout: 30000 }).should('be.visible');
+  // Sem hidratação o <form> faz GET nativo e o intercept de login nunca dispara.
+  cy.get('#email', { timeout: 45000 }).should(($el) => {
+    const node = $el[0] as unknown as Record<string, unknown>;
+    const hydrated = Object.keys(node).some(
+      (key) =>
+        key.startsWith('__reactFiber') ||
+        key.startsWith('__reactProps') ||
+        key.startsWith('__reactInternalInstance'),
+    );
+    expect(hydrated, 'React hidratou o formulário de login').to.equal(true);
+  });
   // Clear + type as separate commands so `.should('have.value')` re-queries (Chakra flake).
-  cy.get('#email', { timeout: 30000 }).should('be.visible').click().clear({ force: true });
+  cy.get('#email').click().clear({ force: true });
   cy.get('#email').type(user.email, { parseSpecialCharSequences: false, delay: 25 });
   cy.get('#email').should('have.value', user.email);
   cy.get('#password').click().clear({ force: true });

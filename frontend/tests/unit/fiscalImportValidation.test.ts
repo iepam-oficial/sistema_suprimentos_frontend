@@ -1,4 +1,5 @@
 import {
+  FISCAL_IMPORT_CEST_SNIPPET,
   invalidImportMessage,
   validateFiscalImportRoot,
 } from '@/features/financeiro/lib/fiscalImportValidation';
@@ -27,5 +28,11 @@ describe('validateFiscalImportRoot', () => {
   it('mensagens de erro são uma linha', () => {
     expect(invalidImportMessage('ncm')).toBe('JSON NCM inválido');
     expect(invalidImportMessage('cest')).toBe('JSON CEST inválido');
+  });
+});
+
+describe('FISCAL_IMPORT_CEST_SNIPPET', () => {
+  it('inclui exemplo com campo uf', () => {
+    expect(FISCAL_IMPORT_CEST_SNIPPET).toContain('"uf"');
   });
 });

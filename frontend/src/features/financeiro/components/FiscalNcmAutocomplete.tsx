@@ -13,6 +13,7 @@ import {
 import type { FiscalNcmDTO } from '@ti-assistant/contracts';
 import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
 import { useFiscalNcmSearch } from '../hooks/useFiscalNcmSearch';
+import { formatNcmCestUfHint } from '../lib/cestUf';
 
 export interface FiscalNcmAutocompleteProps {
   value: { id: string; code: string; description?: string } | null;
@@ -137,26 +138,34 @@ export function FiscalNcmAutocomplete({
             </Text>
           </ListItem>
         ) : (
-          results.map((item) => (
-            <ListItem
-              key={item.id}
-              px={3}
-              py={2}
-              cursor="pointer"
-              _hover={{ bg: hoverBg }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleSelect(item);
-              }}
-            >
-              <Text fontSize="sm" fontWeight="medium">
-                {formatNcmDisplay(item.code)}
-              </Text>
-              <Text fontSize="xs" color="gray.500" noOfLines={2}>
-                {item.description}
-              </Text>
-            </ListItem>
-          ))
+          results.map((item) => {
+            const cestHint = formatNcmCestUfHint(item.cests);
+            return (
+              <ListItem
+                key={item.id}
+                px={3}
+                py={2}
+                cursor="pointer"
+                _hover={{ bg: hoverBg }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSelect(item);
+                }}
+              >
+                <Text fontSize="sm" fontWeight="medium">
+                  {formatNcmDisplay(item.code)}
+                </Text>
+                <Text fontSize="xs" color="gray.500" noOfLines={2}>
+                  {item.description}
+                </Text>
+                {cestHint ? (
+                  <Text fontSize="xs" color="gray.500" noOfLines={2}>
+                    {cestHint}
+                  </Text>
+                ) : null}
+              </ListItem>
+            );
+          })
         )}
       </AnchoredDropdownList>
     </Box>

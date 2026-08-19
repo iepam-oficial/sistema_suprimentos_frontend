@@ -25,6 +25,8 @@ describe('SC surfaces sem plano de contas (COAR-01)', () => {
       const form: PurchaseRequestWizardForm = {
         ...createEmptyWizardForm(),
         justification: 'Necessidade operacional',
+        destination: 'Almoxarifado Central',
+        delivery_deadline: '2099-12-31',
         items: [
           {
             key: 'item-1',
@@ -44,6 +46,7 @@ describe('SC surfaces sem plano de contas (COAR-01)', () => {
     it('buildPurchaseRequestPayload valida só justificativa e itens (sem COA)', () => {
       expect(
         buildPurchaseRequestPayload({
+          ...createEmptyWizardForm(),
           justification: '',
           notes: '',
           items: [{ key: '1', description: 'Item', quantity: 1, unit: 'UN' }],
@@ -52,6 +55,7 @@ describe('SC surfaces sem plano de contas (COAR-01)', () => {
 
       expect(
         buildPurchaseRequestPayload({
+          ...createEmptyWizardForm(),
           justification: 'Ok',
           notes: '',
           items: [{ key: '1', description: '', quantity: 1, unit: '' }],
@@ -59,16 +63,22 @@ describe('SC surfaces sem plano de contas (COAR-01)', () => {
       ).toBeNull();
 
       const valid = buildPurchaseRequestPayload({
+        ...createEmptyWizardForm(),
         justification: 'Ok',
+        destination: 'Almoxarifado Central',
+        delivery_deadline: '2099-12-31',
         notes: '',
         items: [{ key: '1', description: 'Item', quantity: 1, unit: 'UN' }],
       });
       expect(valid).not.toBeNull();
       expect(valid).toEqual({
         justification: 'Ok',
+        destination: 'Almoxarifado Central',
+        delivery_deadline: '2099-12-31',
         notes: undefined,
         items: [{ description: 'Item', quantity: 1, unit: 'UN', supply_id: undefined }],
       });
+      expect(valid && 'chart_of_account_id' in valid).toBe(false);
     });
   });
 

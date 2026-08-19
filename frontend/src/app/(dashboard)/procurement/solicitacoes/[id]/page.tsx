@@ -6,8 +6,11 @@ import { useParams, useRouter } from 'next/navigation';
 import type { PurchaseRequestDTO } from '@ti-assistant/contracts';
 import { fetchPurchaseRequestById } from '@/features/procurement';
 import { PurchaseRequestDetailLayout } from '@/features/procurement/components/purchase-request/PurchaseRequestDetailLayout';
-
-const ALLOWED_ROLES = ['COORDINATOR', 'ADMIN'];
+import {
+  SC_PAGE_ROLES,
+  canMutatePurchaseRequest,
+  isWizardEditableStatus,
+} from '@/features/procurement/lib/purchaseRequestAccess';
 
 export default function PurchaseRequestDetailPage() {
   const router = useRouter();
@@ -18,6 +21,7 @@ export default function PurchaseRequestDetailPage() {
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [request, setRequest] = useState<PurchaseRequestDTO | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   const loadRequest = useCallback(async () => {
     const token = localStorage.getItem('@ti-assistant:token');
@@ -31,7 +35,13 @@ export default function PurchaseRequestDetailPage() {
       const data = await fetchPurchaseRequestById(token, id);
       setRequest(data);
 
-      if (data.status === 'DRAFT') {
+      const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
+      const shouldRedirectToWizard =
+        isWizardEditableStatus(data.status) &&
+        canMutatePurchaseRequest({ id: user.id, role: user.role }, data);
+
+      if (shouldRedirectToWizard) {
+        setRedirecting(true);
         router.replace(`/procurement/solicitacoes/${id}/editar`);
       }
     } catch (err) {
@@ -49,7 +59,7 @@ export default function PurchaseRequestDetailPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
+    if (!user?.role || !SC_PAGE_ROLES.includes(user.role as (typeof SC_PAGE_ROLES)[number])) {
       router.push('/unauthorized');
       return;
     }
@@ -61,7 +71,7 @@ export default function PurchaseRequestDetailPage() {
     return null;
   }
 
-  if (loading) {
+  if (loading || redirecting) {
     return (
       <Center py={16}>
         <Spinner size="xl" />
@@ -73,14 +83,6 @@ export default function PurchaseRequestDetailPage() {
     return (
       <Center py={16}>
         <Text color="gray.500">Solicitação não encontrada.</Text>
-      </Center>
-    );
-  }
-
-  if (request.status === 'DRAFT') {
-    return (
-      <Center py={16}>
-        <Spinner size="xl" />
       </Center>
     );
   }

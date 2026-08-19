@@ -2,6 +2,7 @@ export interface FiscalCestEmbedded {
   code: string;
   description: string;
   segmento: string;
+  ufs: string[];
 }
 
 export interface FiscalNcmDTO {
