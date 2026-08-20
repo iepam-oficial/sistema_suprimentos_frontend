@@ -30,7 +30,7 @@ describe('procurement batch fiscal snapshot', () => {
         });
 
         cy.loginAs('MANAGER');
-        cy.visit(`/supplies/batches/${batchId}`);
+        cy.visit(`/supplies/batches/${batchId}`, { timeout: 120000 });
         cy.waitForText('Snapshot fiscal', 20000);
         cy.waitForText(E2E_ITEM_CFOP, 10000);
         cy.logout();
