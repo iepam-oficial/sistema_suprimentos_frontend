@@ -26,7 +26,7 @@ describe('menuBadgeRoutes', () => {
   it('maps roles to route keys', () => {
     expect(routeKeysForRole('COORDINATOR')).toEqual(['solicitacoes']);
     expect(routeKeysForRole('DIRECTOR')).toEqual(['aprovacoes-sc', 'cotacoes']);
-    expect(routeKeysForRole('MANAGER')).toEqual(['fila-compras', 'pedidos', 'cotacoes']);
+    expect(routeKeysForRole('MANAGER')).toEqual(['solicitacoes', 'fila-compras', 'pedidos', 'cotacoes']);
     expect(routeKeysForRole('ADMIN')).toEqual([
       'solicitacoes',
       'aprovacoes-sc',

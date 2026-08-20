@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { PurchaseRequestWizard } from '@/features/procurement/components/purchase-request/PurchaseRequestWizard';
-
-const ALLOWED_ROLES = ['COORDINATOR', 'ADMIN'];
+import { SC_PAGE_ROLES } from '@/features/procurement/lib/purchaseRequestAccess';
 
 export default function EditPurchaseRequestPage() {
   const router = useRouter();
@@ -14,7 +13,7 @@ export default function EditPurchaseRequestPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
+    if (!user?.role || !SC_PAGE_ROLES.includes(user.role as (typeof SC_PAGE_ROLES)[number])) {
       router.push('/unauthorized');
       return;
     }

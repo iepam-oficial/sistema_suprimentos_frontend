@@ -52,13 +52,15 @@ describe('reports-layout desktop', () => {
   });
 
   it('RL-3: select troca slug; relatório simples mostra kpis/chart/table', () => {
-    cy.intercept('GET', '**/api/reports/**').as('getReport');
+    cy.intercept('GET', '**/api/reports/executive-summary*').as('getExec');
+    cy.intercept('GET', '**/api/reports/supplies-stock*').as('getStock');
     cy.visit('/reports', { timeout: 120000 });
-    cy.wait('@getReport', { timeout: 60000 });
+    cy.wait('@getExec', { timeout: 60000 });
 
     cy.get('[data-testid="reports-select"]').select('supplies-stock');
-    cy.wait('@getReport', { timeout: 60000 });
     cy.url().should('include', 'report=supplies-stock');
+    cy.get('[data-testid="reports-select"]').should('have.value', 'supplies-stock');
+    cy.wait('@getStock', { timeout: 60000 });
     cy.get('[data-testid="reports-active-title"]').should('contain.text', 'Estoque');
     cy.get('[data-testid="reports-export"]').should('be.visible');
     cy.get('[data-testid="reports-export-excel"]').should('be.visible');
@@ -123,13 +125,13 @@ describe('reports-layout desktop', () => {
   });
 
   it('RL-6: deep link report + timeRange (non-stock)', () => {
-    cy.intercept('GET', '**/api/reports/**').as('getReport');
-    cy.visit('/reports?report=alerts-by-level&timeRange=90', { timeout: 120000 });
+    cy.intercept('GET', '**/api/reports/supply-requests*').as('getReport');
+    cy.visit('/reports?report=supply-requests&timeRange=90', { timeout: 120000 });
     cy.wait('@getReport', { timeout: 60000 });
 
-    cy.url().should('include', 'report=alerts-by-level');
+    cy.url().should('include', 'report=supply-requests');
     cy.url().should('include', 'timeRange=90');
-    cy.get('[data-testid="reports-select"]').should('have.value', 'alerts-by-level');
+    cy.get('[data-testid="reports-select"]').should('have.value', 'supply-requests');
     cy.get('[data-testid="reports-filter-badge"]').should('be.visible');
     cy.get('[data-testid="reports-kpis"]').should('be.visible');
   });

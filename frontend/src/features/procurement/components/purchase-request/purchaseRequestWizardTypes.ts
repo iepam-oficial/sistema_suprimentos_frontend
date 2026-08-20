@@ -1,4 +1,8 @@
-import type { CreatePurchaseRequestInput, PurchaseRequestDTO } from '@ti-assistant/contracts';
+import type {
+  CreatePurchaseRequestInput,
+  PurchaseRequestDTO,
+  PurchaseRequestPriority,
+} from '@ti-assistant/contracts';
 import { createClientKey } from '@/utils/clientKey';
 import { todayLocalIsoDate } from '@/utils/civilDate';
 
@@ -16,6 +20,7 @@ export interface PurchaseRequestWizardForm {
   justification: string;
   destination: string;
   delivery_deadline: string;
+  priority: PurchaseRequestPriority;
   notes: string;
   items: PurchaseRequestItemFormRow[];
 }
@@ -51,6 +56,7 @@ export function createEmptyWizardForm(): PurchaseRequestWizardForm {
     justification: '',
     destination: '',
     delivery_deadline: '',
+    priority: 'MEDIUM',
     notes: '',
     items: [createEmptyItemRow()],
   };
@@ -61,6 +67,7 @@ export function wizardFormFromDto(dto: PurchaseRequestDTO): PurchaseRequestWizar
     justification: dto.justification,
     destination: dto.destination ?? '',
     delivery_deadline: toDateInputValue(dto.delivery_deadline),
+    priority: dto.priority,
     notes: dto.notes ?? '',
     items: dto.items.length
       ? dto.items.map((item) => ({
@@ -76,6 +83,7 @@ export function wizardFormFromDto(dto: PurchaseRequestDTO): PurchaseRequestWizar
 
 export function buildPurchaseRequestPayload(
   form: PurchaseRequestWizardForm,
+  options?: { includePriority?: boolean },
 ): CreatePurchaseRequestInput | null {
   if (!form.justification.trim()) {
     return null;
@@ -96,6 +104,7 @@ export function buildPurchaseRequestPayload(
     justification: form.justification.trim(),
     destination,
     delivery_deadline: deliveryDeadline,
+    ...(options?.includePriority ? { priority: form.priority } : {}),
     notes: form.notes.trim() || undefined,
     items: validItems.map((item) => ({
       description: item.description.trim(),

@@ -17,6 +17,11 @@ import {
   wizardFormFromDto,
   type PurchaseRequestWizardForm,
 } from '../components/purchase-request/purchaseRequestWizardTypes';
+import {
+  canMutatePurchaseRequest,
+  canSetPriorityInWizard,
+  isWizardEditableStatus,
+} from '../lib/purchaseRequestAccess';
 
 const STEPS = ['Dados gerais', 'Itens', 'Revisão'];
 
@@ -30,6 +35,23 @@ interface UsePurchaseRequestWizardOptions {
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('@ti-assistant:token');
+}
+
+function getSessionUser(): { id: string; role: string } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('@ti-assistant:user');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { id?: string; role?: string };
+    if (!parsed.id) return null;
+    return { id: parsed.id, role: parsed.role ?? '' };
+  } catch {
+    return null;
+  }
+}
+
+function getSessionRole(): string {
+  return getSessionUser()?.role ?? '';
 }
 
 function validateStep(step: number, form: PurchaseRequestWizardForm): boolean {
@@ -46,7 +68,9 @@ function validateStep(step: number, form: PurchaseRequestWizardForm): boolean {
       (item) => item.description.trim() && item.quantity >= 1 && item.unit.trim(),
     );
   }
-  return buildPurchaseRequestPayload(form) !== null;
+  return buildPurchaseRequestPayload(form, {
+    includePriority: canSetPriorityInWizard(getSessionRole()),
+  }) !== null;
 }
 
 export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardOptions) {
@@ -73,15 +97,20 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
     try {
       setLoading(true);
       const dto = await fetchPurchaseRequestById(token, id);
+      const user = getSessionUser();
 
-      if (dto.status !== 'DRAFT') {
+      if (
+        user &&
+        isWizardEditableStatus(dto.status) &&
+        canMutatePurchaseRequest(user, dto)
+      ) {
+        setForm(wizardFormFromDto(dto));
+        setRequestId(dto.id);
+        setDisplayCode(dto.display_code);
+      } else {
         router.replace(`/procurement/solicitacoes/${id}`);
         return;
       }
-
-      setForm(wizardFormFromDto(dto));
-      setRequestId(dto.id);
-      setDisplayCode(dto.display_code);
     } catch (err) {
       toast({
         title: 'Erro ao carregar rascunho',
@@ -149,7 +178,9 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const saveDraft = async (): Promise<PurchaseRequestDTO | null> => {
-    const payload = buildPurchaseRequestPayload(form);
+    const payload = buildPurchaseRequestPayload(form, {
+      includePriority: canSetPriorityInWizard(getSessionRole()),
+    });
     if (!payload) {
       toast({
         title: 'Dados incompletos',
@@ -206,7 +237,9 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
   };
 
   const submit = async () => {
-    const payload = buildPurchaseRequestPayload(form);
+    const payload = buildPurchaseRequestPayload(form, {
+      includePriority: canSetPriorityInWizard(getSessionRole()),
+    });
     if (!payload) {
       toast({
         title: 'Dados incompletos',

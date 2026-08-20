@@ -3,7 +3,9 @@ import {
   isDetailEnrichedSlug,
 } from '@/features/reports/api/reportApi'
 import {
+  EMPTY_FILTERS,
   getFilterFieldVisibility,
+  hasNonDefaultFilters,
   toReportFiltersQuery,
   type ReportFiltersState,
 } from '@/features/reports/reportFilterVisibility'
@@ -172,5 +174,29 @@ describe('toReportFiltersQuery + buildFilterQueryString (enriched)', () => {
     expect(q.sectorId).toBeUndefined()
     expect(q.supplierId).toBe('sup-1')
     expect(q.timeRange).toBe('90')
+  })
+})
+
+describe('hasNonDefaultFilters', () => {
+  it('ignora timeRange em alerts-by-level (sem período)', () => {
+    expect(
+      hasNonDefaultFilters(
+        { ...EMPTY_FILTERS, timeRange: '90' },
+        'alerts-by-level'
+      )
+    ).toBe(false)
+  })
+
+  it('marca período não-default em supply-requests', () => {
+    expect(
+      hasNonDefaultFilters(
+        { ...EMPTY_FILTERS, timeRange: '90' },
+        'supply-requests'
+      )
+    ).toBe(true)
+  })
+
+  it('não marca o período default em supply-requests', () => {
+    expect(hasNonDefaultFilters(EMPTY_FILTERS, 'supply-requests')).toBe(false)
   })
 })

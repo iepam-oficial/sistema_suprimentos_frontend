@@ -54,7 +54,7 @@ export const MENU_BADGE_PATH_BY_ROUTE: Record<MenuBadgeRouteKey, string> = {
 export function routeKeysForRole(role: string | undefined | null): MenuBadgeRouteKey[] {
   if (!role) return [];
   const keys: MenuBadgeRouteKey[] = [];
-  if (role === 'COORDINATOR' || role === 'ADMIN') {
+  if (role === 'COORDINATOR' || role === 'MANAGER' || role === 'ADMIN') {
     keys.push('solicitacoes');
   }
   if (role === 'DIRECTOR' || role === 'ADMIN') {

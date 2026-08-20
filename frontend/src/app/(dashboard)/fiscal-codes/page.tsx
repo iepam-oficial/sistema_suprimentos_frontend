@@ -32,6 +32,11 @@ import {
 } from '@/features/financeiro/api/fiscalCatalogApi';
 import { RateLimitError } from '@/features/financeiro/api/extraExpenseApi';
 import { FiscalNcmImportPanel } from '@/features/financeiro/components/FiscalNcmImportPanel';
+import {
+  CEST_UF_FILTER_OPTIONS,
+  formatCestUfLabel,
+  formatNcmRowUfColumn,
+} from '@/features/financeiro/lib/cestUf';
 
 function formatNcmDisplay(code: string): string {
   const digits = code.replace(/\D/g, '');
@@ -49,6 +54,7 @@ export default function FiscalCodesPage() {
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('');
+  const [ufFilter, setUfFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(100);
   const [total, setTotal] = useState(0);
@@ -60,7 +66,7 @@ export default function FiscalCodesPage() {
   const loadNcms = useCallback(async () => {
     setIsLoading(true);
     try {
-      const filters: { active?: boolean; q?: string; page: number; limit: number } = {
+      const filters: { active?: boolean; q?: string; page: number; limit: number; uf?: string } = {
         page,
         limit,
       };
@@ -71,6 +77,9 @@ export default function FiscalCodesPage() {
         filters.active = true;
       } else if (activeFilter === 'false') {
         filters.active = false;
+      }
+      if (ufFilter) {
+        filters.uf = ufFilter;
       }
 
       const data = await fetchFiscalNcms(filters);
@@ -94,7 +103,7 @@ export default function FiscalCodesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeFilter, appliedSearch, limit, page, router, toast]);
+  }, [activeFilter, appliedSearch, limit, page, router, toast, ufFilter]);
 
   useEffect(() => {
     loadNcms();
@@ -108,6 +117,11 @@ export default function FiscalCodesPage() {
   const handleActiveFilterChange = (value: string) => {
     setPage(1);
     setActiveFilter(value);
+  };
+
+  const handleUfFilterChange = (value: string) => {
+    setPage(1);
+    setUfFilter(value);
   };
 
   const handleLimitChange = (value: string) => {
@@ -193,7 +207,7 @@ export default function FiscalCodesPage() {
         const tooltipLabel = cests
           .map(
             (cest) =>
-              `${cest.code} — ${cest.description} · Segmento: ${cest.segmento}`,
+              `${cest.code} — ${cest.description} · Segmento: ${cest.segmento} · UF: ${formatCestUfLabel(cest.ufs)}`,
           )
           .join('\n');
         return (
@@ -221,6 +235,20 @@ export default function FiscalCodesPage() {
           </Tooltip>
         );
       },
+    },
+    {
+      id: 'uf',
+      header: 'UF',
+      size: 120,
+      cell: ({ row }) => (
+        <Text
+          fontSize="sm"
+          noOfLines={1}
+          data-testid={`fiscal-ncm-uf-${row.original.code}`}
+        >
+          {formatNcmRowUfColumn(row.original.cests)}
+        </Text>
+      ),
     },
     {
       accessorKey: 'effective_from',
@@ -318,15 +346,30 @@ export default function FiscalCodesPage() {
                   </Button>
                 </InputRightElement>
               </InputGroup>
-              <Select
-                placeholder="Filtrar por status"
-                value={activeFilter}
-                onChange={(e) => handleActiveFilterChange(e.target.value)}
-                maxW="300px"
-              >
-                <option value="true">Ativos</option>
-                <option value="false">Inativos</option>
-              </Select>
+              <HStack spacing={4} align="flex-start" flexWrap="wrap">
+                <Select
+                  placeholder="Filtrar por status"
+                  value={activeFilter}
+                  onChange={(e) => handleActiveFilterChange(e.target.value)}
+                  maxW="300px"
+                >
+                  <option value="true">Ativos</option>
+                  <option value="false">Inativos</option>
+                </Select>
+                <Select
+                  value={ufFilter}
+                  onChange={(e) => handleUfFilterChange(e.target.value)}
+                  maxW="300px"
+                  aria-label="Filtrar por UF"
+                  data-testid="fiscal-uf-filter"
+                >
+                  {CEST_UF_FILTER_OPTIONS.map((opt) => (
+                    <option key={opt.value || 'todos'} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              </HStack>
             </VStack>
           </CardBody>
         </Card>
@@ -359,11 +402,12 @@ export default function FiscalCodesPage() {
                       overflow: 'hidden',
                     },
                     '& th:nth-of-type(1), & td:nth-of-type(1)': { width: '12%' },
-                    '& th:nth-of-type(2), & td:nth-of-type(2)': { width: '40%' },
+                    '& th:nth-of-type(2), & td:nth-of-type(2)': { width: '28%' },
                     '& th:nth-of-type(3), & td:nth-of-type(3)': { width: '20%' },
                     '& th:nth-of-type(4), & td:nth-of-type(4)': { width: '12%' },
-                    '& th:nth-of-type(5), & td:nth-of-type(5)': { width: '8%' },
+                    '& th:nth-of-type(5), & td:nth-of-type(5)': { width: '12%' },
                     '& th:nth-of-type(6), & td:nth-of-type(6)': { width: '8%' },
+                    '& th:nth-of-type(7), & td:nth-of-type(7)': { width: '8%' },
                   }}
                 >
                   <DataTable columns={columns} data={ncms} />

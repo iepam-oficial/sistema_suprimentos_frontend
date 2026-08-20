@@ -19,6 +19,7 @@ const CEST_EXAMPLE = [
     segmento: 'Lâmpadas reatores e starter',
     ncm: ['8539'],
     descricao: 'Lâmpadas elétricas',
+    uf: ['SP'],
   },
 ];
 

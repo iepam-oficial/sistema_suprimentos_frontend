@@ -20,6 +20,7 @@ import {
 import { SearchIcon } from '@chakra-ui/icons';
 import type { FiscalNcmDTO } from '@ti-assistant/contracts';
 import { fetchFiscalNcms } from '@/features/financeiro/api/fiscalCatalogApi';
+import { formatNcmCestUfHint } from '@/features/financeiro/lib/cestUf';
 
 const DEBOUNCE_MS = 300;
 
@@ -231,26 +232,34 @@ export function FiscalNcmPickerDrawer({
                 borderColor={borderColor}
                 borderRadius="md"
               >
-                {sortedItems.map((ncm) => (
-                  <Box
-                    key={ncm.id}
-                    px={3}
-                    py={3}
-                    cursor="pointer"
-                    borderBottomWidth="1px"
-                    borderColor={borderColor}
-                    _last={{ borderBottomWidth: 0 }}
-                    _hover={{ bg: hoverBg }}
-                    onClick={() => handleSelect(ncm)}
-                  >
-                    <Text fontSize="sm" fontWeight="semibold" color={headerColor}>
-                      {formatNcmDisplay(ncm.code)}
-                    </Text>
-                    <Text fontSize="sm" color={mutedColor} noOfLines={2}>
-                      {ncm.description}
-                    </Text>
-                  </Box>
-                ))}
+                {sortedItems.map((ncm) => {
+                  const cestHint = formatNcmCestUfHint(ncm.cests);
+                  return (
+                    <Box
+                      key={ncm.id}
+                      px={3}
+                      py={3}
+                      cursor="pointer"
+                      borderBottomWidth="1px"
+                      borderColor={borderColor}
+                      _last={{ borderBottomWidth: 0 }}
+                      _hover={{ bg: hoverBg }}
+                      onClick={() => handleSelect(ncm)}
+                    >
+                      <Text fontSize="sm" fontWeight="semibold" color={headerColor}>
+                        {formatNcmDisplay(ncm.code)}
+                      </Text>
+                      <Text fontSize="sm" color={mutedColor} noOfLines={2}>
+                        {ncm.description}
+                      </Text>
+                      {cestHint ? (
+                        <Text fontSize="xs" color={mutedColor} noOfLines={2}>
+                          {cestHint}
+                        </Text>
+                      ) : null}
+                    </Box>
+                  );
+                })}
               </VStack>
             )}
           </VStack>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useToast } from '@chakra-ui/react';
+import { Button, Flex, useToast } from '@chakra-ui/react';
+import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   PurchaseRequestPageShell,
@@ -59,7 +60,22 @@ export default function PurchaseRequestQueuePage() {
   }
 
   return (
-    <PurchaseRequestPageShell title="Fila de Compras">
+    <PurchaseRequestPageShell
+      title="Fila de Compras"
+      toolbar={
+        <Flex justify="flex-end" flexShrink={0}>
+          <Button
+            size="sm"
+            leftIcon={<Plus size={16} />}
+            colorScheme="blue"
+            flexShrink={0}
+            onClick={() => router.push('/procurement/solicitacoes/nova')}
+          >
+            Nova solicitação
+          </Button>
+        </Flex>
+      }
+    >
       <PurchaseRequestQueueList items={sortedItems} loading={loading} error={error} />
     </PurchaseRequestPageShell>
   );

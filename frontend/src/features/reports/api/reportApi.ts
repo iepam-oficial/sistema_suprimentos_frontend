@@ -101,11 +101,13 @@ export async function fetchReportFilters(token: string): Promise<FilterOptions> 
 export async function fetchReport(
   token: string,
   slug: ReportSlug,
-  filters: ReportFiltersQuery
+  filters: ReportFiltersQuery,
+  signal?: AbortSignal
 ): Promise<ReportPayload | ExecutiveSummaryPayload> {
   const qs = buildFilterQueryString(filters, slug);
   const response = await fetch(`/api/reports/${slug}${qs}`, {
     headers: { Authorization: `Bearer ${token}` },
+    signal,
   });
   return handleResponse<ReportPayload | ExecutiveSummaryPayload>(response);
 }

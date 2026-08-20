@@ -8,6 +8,7 @@ import {
   fetchPurchaseRequestById,
   PurchaseRequestDetailLayout,
 } from '@/features/procurement';
+import { creatorLocksQueuePriority } from '@/features/procurement/lib/purchaseRequestAccess';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
 
@@ -87,6 +88,7 @@ export default function PurchaseRequestQueueDetailPage() {
       userRole={userRole}
       onPriorityUpdated={setRequest}
       showQuoteCta
+      priorityDisabled={creatorLocksQueuePriority(request)}
     />
   );
 }

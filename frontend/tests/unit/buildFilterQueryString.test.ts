@@ -2,6 +2,10 @@ import {
   buildFilterQueryString,
   isStockReportSlug,
 } from '@/features/reports/api/reportApi'
+import {
+  buildReportsQuery,
+  EMPTY_FILTERS,
+} from '@/features/reports/reportFilterVisibility'
 
 describe('isStockReportSlug', () => {
   it('identifica slugs de estoque', () => {
@@ -64,5 +68,24 @@ describe('buildFilterQueryString', () => {
       'supplies-stock'
     )
     expect(qs).toBe('')
+  })
+})
+
+describe('buildReportsQuery', () => {
+  it('inclui report=supplies-stock e omite timeRange', () => {
+    const qs = buildReportsQuery('supplies-stock', EMPTY_FILTERS)
+    const params = new URLSearchParams(qs)
+    expect(params.get('report')).toBe('supplies-stock')
+    expect(params.get('timeRange')).toBeNull()
+  })
+
+  it('inclui report e timeRange para relatórios com período', () => {
+    const qs = buildReportsQuery('executive-summary', {
+      ...EMPTY_FILTERS,
+      timeRange: '90',
+    })
+    const params = new URLSearchParams(qs)
+    expect(params.get('report')).toBe('executive-summary')
+    expect(params.get('timeRange')).toBe('90')
   })
 })

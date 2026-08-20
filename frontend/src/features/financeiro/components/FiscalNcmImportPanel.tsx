@@ -168,6 +168,7 @@ export function FiscalNcmImportPanel({ onImported, onRateLimited }: FiscalNcmImp
                 Modelo CEST
               </Text>
               <Code
+                data-testid="fiscal-import-cest-snippet"
                 display="block"
                 whiteSpace="pre"
                 overflowX="auto"
@@ -184,6 +185,7 @@ export function FiscalNcmImportPanel({ onImported, onRateLimited }: FiscalNcmImp
           <HStack spacing={4} align="flex-start" wrap="wrap">
             <input
               ref={ncmInputRef}
+              data-testid="fiscal-import-ncm-file"
               type="file"
               accept="application/json,.json"
               hidden
@@ -193,6 +195,7 @@ export function FiscalNcmImportPanel({ onImported, onRateLimited }: FiscalNcmImp
             />
             <input
               ref={cestInputRef}
+              data-testid="fiscal-import-cest-file"
               type="file"
               accept="application/json,.json"
               hidden
@@ -260,7 +263,13 @@ export function FiscalNcmImportPanel({ onImported, onRateLimited }: FiscalNcmImp
           )}
 
           {result && (
-            <Alert status="success" borderRadius="md" flexDirection="column" alignItems="stretch">
+            <Alert
+              status="success"
+              borderRadius="md"
+              flexDirection="column"
+              alignItems="stretch"
+              data-testid="fiscal-import-success"
+            >
               <HStack>
                 <AlertIcon />
                 <AlertTitle>Importação concluída</AlertTitle>

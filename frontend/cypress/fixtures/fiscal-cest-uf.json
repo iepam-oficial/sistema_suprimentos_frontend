@@ -1,0 +1,15 @@
+[
+  {
+    "cest": "09.001.00",
+    "segmento": "E2E segmento SP",
+    "ncm": ["0101"],
+    "descricao": "E2E CEST estadual SP",
+    "uf": ["SP"]
+  },
+  {
+    "cest": "10.001.00",
+    "segmento": "E2E segmento nacional",
+    "ncm": ["8471"],
+    "descricao": "E2E CEST nacional"
+  }
+]

@@ -26,6 +26,7 @@ function loadRootEnvE2e(): void {
 export default defineConfig({
   video: true,
   screenshotOnRunFailure: true,
+  watchForFileChanges: false,
   viewportWidth: 1440,
   viewportHeight: 900,
   defaultCommandTimeout: 30000,
@@ -37,6 +38,9 @@ export default defineConfig({
     baseUrl: process.env.E2E_BASE_URL ?? 'http://localhost:3002',
     specPattern: 'cypress/e2e/**/*.cy.ts',
     supportFile: 'cypress/support/e2e.ts',
+    // Next.js 14 usa eval-source-map; o rewrite de eval do Cypress gera
+    // "Invalid or unexpected token" e o React não hidrata (login faz GET nativo).
+    modifyObstructiveCode: false,
     setupNodeEvents(on, config) {
       loadRootEnvE2e();
 

@@ -1,0 +1,16 @@
+{
+  "Data_Ultima_Atualizacao_NCM": "E2E CEST UF",
+  "Ato": "E2E",
+  "Nomenclaturas": [
+    {
+      "Codigo": "0101.21.00",
+      "Descricao": "E2E NCM estadual SP",
+      "Data_Inicio": "01/01/2020"
+    },
+    {
+      "Codigo": "8471.30.12",
+      "Descricao": "E2E NCM CEST nacional",
+      "Data_Inicio": "01/01/2020"
+    }
+  ]
+}

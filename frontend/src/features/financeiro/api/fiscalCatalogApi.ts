@@ -46,6 +46,7 @@ export async function fetchFiscalNcms(options?: {
   q?: string;
   page?: number;
   limit?: number;
+  uf?: string;
 }): Promise<FiscalNcmListResultDTO> {
   const token = getToken();
   if (!token) {
@@ -58,6 +59,9 @@ export async function fetchFiscalNcms(options?: {
   }
   if (options?.q?.trim()) {
     params.set('q', options.q.trim());
+  }
+  if (options?.uf) {
+    params.set('uf', options.uf);
   }
   params.set('page', String(options?.page ?? 1));
   params.set('limit', String(options?.limit ?? 100));
