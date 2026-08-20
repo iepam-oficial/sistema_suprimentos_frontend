@@ -112,14 +112,15 @@ function ReportsPageContent() {
   const [loading, setLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(true);
 
-  const syncUrl = useCallback(
-    (slug: ReportSlug, f: ReportFiltersState) => {
-      const q = buildReportsQuery(slug, f);
-      const hash = typeof window !== 'undefined' ? window.location.hash : '';
-      router.replace(`/reports?${q}${hash}`, { scroll: false });
-    },
-    [router]
-  );
+  const syncUrl = useCallback((slug: ReportSlug, f: ReportFiltersState) => {
+    if (typeof window === 'undefined') return;
+    const q = buildReportsQuery(slug, f);
+    const hash = window.location.hash;
+    const next = `/reports?${q}${hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (current === next) return;
+    window.history.replaceState(window.history.state, '', next);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('@ti-assistant:token');
@@ -165,9 +166,14 @@ function ReportsPageContent() {
   }, [router]);
 
   useEffect(() => {
+    syncUrl(activeSlug, filters);
+  }, [activeSlug, filters, syncUrl]);
+
+  useEffect(() => {
     const storedToken = localStorage.getItem('@ti-assistant:token');
     if (!storedToken) return;
     const token: string = storedToken;
+    const controller = new AbortController();
 
     async function loadReport() {
       setLoading(true);
@@ -175,11 +181,19 @@ function ReportsPageContent() {
         const data = await fetchReport(
           token,
           activeSlug,
-          toReportFiltersQuery(activeSlug, filters)
+          toReportFiltersQuery(activeSlug, filters),
+          controller.signal
         );
+        if (controller.signal.aborted) return;
         setReportData(data);
-        syncUrl(activeSlug, filters);
       } catch (error) {
+        if (
+          controller.signal.aborted ||
+          (error instanceof DOMException && error.name === 'AbortError') ||
+          (error instanceof Error && error.name === 'AbortError')
+        ) {
+          return;
+        }
         if (error instanceof RateLimitError) {
           router.push('/rate-limit');
           return;
@@ -193,12 +207,15 @@ function ReportsPageContent() {
         });
         setReportData(null);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     loadReport();
-  }, [activeSlug, filters, router, syncUrl, toast]);
+    return () => controller.abort();
+  }, [activeSlug, filters, router, toast]);
 
   useEffect(() => {
     if (loading) return;
@@ -215,8 +232,14 @@ function ReportsPageContent() {
     return () => window.clearTimeout(timer);
   }, [loading]);
 
-  const handleSlugChange = (slug: ReportSlug) => setActiveSlug(slug);
-  const handleFiltersChange = (f: ReportFiltersState) => setFilters(f);
+  const handleSlugChange = (slug: ReportSlug) => {
+    setActiveSlug(slug);
+    syncUrl(slug, filters);
+  };
+  const handleFiltersChange = (f: ReportFiltersState) => {
+    setFilters(f);
+    syncUrl(activeSlug, f);
+  };
 
   const pageBg = isDark ? 'gray.950' : 'gray.50';
   const panelBg = isDark ? 'gray.900' : 'white';

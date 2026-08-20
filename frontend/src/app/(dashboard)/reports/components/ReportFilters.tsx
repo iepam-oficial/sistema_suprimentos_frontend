@@ -26,14 +26,11 @@ import {
 import { AnchoredDropdownList } from '@/components/ui/AnchoredDropdownList';
 import { useFiscalNcmSearch } from '@/features/financeiro/hooks/useFiscalNcmSearch';
 import type { FiscalNcmDTO } from '@ti-assistant/contracts';
-import {
-  buildFilterQueryString,
-  isStockReportSlug,
-} from '@/features/reports/api/reportApi';
+import { isStockReportSlug } from '@/features/reports/api/reportApi';
 import {
   EMPTY_FILTERS,
   getFilterFieldVisibility,
-  toReportFiltersQuery,
+  hasNonDefaultFilters,
   type ReportFiltersState,
 } from '@/features/reports/reportFilterVisibility';
 import { FilterOptions, ReportSlug } from '@/features/reports/types';
@@ -45,8 +42,10 @@ import {
 } from '@/features/reference-data';
 
 export {
+  buildReportsQuery,
   EMPTY_FILTERS,
   getFilterFieldVisibility,
+  hasNonDefaultFilters,
   toReportFiltersQuery,
   type FilterFieldVisibility,
   type ReportFiltersState,
@@ -137,25 +136,6 @@ export function getActiveFilterChips(
     });
   }
   return chips;
-}
-
-export function hasNonDefaultFilters(
-  filters: ReportFiltersState,
-  slug?: ReportSlug
-): boolean {
-  const visibility = slug ? getFilterFieldVisibility(slug) : null;
-  const periodNonDefault =
-    (!visibility || visibility.period) && filters.timeRange !== '30';
-  return (
-    periodNonDefault ||
-    !!filters.locationId ||
-    !!filters.sectorId ||
-    !!filters.supplierId ||
-    !!filters.categoryId ||
-    !!filters.subcategoryId ||
-    filters.ncmIds.length > 0 ||
-    filters.cestCodes.length > 0
-  );
 }
 
 function useFilterSelectProps() {
@@ -826,19 +806,3 @@ export function ReportFiltersBar({
   );
 }
 
-export function buildReportsQuery(
-  report: string,
-  filters: ReportFiltersState
-): string {
-  const slug = report as ReportSlug;
-  const q = toReportFiltersQuery(slug, filters);
-  const params = new URLSearchParams({ report });
-  const filterQs = buildFilterQueryString(q, slug);
-  if (filterQs) {
-    const inner = new URLSearchParams(filterQs.startsWith('?') ? filterQs.slice(1) : filterQs);
-    inner.forEach((value, key) => {
-      params.set(key, value);
-    });
-  }
-  return params.toString();
-}
