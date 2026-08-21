@@ -41,7 +41,7 @@ export default function LoginPage() {
   useEffect(() => {
     const from = getFromSearchParam()
     if (user && token) {
-      const path = resolvePostLoginPath(user.role, { from })
+      const path = resolvePostLoginPath([user.role], { from })
       if (path) {
         router.replace(path)
         return
@@ -57,7 +57,7 @@ export default function LoginPage() {
       try {
         const sessionUser = await fetchSession(token)
         if (cancelled) return
-        const path = resolvePostLoginPath(sessionUser.role, { from })
+        const path = resolvePostLoginPath([sessionUser.role], { from })
         if (path) {
           router.replace(path)
         }
@@ -100,12 +100,12 @@ export default function LoginPage() {
         isClosable: true,
       })
 
-      const defaultPath = getPostLoginPath(data.user.role)
+      const defaultPath = getPostLoginPath([data.user.role])
       if (!defaultPath) {
         throw new Error('Papel de usuário não reconhecido para redirecionamento')
       }
 
-      redirectAfterLogin(data.user.role, { from: getFromSearchParam() })
+      redirectAfterLogin([data.user.role], { from: getFromSearchParam() })
     } catch (error) {
       toast({
         title: 'Erro ao fazer login',
