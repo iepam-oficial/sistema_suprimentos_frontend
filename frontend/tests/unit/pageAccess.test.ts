@@ -14,6 +14,15 @@ describe('pageAccess', () => {
       })
     })
 
+    it('allows ADMIN even when ADMIN is not on the allowlist (bypass)', () => {
+      expect(assertPageAccess(['ADMIN'], ['MANAGER', 'DIRECTOR'])).toEqual({
+        allowed: true,
+      })
+      expect(assertPageAccess(['EMPLOYEE', 'ADMIN'], ['COORDINATOR'])).toEqual({
+        allowed: true,
+      })
+    })
+
     it('denies and redirects to role home (not /unauthorized)', () => {
       const denied = assertPageAccess(['EMPLOYEE'], ['ADMIN', 'MANAGER'])
       expect(denied).toEqual({

@@ -1,4 +1,4 @@
-import { hasAnyRole } from '@ti-assistant/contracts/dist/roles'
+import { hasAnyRole, isAdmin } from '@ti-assistant/contracts/dist/roles'
 import { getPostLoginPath } from '@/utils/postLoginRedirect'
 
 export type PageAccessResult =
@@ -21,14 +21,14 @@ export function resolveUserRoles(user: UserLike): string[] {
 }
 
 /**
- * Gate page access by role allowlist (union via hasAnyRole).
+ * Gate page access: ADMIN bypass total OR union via hasAnyRole.
  * Denied → role home from getPostLoginPath (never `/unauthorized`).
  */
 export function assertPageAccess(
   roles: readonly string[],
   allowlist: readonly string[],
 ): PageAccessResult {
-  if (hasAnyRole(roles, ...allowlist)) {
+  if (isAdmin(roles) || hasAnyRole(roles, ...allowlist)) {
     return { allowed: true }
   }
   return {
