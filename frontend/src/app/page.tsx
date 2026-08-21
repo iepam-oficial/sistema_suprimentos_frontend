@@ -41,7 +41,7 @@ export default function LoginPage() {
   useEffect(() => {
     const from = getFromSearchParam()
     if (user && token) {
-      const path = resolvePostLoginPath([user.role], { from })
+      const path = resolvePostLoginPath(user.roles ?? [], { from })
       if (path) {
         router.replace(path)
         return
@@ -57,7 +57,7 @@ export default function LoginPage() {
       try {
         const sessionUser = await fetchSession(token)
         if (cancelled) return
-        const path = resolvePostLoginPath([sessionUser.role], { from })
+        const path = resolvePostLoginPath(sessionUser.roles ?? [], { from })
         if (path) {
           router.replace(path)
         }
@@ -86,7 +86,7 @@ export default function LoginPage() {
       setLoading(true)
       const data = await login({ email, password })
 
-      if (!data.user?.role) {
+      if (!data.user?.roles?.length) {
         throw new Error('Dados do usuário incompletos')
       }
 
@@ -100,12 +100,12 @@ export default function LoginPage() {
         isClosable: true,
       })
 
-      const defaultPath = getPostLoginPath([data.user.role])
+      const defaultPath = getPostLoginPath(data.user.roles)
       if (!defaultPath) {
         throw new Error('Papel de usuário não reconhecido para redirecionamento')
       }
 
-      redirectAfterLogin([data.user.role], { from: getFromSearchParam() })
+      redirectAfterLogin(data.user.roles, { from: getFromSearchParam() })
     } catch (error) {
       toast({
         title: 'Erro ao fazer login',
