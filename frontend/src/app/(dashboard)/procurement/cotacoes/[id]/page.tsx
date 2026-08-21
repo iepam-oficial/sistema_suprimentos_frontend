@@ -49,6 +49,9 @@ import {
   usePollingRefresh,
 } from '@/features/procurement';
 
+import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
+
 const VIEW_ROLES = ['MANAGER', 'DIRECTOR', 'ADMIN'];
 const MANAGER_ROLES = ['MANAGER', 'ADMIN'];
 const DIRECTOR_ROLES = ['DIRECTOR', 'ADMIN'];
@@ -153,11 +156,13 @@ export default function ProcurementQuoteDetailPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !VIEW_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const roles = resolveUserRoles(user);
+    const access = assertPageAccess(roles, VIEW_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
-    setUserRole(user.role);
+    setUserRole(getHighestPriorityRole(roles));
     setAuthorized(true);
   }, [router]);
 

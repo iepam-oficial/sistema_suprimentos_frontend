@@ -10,6 +10,9 @@ import {
 } from '@/features/procurement';
 import { creatorLocksQueuePriority } from '@/features/procurement/lib/purchaseRequestAccess';
 
+import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
+
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
 
 export default function PurchaseRequestQueueDetailPage() {
@@ -49,11 +52,13 @@ export default function PurchaseRequestQueueDetailPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const roles = resolveUserRoles(user);
+    const access = assertPageAccess(roles, ALLOWED_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
-    setUserRole(user.role);
+    setUserRole(getHighestPriorityRole(roles));
     setAuthorized(true);
   }, [router]);
 

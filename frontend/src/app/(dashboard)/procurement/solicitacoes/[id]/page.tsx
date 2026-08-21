@@ -11,6 +11,7 @@ import {
   canMutatePurchaseRequest,
   isWizardEditableStatus,
 } from '@/features/procurement/lib/purchaseRequestAccess';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 export default function PurchaseRequestDetailPage() {
   const router = useRouter();
@@ -59,8 +60,9 @@ export default function PurchaseRequestDetailPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !SC_PAGE_ROLES.includes(user.role as (typeof SC_PAGE_ROLES)[number])) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(resolveUserRoles(user), SC_PAGE_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
     setAuthorized(true);

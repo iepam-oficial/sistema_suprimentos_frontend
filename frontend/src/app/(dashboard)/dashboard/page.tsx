@@ -29,7 +29,8 @@ import {
   ManagerOpsTopConsumed,
   useManagerOpsDashboard,
 } from '@/features/manager-ops';
-import { canAccessDashboard } from '@/utils/dashboardNav';
+import { DASHBOARD_ROLES } from '@/utils/dashboardNav';
+import { assertPageAccess } from '@/utils/pageAccess';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -39,14 +40,18 @@ export default function DashboardPage() {
   );
   const { data, loading, error, isStale } = useManagerOpsDashboard({ consumptionPeriod });
 
-  const canAccess = Boolean(user && canAccessDashboard(user.role));
+  const access = user
+    ? assertPageAccess(user.roles, DASHBOARD_ROLES)
+    : { allowed: false as const, redirectTo: '/' };
+  const canAccess = access.allowed;
+  const forbiddenRedirect = access.allowed ? null : access.redirectTo;
 
   useEffect(() => {
     if (authLoading) return;
-    if (!canAccess) {
-      router.replace('/unauthorized');
+    if (forbiddenRedirect) {
+      router.replace(forbiddenRedirect);
     }
-  }, [authLoading, canAccess, router]);
+  }, [authLoading, forbiddenRedirect, router]);
 
   const textSecondary = useColorModeValue('gray.500', 'gray.400');
   const bg = useColorModeValue('gray.50', 'gray.900');

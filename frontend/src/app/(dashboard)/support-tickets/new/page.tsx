@@ -7,11 +7,12 @@ import { toast } from 'sonner';
 import { uploadImage } from '@/features/images/api/imageApi';
 import { handleImageChange } from '@/utils/imageUtils';
 import {
-  canCreateSupportTicket,
   CreateSupportTicketInput,
   PriorityLevel,
+  ROLES_TICKETS_CREATE,
   SupportTicketKind,
 } from '@/features/support-tickets/types';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import {
   createSupportTicket,
   RateLimitError,
@@ -52,10 +53,10 @@ export default function NewSupportTicketPage() {
       router.push('/');
       return;
     }
-    const user = JSON.parse(userRaw) as { role?: string };
-    const role = user.role ?? '';
-    if (!canCreateSupportTicket(role)) {
-      router.push('/unauthorized');
+    const user = JSON.parse(userRaw) as { roles?: string[]; role?: string };
+    const access = assertPageAccess(resolveUserRoles(user), ROLES_TICKETS_CREATE);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
 

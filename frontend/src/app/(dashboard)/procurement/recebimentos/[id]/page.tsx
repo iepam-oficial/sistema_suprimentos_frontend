@@ -26,6 +26,9 @@ import {
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
+import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
+
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN', 'DIRECTOR'];
 
 function goodsReceiptStatusLabel(status: string): string {
@@ -113,11 +116,13 @@ export default function GoodsReceiptPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const roles = resolveUserRoles(user);
+    const access = assertPageAccess(roles, ALLOWED_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
-    setUserRole(user.role);
+    setUserRole(getHighestPriorityRole(roles));
     setAuthorized(true);
   }, [router]);
 

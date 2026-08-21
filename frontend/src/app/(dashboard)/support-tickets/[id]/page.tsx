@@ -5,10 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import {
   SupportTicket,
-  canViewSupportTickets,
+  ROLES_TICKETS_VIEW,
   SupportTicketKind,
   TicketStatus,
 } from '@/features/support-tickets/types';
+import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import {
   fetchSupportTicketById,
   RateLimitError,
@@ -87,15 +89,16 @@ export default function SupportTicketDetailPage() {
       router.push('/');
       return;
     }
-    const user = JSON.parse(userRaw) as { id?: string; role?: string };
-    const role = user.role ?? '';
+    const user = JSON.parse(userRaw) as { id?: string; roles?: string[]; role?: string };
+    const roles = resolveUserRoles(user);
     const uid = user.id ?? '';
     setUserId(uid);
-    setUserRole(role);
-    if (!canViewSupportTickets(role)) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(roles, ROLES_TICKETS_VIEW);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
+    setUserRole(getHighestPriorityRole(roles));
 
     setLoading(true);
     setError(null);

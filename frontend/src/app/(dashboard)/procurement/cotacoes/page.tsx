@@ -25,6 +25,9 @@ import {
 } from '@/features/procurement';
 import { resolveInitialPurchaseRequestId } from '@/features/procurement/utils/quoteWizardEligibility';
 
+import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
+
 const ALLOWED_ROLES = ['MANAGER', 'DIRECTOR', 'ADMIN'];
 const MANAGER_ROLES = ['MANAGER', 'ADMIN'];
 
@@ -69,11 +72,13 @@ function ProcurementQuotesPageContent() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const roles = resolveUserRoles(user);
+    const access = assertPageAccess(roles, ALLOWED_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
-    setUserRole(user.role);
+    setUserRole(getHighestPriorityRole(roles));
     setAuthorized(true);
   }, [router]);
 
