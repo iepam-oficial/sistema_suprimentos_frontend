@@ -12,6 +12,7 @@ export const E2E_SUPPLIER_NAMES = [
 ] as const;
 
 export const E2E_USERS = {
+  ADMIN: { email: 'admin@example.com', role: 'ADMIN' },
   COORDINATOR: { email: 'coordenador@example.com', role: 'COORDINATOR' },
   DIRECTOR: { email: 'diretor@example.com', role: 'DIRECTOR' },
   MANAGER: { email: 'gerente@example.com', role: 'MANAGER' },

@@ -1,6 +1,7 @@
 import { E2E_USERS, getE2ePassword, type E2eRole } from './constants';
 
 const POST_LOGIN_PATH: Record<E2eRole, string> = {
+  ADMIN: '/dashboard',
   COORDINATOR: '/procurement/solicitacoes',
   DIRECTOR: '/dashboard/financeiro',
   MANAGER: '/dashboard',
