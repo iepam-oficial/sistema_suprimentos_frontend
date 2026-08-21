@@ -36,8 +36,12 @@ import {
 import { Box, Drawer, DrawerContent, useBreakpointValue, useDisclosure } from '@chakra-ui/react';
 import { useUser, useFilters } from '@/contexts/GlobalContext';
 import { useLogout } from '@/hooks/useLogout';
-import { hasEmployeeSelfServiceAccess } from '@ti-assistant/contracts';
-import { canCreateSupportTicket } from '@/features/support-tickets/types';
+import {
+  hasAnyRole,
+  hasEmployeeSelfServiceAccess,
+  isAdmin,
+} from '@ti-assistant/contracts';
+import { ROLES_TICKETS_CREATE } from '@/features/support-tickets/types';
 import { useProcurementMenuBadges } from '@/features/procurement';
 import { SC_PAGE_ROLES } from '@/features/procurement/lib/purchaseRequestAccess';
 import { formatBadgeCount } from '@/features/procurement/utils/menuBadgeFormat';
@@ -52,9 +56,9 @@ import {
   type FlyoutGroupId,
 } from '@/components/useSidebarHover';
 import {
-  canAccessDashboard,
   DASHBOARD_FINANCE_PATH,
   DASHBOARD_OPERATIONAL_PATH,
+  DASHBOARD_ROLES,
   isDashboardPath,
 } from '@/utils/dashboardNav';
 
@@ -75,6 +79,11 @@ const ROLE_LABELS: Record<string, string> = {
   COORDINATOR: 'Coordenador',
   DIRECTOR: 'Diretor',
 };
+
+function formatUserRolesLabel(roles: readonly string[]): string {
+  if (!roles.length) return '';
+  return roles.map((r) => ROLE_LABELS[r] ?? r).join(' · ');
+}
 
 type NavItem = { icon: LucideIcon; label: string; href: string };
 type SettingsItem = { label: string; href: string };
@@ -146,10 +155,14 @@ function useSidebarMenuModel() {
       getCount('pedidos'),
   );
 
-  const isEmployee = user?.role === 'EMPLOYEE';
-  const isAdmin = user?.role === 'ADMIN';
+  const roles = user?.roles ?? [];
+  const userIsAdmin = isAdmin(roles);
+  /** Settings previously hidden for scalar EMPLOYEE; union shows them if any non-EMPLOYEE role. */
+  const showNonEmployeeSettings = roles.some((r) => r !== 'EMPLOYEE');
   const showTicketsSubmenu =
-    !!user && canCreateSupportTicket(user.role) && pathname.startsWith('/support-tickets');
+    !!user &&
+    (userIsAdmin || hasAnyRole(roles, ...ROLES_TICKETS_CREATE)) &&
+    pathname.startsWith('/support-tickets');
 
   const isMenuItemActive = (href: string) => {
     if (href === DASHBOARD_OPERATIONAL_PATH) return pathname === DASHBOARD_OPERATIONAL_PATH;
@@ -173,7 +186,7 @@ function useSidebarMenuModel() {
   const menuItems: NavItem[] = [];
 
   const dashboardItems: NavItem[] =
-    user && canAccessDashboard(user.role)
+    user && (userIsAdmin || hasAnyRole(roles, ...DASHBOARD_ROLES))
       ? [
           { icon: LayoutDashboard, label: 'Operacional', href: DASHBOARD_OPERATIONAL_PATH },
           { icon: LineChart, label: 'Financeiro', href: DASHBOARD_FINANCE_PATH },
@@ -181,50 +194,52 @@ function useSidebarMenuModel() {
       : [];
 
   const estoqueItems: NavItem[] = [
-    ...(user?.role === 'MANAGER' ? [{ icon: Package, label: 'Inventário', href: '/inventory' }] : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(hasAnyRole(roles, 'MANAGER')
+      ? [{ icon: Package, label: 'Inventário', href: '/inventory' }]
+      : []),
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: Package, label: 'Suprimentos', href: '/supplies' }]
       : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: Package, label: 'Requisições', href: '/supply-requests/admin' }]
       : []),
-    ...(user && hasEmployeeSelfServiceAccess(user.role)
+    ...(hasEmployeeSelfServiceAccess(roles)
       ? [{ icon: ShoppingCart, label: 'Requisições', href: '/supply-requests' }]
       : []),
   ];
 
   const operacoesItems: NavItem[] = [
-    ...(user &&
-    (hasEmployeeSelfServiceAccess(user.role) ||
-      ['SUPPORT', 'ADMIN', 'MANAGER'].includes(user.role))
+    ...(hasEmployeeSelfServiceAccess(roles) ||
+    userIsAdmin ||
+    hasAnyRole(roles, 'SUPPORT', 'MANAGER')
       ? [{ icon: Headphones, label: 'Chamados', href: '/support-tickets' }]
       : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: Wrench, label: 'OS Externas', href: '/orders' }]
       : []),
-    ...(user?.role === 'TECHNICIAN'
+    ...(hasAnyRole(roles, 'TECHNICIAN')
       ? [{ icon: Wrench, label: 'OS Internas', href: '/internal-service-orders' }]
       : []),
-    ...(user?.role === 'TECHNICIAN'
+    ...(hasAnyRole(roles, 'TECHNICIAN')
       ? [{ icon: Settings, label: 'Manutenção', href: '/maintenance-schedules' }]
       : []),
     { icon: Calendar, label: 'Eventos', href: '/events' },
-    ...(user && ['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER', 'SUPPORT')
       ? [{ icon: Bell, label: 'Alertas', href: '/alerts' }]
       : []),
   ];
 
   const financeiroItems: NavItem[] = [
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: Timer, label: 'Gastos Extras', href: '/extra-expenses' }]
       : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: TrendingDown, label: 'Taxas de Depreciação', href: '/depreciation-rates' }]
       : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: Barcode, label: 'Códigos Fiscais', href: '/fiscal-codes' }]
       : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: BarChart, label: 'Relatórios', href: '/reports' }]
       : []),
   ];
@@ -232,36 +247,38 @@ function useSidebarMenuModel() {
   const settingsItems: SettingsItem[] = [
     { label: 'Tema', href: '/settings/theme' },
     { label: 'Segurança', href: '/settings/security' },
-    ...(!isEmployee ? [{ label: 'Unidades de Medida', href: '/settings/unit-of-measures' }] : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(showNonEmployeeSettings
+      ? [{ label: 'Unidades de Medida', href: '/settings/unit-of-measures' }]
+      : []),
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ label: 'Formas de pagamento', href: '/settings/payment-methods' }]
       : []),
-    ...(!isEmployee ? [{ label: 'Categorias', href: '/settings/categories' }] : []),
-    ...(!isEmployee ? [{ label: 'Polos', href: '/settings/branches' }] : []),
-    ...(!isEmployee ? [{ label: 'Ambientes', href: '/settings/enviroments' }] : []),
-    ...(!isEmployee ? [{ label: 'Setores', href: '/settings/sectors' }] : []),
-    ...(!isEmployee ? [{ label: 'Fornecedores', href: '/settings/suppliers' }] : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(showNonEmployeeSettings ? [{ label: 'Categorias', href: '/settings/categories' }] : []),
+    ...(showNonEmployeeSettings ? [{ label: 'Polos', href: '/settings/branches' }] : []),
+    ...(showNonEmployeeSettings ? [{ label: 'Ambientes', href: '/settings/enviroments' }] : []),
+    ...(showNonEmployeeSettings ? [{ label: 'Setores', href: '/settings/sectors' }] : []),
+    ...(showNonEmployeeSettings ? [{ label: 'Fornecedores', href: '/settings/suppliers' }] : []),
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ label: 'Planos de Conta', href: '/chart-of-accounts' }]
       : []),
-    ...(isAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
-    ...(isAdmin ? [{ label: 'Códigos internos', href: '/settings/catalog-codes' }] : []),
-    ...(user && ['ADMIN', 'MANAGER'].includes(user.role)
+    ...(userIsAdmin ? [{ label: 'Usuários', href: '/settings/users' }] : []),
+    ...(userIsAdmin ? [{ label: 'Códigos internos', href: '/settings/catalog-codes' }] : []),
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ label: 'Classificação ABC', href: '/settings/abc-classification' }]
       : []),
   ];
 
   const comprasItems: NavItem[] = [
-    ...(user && (SC_PAGE_ROLES as readonly string[]).includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, ...(SC_PAGE_ROLES as readonly string[]))
       ? [{ icon: ClipboardList, label: 'Solicitações de Compra', href: '/procurement/solicitacoes' }]
       : []),
-    ...(user && ['DIRECTOR', 'ADMIN'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'DIRECTOR')
       ? [{ icon: CheckSquare, label: 'Aprovações SC', href: '/procurement/aprovacoes-sc' }]
       : []),
-    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: ListOrdered, label: 'Fila de Compras', href: '/procurement/fila-compras' }]
       : []),
-    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [
           {
             icon: Truck,
@@ -270,10 +287,10 @@ function useSidebarMenuModel() {
           },
         ]
       : []),
-    ...(user && ['MANAGER', 'DIRECTOR', 'ADMIN'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER', 'DIRECTOR')
       ? [{ icon: Scale, label: 'Cotações de Compras', href: '/procurement/cotacoes' }]
       : []),
-    ...(user && ['MANAGER', 'ADMIN'].includes(user.role)
+    ...(userIsAdmin || hasAnyRole(roles, 'MANAGER')
       ? [{ icon: Receipt, label: 'Pedidos de Compra', href: '/procurement/pedidos' }]
       : []),
   ];
@@ -293,6 +310,7 @@ function useSidebarMenuModel() {
 
   return {
     user,
+    roles,
     pathname,
     menuItems,
     dashboardItems,
@@ -378,6 +396,7 @@ function DesktopSidebarRail() {
   const { logout: handleLogout } = useLogout();
   const {
     user,
+    roles,
     pathname,
     menuItems,
     dashboardItems,
@@ -512,7 +531,7 @@ function DesktopSidebarRail() {
                     {user.name}
                   </p>
                   <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                    {ROLE_LABELS[user.role] ?? user.role}
+                    {formatUserRolesLabel(roles)}
                   </p>
                 </div>
               ) : null}
@@ -647,6 +666,7 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
   const { logout: handleLogout } = useLogout();
   const {
     user,
+    roles,
     pathname,
     menuItems,
     dashboardItems,
@@ -734,7 +754,7 @@ function SidebarContent({ onClose, isMobile }: { onClose: () => void; isMobile: 
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{user.name}</p>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {ROLE_LABELS[user.role] ?? user.role}
+                {formatUserRolesLabel(roles)}
               </p>
             </div>
           </div>
