@@ -26,7 +26,6 @@ import {
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
-import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
 import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN', 'DIRECTOR'];
@@ -64,7 +63,7 @@ export default function GoodsReceiptPage() {
   const receiptId = params.id as string;
 
   const [authorized, setAuthorized] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<GoodsReceiptDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -122,7 +121,7 @@ export default function GoodsReceiptPage() {
       router.push(access.redirectTo);
       return;
     }
-    setUserRole(getHighestPriorityRole(roles));
+    setUserRoles(roles);
     setAuthorized(true);
   }, [router]);
 
@@ -203,7 +202,7 @@ export default function GoodsReceiptPage() {
           <GoodsReceiptWizard
             receipt={receipt}
             onReceiptUpdated={setReceipt}
-            userRole={userRole}
+            userRoles={userRoles}
           />
         ) : (
           <Center py={12}>

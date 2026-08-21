@@ -34,7 +34,7 @@ import { displayCount, resolvePollCount } from '../utils/menuBadgeCount';
 import {
   isAbsolutePendingRoute,
   isPathActiveForRoute,
-  routeKeysForRole,
+  routeKeysForRoles,
   shouldClearCountOnMarkSeen,
   stableBadgeListFilters,
   type MenuBadgeRouteKey,
@@ -149,8 +149,8 @@ export function ProcurementMenuBadgesProvider({ children }: { children: ReactNod
     {},
   );
   const userId = user?.id ?? '';
-  const role = user?.role ?? null;
-  const routeKeys = useMemo(() => routeKeysForRole(role), [role]);
+  const roles = user?.roles;
+  const routeKeys = useMemo(() => routeKeysForRoles(roles), [roles]);
 
   const getCount = useCallback(
     (routeKey: MenuBadgeRouteKey, options?: GetCountOptions) => {

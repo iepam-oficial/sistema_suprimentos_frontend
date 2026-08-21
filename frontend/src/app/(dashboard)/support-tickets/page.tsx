@@ -5,16 +5,19 @@ import { Loader2 } from 'lucide-react';
 import { canUseAdminSupportDesk } from './types';
 import { AdminSupportDeskView } from './AdminSupportDeskView';
 import { SupportTicketsLegacyListView } from './SupportTicketsLegacyListView';
+import { resolveUserRoles } from '@/utils/pageAccess';
 
 export default function SupportTicketsPage() {
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[] | null>(null);
   const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     const userRaw = localStorage.getItem('@ti-assistant:user');
     if (userRaw) {
-      const user = JSON.parse(userRaw) as { role?: string };
-      setUserRole(user.role ?? '');
+      const user = JSON.parse(userRaw) as { roles?: string[]; role?: string };
+      setUserRoles(resolveUserRoles(user));
+    } else {
+      setUserRoles([]);
     }
     setBooting(false);
   }, []);
@@ -27,7 +30,7 @@ export default function SupportTicketsPage() {
     );
   }
 
-  if (userRole && canUseAdminSupportDesk(userRole)) {
+  if (userRoles && canUseAdminSupportDesk(userRoles)) {
     return <AdminSupportDeskView />;
   }
 

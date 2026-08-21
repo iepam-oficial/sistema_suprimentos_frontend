@@ -6,13 +6,14 @@ import type { PurchaseRequestDTO, PurchaseRequestPriority } from '@ti-assistant/
 import { updatePurchaseRequestPriority } from '../../api/purchaseRequestApi';
 import { purchaseRequestPriorityLabel } from '../../types';
 
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
+
 const PRIORITIES: PurchaseRequestPriority[] = ['URGENT', 'HIGH', 'MEDIUM', 'LOW'];
-const MANAGER_ROLES = ['MANAGER', 'ADMIN'];
 
 interface PrioritySelectProps {
   purchaseRequestId: string;
   currentPriority: PurchaseRequestPriority;
-  userRole: string;
+  userRoles: readonly string[];
   disabled?: boolean;
   onUpdated?: (updated: PurchaseRequestDTO) => void;
 }
@@ -20,7 +21,7 @@ interface PrioritySelectProps {
 export function PrioritySelect({
   purchaseRequestId,
   currentPriority,
-  userRole,
+  userRoles,
   disabled = false,
   onUpdated,
 }: PrioritySelectProps) {
@@ -28,7 +29,7 @@ export function PrioritySelect({
   const [priority, setPriority] = useState(currentPriority);
   const [saving, setSaving] = useState(false);
 
-  if (!MANAGER_ROLES.includes(userRole)) {
+  if (!hasAnyRole(userRoles, 'MANAGER', 'ADMIN')) {
     return null;
   }
 

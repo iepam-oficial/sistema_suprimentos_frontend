@@ -49,12 +49,10 @@ import {
   usePollingRefresh,
 } from '@/features/procurement';
 
-import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
 import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 const VIEW_ROLES = ['MANAGER', 'DIRECTOR', 'ADMIN'];
-const MANAGER_ROLES = ['MANAGER', 'ADMIN'];
-const DIRECTOR_ROLES = ['DIRECTOR', 'ADMIN'];
 
 function inviteStatusLabel(status: string): string {
   const labels: Record<string, string> = {
@@ -74,7 +72,7 @@ export default function ProcurementQuoteDetailPage() {
   const quoteId = params.id as string;
 
   const [authorized, setAuthorized] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [quote, setQuote] = useState<ProcurementQuoteDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -162,7 +160,7 @@ export default function ProcurementQuoteDetailPage() {
       router.push(access.redirectTo);
       return;
     }
-    setUserRole(getHighestPriorityRole(roles));
+    setUserRoles(roles);
     setAuthorized(true);
   }, [router]);
 
@@ -343,8 +341,8 @@ export default function ProcurementQuoteDetailPage() {
     );
   }
 
-  const isManager = userRole != null && MANAGER_ROLES.includes(userRole);
-  const isDirector = userRole != null && DIRECTOR_ROLES.includes(userRole);
+  const isManager = hasAnyRole(userRoles, 'MANAGER', 'ADMIN');
+  const isDirector = hasAnyRole(userRoles, 'DIRECTOR', 'ADMIN');
 
   return (
     <Box w="full" h="full">

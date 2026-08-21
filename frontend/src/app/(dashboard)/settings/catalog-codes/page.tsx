@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import {
   AlertDialog,
   AlertDialogBody,
@@ -87,7 +88,8 @@ export default function CatalogCodesSettingsPage() {
       return;
     }
 
-    if (user.role !== 'ADMIN') {
+    const access = assertPageAccess(resolveUserRoles(user), ['ADMIN']);
+    if (!access.allowed) {
       toast({
         title: 'Acesso negado',
         description: 'Somente administradores podem alterar códigos internos.',
@@ -95,7 +97,7 @@ export default function CatalogCodesSettingsPage() {
         duration: 3000,
         isClosable: true,
       });
-      router.push('/dashboard');
+      router.push(access.redirectTo);
       return;
     }
 

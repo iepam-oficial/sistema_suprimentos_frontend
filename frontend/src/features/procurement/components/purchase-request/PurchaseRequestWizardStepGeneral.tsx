@@ -35,7 +35,7 @@ export function PurchaseRequestWizardStepGeneral({
   isDisabled = false,
 }: PurchaseRequestWizardStepGeneralProps) {
   const { token, user } = useAuthSession();
-  const showPriority = canSetPriorityInWizard(user?.role ?? '');
+  const showPriority = canSetPriorityInWizard(user?.roles ?? []);
   const toast = useToast();
   const [locales, setLocales] = useState<LocaleDTO[]>([]);
   const [loadingLocales, setLoadingLocales] = useState(false);

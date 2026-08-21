@@ -23,16 +23,22 @@ describe('canMutatePurchaseRequest', () => {
   const dto = makeDto({ id: 'creator-1', name: 'Ana', email: 'a@test.com', role: 'COORDINATOR' });
 
   it('returns true when the user is the creator', () => {
-    expect(canMutatePurchaseRequest({ id: 'creator-1', role: 'EMPLOYEE' }, dto)).toBe(true);
+    expect(canMutatePurchaseRequest({ id: 'creator-1', roles: ['EMPLOYEE'] }, dto)).toBe(true);
   });
 
   it('returns true when the user is ADMIN even if not the creator', () => {
-    expect(canMutatePurchaseRequest({ id: 'admin-9', role: 'ADMIN' }, dto)).toBe(true);
+    expect(canMutatePurchaseRequest({ id: 'admin-9', roles: ['ADMIN'] }, dto)).toBe(true);
+  });
+
+  it('returns true when ADMIN is among multiple roles', () => {
+    expect(
+      canMutatePurchaseRequest({ id: 'other', roles: ['EMPLOYEE', 'ADMIN'] }, dto),
+    ).toBe(true);
   });
 
   it('returns false when the user is neither the creator nor ADMIN', () => {
-    expect(canMutatePurchaseRequest({ id: 'other', role: 'MANAGER' }, dto)).toBe(false);
-    expect(canMutatePurchaseRequest({ id: 'other', role: 'COORDINATOR' }, dto)).toBe(false);
+    expect(canMutatePurchaseRequest({ id: 'other', roles: ['MANAGER'] }, dto)).toBe(false);
+    expect(canMutatePurchaseRequest({ id: 'other', roles: ['COORDINATOR'] }, dto)).toBe(false);
   });
 });
 
@@ -53,19 +59,23 @@ describe('canSetPriorityInWizard', () => {
   it('returns true for MANAGER and ADMIN', () => {
     const allowed: UserRole[] = ['MANAGER', 'ADMIN'];
     for (const role of allowed) {
-      expect(canSetPriorityInWizard(role)).toBe(true);
+      expect(canSetPriorityInWizard([role])).toBe(true);
     }
   });
 
+  it('returns true when MANAGER is among multiple roles', () => {
+    expect(canSetPriorityInWizard(['EMPLOYEE', 'MANAGER'])).toBe(true);
+  });
+
   it('returns false for other roles', () => {
-    expect(canSetPriorityInWizard('COORDINATOR')).toBe(false);
-    expect(canSetPriorityInWizard('EMPLOYEE')).toBe(false);
-    expect(canSetPriorityInWizard('DIRECTOR')).toBe(false);
+    expect(canSetPriorityInWizard(['COORDINATOR'])).toBe(false);
+    expect(canSetPriorityInWizard(['EMPLOYEE'])).toBe(false);
+    expect(canSetPriorityInWizard(['DIRECTOR'])).toBe(false);
   });
 });
 
 describe('creatorLocksQueuePriority', () => {
-  it('returns true when created_by.role is MANAGER or ADMIN', () => {
+  it('returns true when created_by has MANAGER or ADMIN', () => {
     expect(
       creatorLocksQueuePriority(
         makeDto({ id: 'm1', name: 'Mgr', email: 'm@test.com', role: 'MANAGER' }),
@@ -73,12 +83,12 @@ describe('creatorLocksQueuePriority', () => {
     ).toBe(true);
     expect(
       creatorLocksQueuePriority(
-        makeDto({ id: 'a1', name: 'Adm', email: 'a@test.com', role: 'ADMIN' }),
+        makeDto({ id: 'a1', name: 'Adm', email: 'a@test.com', roles: ['ADMIN'] }),
       ),
     ).toBe(true);
   });
 
-  it('returns false when created_by.role is missing or not MANAGER/ADMIN', () => {
+  it('returns false when created_by has no MANAGER/ADMIN role', () => {
     expect(creatorLocksQueuePriority(makeDto({ id: 'u1', name: 'Ana', email: 'a@test.com' }))).toBe(
       false,
     );

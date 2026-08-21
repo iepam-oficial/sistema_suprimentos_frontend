@@ -27,7 +27,8 @@ import {
   type SectorDTO,
 } from '@/features/reference-data';
 import { fetchUsers } from '@/features/identity';
-
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
+import { resolveUserRoles } from '@/utils/pageAccess';
 export type LocationOption = Pick<LocationDTO, 'id' | 'name'>;
 
 export type SectorOption = Pick<SectorDTO, 'id' | 'name' | 'location_id'>;
@@ -36,7 +37,6 @@ export interface UserOption {
   id: string;
   name: string;
   email: string;
-  role: string;
 }
 
 export function useSupportTicketResources() {
@@ -57,7 +57,11 @@ export function useSupportTicketResources() {
       }
       try {
         const all = await fetchUsers(token);
-        setTechnicians(all.filter((u) => u.role === 'TECHNICIAN'));
+        setTechnicians(
+          all
+            .filter((u) => hasAnyRole(resolveUserRoles(u), 'TECHNICIAN'))
+            .map((u) => ({ id: u.id, name: u.name, email: u.email })),
+        );
       } catch {
         // formulário ainda funciona sem técnicos
       }

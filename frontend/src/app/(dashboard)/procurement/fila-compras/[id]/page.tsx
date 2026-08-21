@@ -10,7 +10,6 @@ import {
 } from '@/features/procurement';
 import { creatorLocksQueuePriority } from '@/features/procurement/lib/purchaseRequestAccess';
 
-import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
 import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
@@ -22,7 +21,7 @@ export default function PurchaseRequestQueueDetailPage() {
   const requestId = params.id as string;
 
   const [authorized, setAuthorized] = useState(false);
-  const [userRole, setUserRole] = useState('');
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [request, setRequest] = useState<PurchaseRequestDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +57,7 @@ export default function PurchaseRequestQueueDetailPage() {
       router.push(access.redirectTo);
       return;
     }
-    setUserRole(getHighestPriorityRole(roles));
+    setUserRoles(roles);
     setAuthorized(true);
   }, [router]);
 
@@ -90,7 +89,7 @@ export default function PurchaseRequestQueueDetailPage() {
     <PurchaseRequestDetailLayout
       request={request}
       backHref="/procurement/fila-compras"
-      userRole={userRole}
+      userRoles={userRoles}
       onPriorityUpdated={setRequest}
       showQuoteCta
       priorityDisabled={creatorLocksQueuePriority(request)}

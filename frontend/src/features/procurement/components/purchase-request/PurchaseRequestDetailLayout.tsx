@@ -35,7 +35,7 @@ interface PurchaseRequestDetailLayoutProps {
   variant?: 'page' | 'modal';
   emphasizedSummary?: boolean;
   backHref?: string;
-  userRole?: string | null;
+  userRoles?: readonly string[] | null;
   priorityDisabled?: boolean;
   onPriorityUpdated?: (updated: PurchaseRequestDTO) => void;
   showQuoteCta?: boolean;
@@ -46,7 +46,7 @@ export function PurchaseRequestDetailLayout({
   variant = 'page',
   emphasizedSummary = false,
   backHref = '/procurement/solicitacoes',
-  userRole,
+  userRoles,
   priorityDisabled = false,
   onPriorityUpdated,
   showQuoteCta = false,
@@ -74,11 +74,11 @@ export function PurchaseRequestDetailLayout({
         <Badge colorScheme={purchaseRequestStatusColor(request.status)}>
           {purchaseRequestStatusLabel(request.status)}
         </Badge>
-        {!isModal && userRole ? (
+        {!isModal && userRoles?.length ? (
           <PrioritySelect
             purchaseRequestId={request.id}
             currentPriority={request.priority}
-            userRole={userRole}
+            userRoles={userRoles}
             disabled={priorityDisabled}
             onUpdated={onPriorityUpdated}
           />

@@ -25,11 +25,10 @@ import {
 } from '@/features/procurement';
 import { resolveInitialPurchaseRequestId } from '@/features/procurement/utils/quoteWizardEligibility';
 
-import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
 import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 const ALLOWED_ROLES = ['MANAGER', 'DIRECTOR', 'ADMIN'];
-const MANAGER_ROLES = ['MANAGER', 'ADMIN'];
 
 export default function ProcurementQuotesPage() {
   return (
@@ -46,7 +45,7 @@ function ProcurementQuotesPageContent() {
   const [isMobile] = useMediaQuery('(max-width: 768px)');
   const { isOpen: isWizardOpen, onOpen: openWizard, onClose: closeWizard } = useDisclosure();
   const [authorized, setAuthorized] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [initialPurchaseRequestId, setInitialPurchaseRequestId] = useState<string | undefined>();
   const { items, loading, error, reload, refreshSilent } = useProcurementQuotes();
   const {
@@ -78,7 +77,7 @@ function ProcurementQuotesPageContent() {
       router.push(access.redirectTo);
       return;
     }
-    setUserRole(getHighestPriorityRole(roles));
+    setUserRoles(roles);
     setAuthorized(true);
   }, [router]);
 
@@ -95,7 +94,7 @@ function ProcurementQuotesPageContent() {
   }, [error, toast]);
 
   useEffect(() => {
-    if (!authorized || !userRole || !MANAGER_ROLES.includes(userRole)) {
+    if (!authorized || !hasAnyRole(userRoles, 'MANAGER', 'ADMIN')) {
       return;
     }
 
@@ -139,7 +138,7 @@ function ProcurementQuotesPageContent() {
     router.replace('/procurement/cotacoes');
   }, [
     authorized,
-    userRole,
+    userRoles,
     searchParams,
     openWizard,
     openScLoading,
@@ -164,7 +163,7 @@ function ProcurementQuotesPageContent() {
     }
   }, [closeWizard, searchParams, router]);
 
-  const isManager = userRole != null && MANAGER_ROLES.includes(userRole);
+  const isManager = hasAnyRole(userRoles, 'MANAGER', 'ADMIN');
   const canCreateQuote =
     isManager && !openScLoading && !openScError && openScItems.length > 0;
 

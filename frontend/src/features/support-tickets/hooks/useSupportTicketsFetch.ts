@@ -6,7 +6,6 @@ import { useToast } from '@chakra-ui/react';
 import { fetchSupportTickets, RateLimitError } from '../api/supportTicketApi';
 import type { SupportTicket } from '../types';
 import { ROLES_TICKETS_VIEW } from '../types';
-import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
 import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 export interface UseSupportTicketsFetchOptions {
@@ -25,7 +24,7 @@ export function useSupportTicketsFetch({
   const [initialLoading, setInitialLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const hasCompletedOnce = useRef(false);
   const fetchGeneration = useRef(0);
   const router = useRouter();
@@ -52,7 +51,7 @@ export function useSupportTicketsFetch({
         router.push(access.redirectTo);
         return;
       }
-      setUserRole(getHighestPriorityRole(roles));
+      setUserRoles(roles);
 
       const data = await fetchSupportTickets(token, {
         status: !fetchAllStatuses && statusFilter ? statusFilter : undefined,
@@ -94,7 +93,7 @@ export function useSupportTicketsFetch({
     initialLoading,
     filtersLoading,
     error,
-    userRole,
+    userRoles,
     refetch: fetchTickets,
   };
 }

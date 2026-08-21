@@ -51,6 +51,7 @@ import { createSupply } from '@/features/catalog/api/catalogApi';
 import { NewBatchModal } from './components/NewBatchModal';
 import { MobileSupplies } from './components/MobileSupplies';
 import { useUser } from '@/features/identity';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
 import { Supply } from './utils/types';
 import { filterSupplies, type SupplyAbcFilter, type SupplyVisibilityFilter } from './utils/filterUtils';
 import { exportSuppliesBelowMinimum } from './utils/exportUtils';
@@ -77,7 +78,7 @@ export default function SuppliesPage() {
     const toast = useToast();
     const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
     const { user } = useUser();
-    const isManager = !!user && ['ADMIN', 'MANAGER'].includes(user.role);
+    const isManager = !!user && hasAnyRole(user.roles ?? [], 'ADMIN', 'MANAGER');
     const token = typeof window !== 'undefined' ? localStorage.getItem('@ti-assistant:token') : null;
     const { colorMode } = useColorMode();
     const router = useRouter();
@@ -99,7 +100,7 @@ export default function SuppliesPage() {
             fetchSupplies();
         }
         loadCategories();
-    }, [user?.role]);
+    }, [user?.roles]);
 
     const fetchSupplies = async () => {
         try {

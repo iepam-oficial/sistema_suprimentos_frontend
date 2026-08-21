@@ -39,7 +39,10 @@ export default function PurchaseRequestDetailPage() {
       const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
       const shouldRedirectToWizard =
         isWizardEditableStatus(data.status) &&
-        canMutatePurchaseRequest({ id: user.id, role: user.role }, data);
+        canMutatePurchaseRequest(
+          { id: user.id, roles: resolveUserRoles(user) },
+          data,
+        );
 
       if (shouldRedirectToWizard) {
         setRedirecting(true);

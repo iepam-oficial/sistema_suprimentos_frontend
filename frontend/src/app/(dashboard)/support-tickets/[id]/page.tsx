@@ -9,7 +9,7 @@ import {
   SupportTicketKind,
   TicketStatus,
 } from '@/features/support-tickets/types';
-import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
 import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import {
   fetchSupportTicketById,
@@ -51,7 +51,7 @@ export default function SupportTicketDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const [assigneeId, setAssigneeId] = useState('');
   const [subject, setSubject] = useState('');
@@ -98,7 +98,7 @@ export default function SupportTicketDetailPage() {
       router.push(access.redirectTo);
       return;
     }
-    setUserRole(getHighestPriorityRole(roles));
+    setUserRoles(roles);
 
     setLoading(true);
     setError(null);
@@ -131,10 +131,10 @@ export default function SupportTicketDetailPage() {
     if (locationId) loadSectorsForLocation(locationId);
   }, [locationId, loadSectorsForLocation]);
 
-  const isPrivileged = userRole === 'ADMIN' || userRole === 'MANAGER';
+  const isPrivileged = hasAnyRole(userRoles, 'ADMIN', 'MANAGER');
   const isRequester = ticket && userId && ticket.requester_id === userId;
   const isAssigneeTech =
-    ticket && userId && ticket.assigned_to_id === userId && userRole === 'TECHNICIAN';
+    ticket && userId && ticket.assigned_to_id === userId && hasAnyRole(userRoles, 'TECHNICIAN');
 
   const isResolved = !!ticket && ticket.status === 'RESOLVED';
   const showRequesterForm = ticket && (isRequester || isPrivileged) && !isResolved;
