@@ -4,6 +4,7 @@ import {
   Button,
   FormControl,
   FormLabel,
+  FormErrorMessage,
   Input,
   InputGroup,
   InputLeftElement,
@@ -29,9 +30,12 @@ import {
   ModalCloseButton,
   ModalFooter,
   Checkbox,
+  CheckboxGroup,
+  SimpleGrid,
 } from '@chakra-ui/react';
 import { Mail, Lock, User, Trash2, Edit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { UserRole, type UserRole as UserRoleType } from '@ti-assistant/contracts';
 import {
   fetchSectors,
   RateLimitError,
@@ -47,6 +51,28 @@ import {
   type UserDetailDTO,
 } from '@/features/identity';
 
+const ALL_ROLES = Object.values(UserRole) as UserRoleType[];
+
+const ROLE_LABELS: Record<UserRoleType, string> = {
+  ADMIN: 'Administrador',
+  MANAGER: 'Gerente',
+  COORDINATOR: 'Coordenador',
+  DIRECTOR: 'Diretor',
+  EMPLOYEE: 'Funcionário',
+  SUPPORT: 'Suporte',
+  TECHNICIAN: 'Técnico',
+  ORGANIZER: 'Organizador',
+};
+
+function getRoleText(role: string): string {
+  return ROLE_LABELS[role as UserRoleType] || role;
+}
+
+function formatRolesList(roles: readonly string[] | undefined): string {
+  if (!roles?.length) return '-';
+  return roles.map(getRoleText).join(', ');
+}
+
 export default function UserManagement() {
   const { token } = useAuthSession();
   const [users, setUsers] = useState<UserDetailDTO[]>([]);
@@ -54,13 +80,13 @@ export default function UserManagement() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('EMPLOYEE');
+  const [roles, setRoles] = useState<UserRoleType[]>([UserRole.EMPLOYEE]);
   const [sector_id, setSectorId] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<UserDetailDTO | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const [editRole, setEditRole] = useState('EMPLOYEE');
+  const [editRoles, setEditRoles] = useState<UserRoleType[]>([UserRole.EMPLOYEE]);
   const [editSectorId, setEditSectorId] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [changePassword, setChangePassword] = useState(false);
@@ -118,12 +144,23 @@ export default function UserManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (roles.length === 0) {
+      toast({
+        title: 'Erro',
+        description: 'Selecione pelo menos uma função',
+        status: 'error',
+        duration: 3000,
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (!token) throw new Error('Token não encontrado');
 
-      await createUser(token, { name, email, password, role, sector_id });
+      await createUser(token, { name, email, password, roles, sector_id });
 
       toast({
         title: 'Sucesso',
@@ -132,14 +169,12 @@ export default function UserManagement() {
         duration: 3000,
       });
 
-      // Limpar formulário
       setName('');
       setEmail('');
       setPassword('');
-      setRole('EMPLOYEE');
+      setRoles([UserRole.EMPLOYEE]);
       setSectorId('');
 
-      // Fechar modal e recarregar lista
       onCreateModalClose();
       loadUsers();
     } catch (error) {
@@ -191,7 +226,7 @@ export default function UserManagement() {
     setEditingUser(user);
     setEditName(user.name);
     setEditEmail(user.email);
-    setEditRole(user.role);
+    setEditRoles(user.roles?.length ? [...user.roles] : [UserRole.EMPLOYEE]);
     setEditSectorId(user.sector_id || '');
     setEditPassword('');
     setChangePassword(false);
@@ -199,6 +234,16 @@ export default function UserManagement() {
   };
 
   const handleUpdateUser = async () => {
+    if (editRoles.length === 0) {
+      toast({
+        title: 'Erro',
+        description: 'Selecione pelo menos uma função',
+        status: 'error',
+        duration: 3000,
+      });
+      return;
+    }
+
     setEditLoading(true);
 
     try {
@@ -207,7 +252,7 @@ export default function UserManagement() {
       await updateUser(token, editingUser!.id, {
         name: editName,
         email: editEmail,
-        role: editRole,
+        roles: editRoles,
         sector_id: editSectorId && editSectorId.trim() !== '' ? editSectorId : null,
         ...(changePassword && editPassword ? { password: editPassword } : {}),
       });
@@ -237,19 +282,8 @@ export default function UserManagement() {
     }
   };
 
-  const getRoleText = (role: string) => {
-    const roles = {
-      ADMIN: 'Administrador',
-      MANAGER: 'Gerente',
-      COORDINATOR: 'Coordenador',
-      DIRECTOR: 'Diretor',
-      EMPLOYEE: 'Funcionário',
-      SUPPORT: 'Suporte',
-      TECHNICIAN: 'Técnico',
-      ORGANIZER: 'Organizador',
-    };
-    return roles[role as keyof typeof roles] || role;
-  };
+  const rolesInvalid = roles.length === 0;
+  const editRolesInvalid = editRoles.length === 0;
 
   return (
     <VStack spacing={6} align="stretch">
@@ -284,7 +318,7 @@ export default function UserManagement() {
             <Tr>
               <Th>Nome</Th>
               <Th>E-mail</Th>
-              <Th>Função</Th>
+              <Th>Funções</Th>
               <Th>Setor</Th>
               <Th width="120px">Ações</Th>
             </Tr>
@@ -294,7 +328,7 @@ export default function UserManagement() {
               <Tr key={user.id}>
                 <Td>{user.name}</Td>
                 <Td>{user.email}</Td>
-                <Td>{getRoleText(user.role)}</Td>
+                <Td>{formatRolesList(user.roles)}</Td>
                 <Td>{user.sector ? `${user.sector.name} - ${user.sector.location?.name ?? '-'}` : '-'}</Td>
                 <Td>
                   <HStack spacing={2}>
@@ -329,7 +363,7 @@ export default function UserManagement() {
           <ModalHeader>Editar Usuário</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-        <VStack spacing={4}>
+            <VStack spacing={4}>
               <FormControl isRequired>
                 <FormLabel>Nome</FormLabel>
                 <InputGroup>
@@ -359,24 +393,27 @@ export default function UserManagement() {
                 </InputGroup>
               </FormControl>
 
-              <FormControl isRequired>
-                <FormLabel>Função</FormLabel>
-                <Select value={editRole} onChange={(e) => setEditRole(e.target.value)}>
-                  <option value="ADMIN">Administrador</option>
-                  <option value="MANAGER">Gerente</option>
-                  <option value="COORDINATOR">Coordenador</option>
-                  <option value="DIRECTOR">Diretor</option>
-                  <option value="EMPLOYEE">Funcionário</option>
-                  <option value="SUPPORT">Suporte</option>
-                  <option value="TECHNICIAN">Técnico</option>
-                  <option value="ORGANIZER">Organizador</option>
-                </Select>
+              <FormControl isRequired isInvalid={editRolesInvalid}>
+                <FormLabel>Funções</FormLabel>
+                <CheckboxGroup
+                  value={editRoles}
+                  onChange={(values) => setEditRoles(values as UserRoleType[])}
+                >
+                  <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={2}>
+                    {ALL_ROLES.map((role) => (
+                      <Checkbox key={role} value={role}>
+                        {ROLE_LABELS[role]}
+                      </Checkbox>
+                    ))}
+                  </SimpleGrid>
+                </CheckboxGroup>
+                <FormErrorMessage>Selecione pelo menos uma função</FormErrorMessage>
               </FormControl>
 
               <FormControl>
                 <FormLabel>Setor (Opcional)</FormLabel>
-                <Select 
-                  value={editSectorId} 
+                <Select
+                  value={editSectorId}
                   onChange={(e) => setEditSectorId(e.target.value)}
                   placeholder="Selecione um setor"
                 >
@@ -389,8 +426,8 @@ export default function UserManagement() {
               </FormControl>
 
               <FormControl>
-                <Checkbox 
-                  isChecked={changePassword} 
+                <Checkbox
+                  isChecked={changePassword}
                   onChange={(e) => setChangePassword(e.target.checked)}
                 >
                   Alterar senha
@@ -420,10 +457,11 @@ export default function UserManagement() {
             <Button variant="ghost" mr={3} onClick={onEditModalClose}>
               Cancelar
             </Button>
-            <Button 
-              colorScheme="blue" 
+            <Button
+              colorScheme="blue"
               onClick={handleUpdateUser}
               isLoading={editLoading}
+              isDisabled={editRolesInvalid}
             >
               Salvar Alterações
             </Button>
@@ -440,68 +478,71 @@ export default function UserManagement() {
           <ModalBody>
             <Box as="form" onSubmit={handleSubmit}>
               <VStack spacing={4}>
-          <FormControl isRequired>
-            <FormLabel>Nome</FormLabel>
-            <InputGroup>
-              <InputLeftElement pointerEvents="none">
-                <User size={16} />
-              </InputLeftElement>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nome completo"
-              />
-            </InputGroup>
-          </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Nome</FormLabel>
+                  <InputGroup>
+                    <InputLeftElement pointerEvents="none">
+                      <User size={16} />
+                    </InputLeftElement>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Nome completo"
+                    />
+                  </InputGroup>
+                </FormControl>
 
-          <FormControl isRequired>
-            <FormLabel>E-mail</FormLabel>
-            <InputGroup>
-              <InputLeftElement pointerEvents="none">
-                <Mail size={16} />
-              </InputLeftElement>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="E-mail"
-              />
-            </InputGroup>
-          </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>E-mail</FormLabel>
+                  <InputGroup>
+                    <InputLeftElement pointerEvents="none">
+                      <Mail size={16} />
+                    </InputLeftElement>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="E-mail"
+                    />
+                  </InputGroup>
+                </FormControl>
 
-          <FormControl isRequired>
-            <FormLabel>Senha</FormLabel>
-            <InputGroup>
-              <InputLeftElement pointerEvents="none">
-                <Lock size={16} />
-              </InputLeftElement>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Senha"
-              />
-            </InputGroup>
-          </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Senha</FormLabel>
+                  <InputGroup>
+                    <InputLeftElement pointerEvents="none">
+                      <Lock size={16} />
+                    </InputLeftElement>
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Senha"
+                    />
+                  </InputGroup>
+                </FormControl>
 
-          <FormControl isRequired>
-            <FormLabel>Função</FormLabel>
-            <Select value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="ADMIN">Administrador</option>
-              <option value="MANAGER">Gerente</option>
-              <option value="COORDINATOR">Coordenador</option>
-              <option value="DIRECTOR">Diretor</option>
-              <option value="EMPLOYEE">Funcionário</option>
-              <option value="SUPPORT">Suporte</option>
-              <option value="TECHNICIAN">Técnico</option>
-              <option value="ORGANIZER">Organizador</option>
-            </Select>
-          </FormControl>
+                <FormControl isRequired isInvalid={rolesInvalid}>
+                  <FormLabel>Funções</FormLabel>
+                  <CheckboxGroup
+                    value={roles}
+                    onChange={(values) => setRoles(values as UserRoleType[])}
+                  >
+                    <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={2}>
+                      {ALL_ROLES.map((role) => (
+                        <Checkbox key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </Checkbox>
+                      ))}
+                    </SimpleGrid>
+                  </CheckboxGroup>
+                  <FormErrorMessage>Selecione pelo menos uma função</FormErrorMessage>
+                </FormControl>
 
                 <FormControl>
                   <FormLabel>Setor (Opcional)</FormLabel>
-                  <Select 
-                    value={sector_id} 
+                  <Select
+                    value={sector_id}
                     onChange={(e) => setSectorId(e.target.value)}
                     placeholder="Selecione um setor"
                   >
@@ -520,16 +561,17 @@ export default function UserManagement() {
             <Button variant="ghost" mr={3} onClick={onCreateModalClose}>
               Cancelar
             </Button>
-          <Button
-            colorScheme="blue"
+            <Button
+              colorScheme="blue"
               onClick={handleSubmit}
-            isLoading={loading}
-          >
-            Adicionar Usuário
-          </Button>
+              isLoading={loading}
+              isDisabled={rolesInvalid}
+            >
+              Adicionar Usuário
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
     </VStack>
   );
-} 
+}
