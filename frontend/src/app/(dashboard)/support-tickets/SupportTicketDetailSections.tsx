@@ -26,9 +26,7 @@ import {
   type LocationDTO,
   type SectorDTO,
 } from '@/features/reference-data';
-import { fetchUsers } from '@/features/identity';
-import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
-import { resolveUserRoles } from '@/utils/pageAccess';
+import { fetchTechnicians } from '@/features/identity';
 export type LocationOption = Pick<LocationDTO, 'id' | 'name'>;
 
 export type SectorOption = Pick<SectorDTO, 'id' | 'name' | 'location_id'>;
@@ -56,12 +54,8 @@ export function useSupportTicketResources() {
         // formulário ainda funciona sem local
       }
       try {
-        const all = await fetchUsers(token);
-        setTechnicians(
-          all
-            .filter((u) => hasAnyRole(resolveUserRoles(u), 'TECHNICIAN'))
-            .map((u) => ({ id: u.id, name: u.name, email: u.email })),
-        );
+        const techs = await fetchTechnicians(token);
+        setTechnicians(techs.map((u) => ({ id: u.id, name: u.name, email: u.email })));
       } catch {
         // formulário ainda funciona sem técnicos
       }
