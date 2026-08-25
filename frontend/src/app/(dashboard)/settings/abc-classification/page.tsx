@@ -35,6 +35,7 @@ import {
   updateAbcClassificationConfig,
 } from '@/features/catalog/api/abcClassificationApi';
 import { AbcCutoffPreview } from './AbcCutoffPreview';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 const ALLOWED_ROLES = ['ADMIN', 'MANAGER'] as const;
 
@@ -125,7 +126,8 @@ export default function AbcClassificationSettingsPage() {
       return;
     }
 
-    if (!ALLOWED_ROLES.includes(user.role as (typeof ALLOWED_ROLES)[number])) {
+    const access = assertPageAccess(resolveUserRoles(user), ALLOWED_ROLES);
+    if (!access.allowed) {
       toast({
         title: 'Acesso negado',
         description: 'Somente administradores e gerentes podem gerenciar a classificação ABC.',
@@ -133,7 +135,7 @@ export default function AbcClassificationSettingsPage() {
         duration: 3000,
         isClosable: true,
       });
-      router.push('/dashboard');
+      router.push(access.redirectTo);
       return;
     }
 

@@ -50,6 +50,8 @@ import {
 } from '@/features/procurement';
 import { badgeRouteAfterAction } from '@/features/procurement/utils/menuBadgeRoutes';
 
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
+
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
 
 type ActionType = 'approve' | 'reject';
@@ -112,8 +114,9 @@ export default function PurchaseRequestApprovalsPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(resolveUserRoles(user), ALLOWED_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
     setCurrentUserId(user.id ?? '');

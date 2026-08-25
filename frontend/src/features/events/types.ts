@@ -18,18 +18,16 @@ export type Event = EventDTO;
 export type CreateEventPayload = import('@ti-assistant/contracts').CreateEventInput;
 export type EventUser = import('@ti-assistant/contracts').EventUserRefDTO;
 
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
+
 const EVENT_MANAGER_ROLES = ['ADMIN', 'MANAGER', 'ORGANIZER'] as const;
 
-function isEventManager(role: string | undefined): boolean {
-  return EVENT_MANAGER_ROLES.includes(role as (typeof EVENT_MANAGER_ROLES)[number]);
+export function canChangeEventStatus(roles: readonly string[] | undefined): boolean {
+  return hasAnyRole(roles ?? [], ...(EVENT_MANAGER_ROLES as readonly string[]));
 }
 
-export function canChangeEventStatus(role: string | undefined): boolean {
-  return isEventManager(role);
-}
-
-export function canCreateEvent(role: string | undefined): boolean {
-  return isEventManager(role);
+export function canCreateEvent(roles: readonly string[] | undefined): boolean {
+  return hasAnyRole(roles ?? [], ...(EVENT_MANAGER_ROLES as readonly string[]));
 }
 
 export function getEventStatusChakraColor(status: string): string {

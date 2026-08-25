@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess'
 import {
   Box,
   Button,
@@ -103,8 +104,9 @@ export default function OrdersPage() {
       return;
     }
 
-    if (!user || !['ADMIN', 'MANAGER'].includes(user.role)) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(resolveUserRoles(user), ['ADMIN', 'MANAGER']);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
 

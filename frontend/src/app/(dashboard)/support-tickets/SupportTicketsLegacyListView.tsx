@@ -31,12 +31,12 @@ export function SupportTicketsLegacyListView() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const router = useRouter();
 
-  const { tickets, initialLoading, filtersLoading, error, userRole } = useSupportTicketsFetch({
+  const { tickets, initialLoading, filtersLoading, error, userRoles } = useSupportTicketsFetch({
     priorityFilter,
     fetchAllStatuses: true,
   });
 
-  const canCreate = !!userRole && canCreateSupportTicket(userRole);
+  const canCreate = canCreateSupportTicket(userRoles);
 
   const stats = useMemo(() => computeTicketStats(tickets), [tickets]);
 

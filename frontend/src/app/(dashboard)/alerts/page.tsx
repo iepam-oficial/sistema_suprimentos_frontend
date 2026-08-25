@@ -27,6 +27,7 @@ import {
 } from '@chakra-ui/react';
 import { MoreVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import { fetchAlerts, deleteAlert, RateLimitError } from '@/features/alerts/api/alertApi';
 import type { AlertDTO } from '@/features/alerts/types';
 import { getDangerLevelColor, getDangerLevelLabel } from '@/features/alerts/lib/dangerLevel';
@@ -81,7 +82,8 @@ export default function AlertsPage() {
             return;
         }
 
-        if (!['ADMIN', 'MANAGER', 'SUPPORT'].includes(user.role)) {
+        const access = assertPageAccess(resolveUserRoles(user), ['ADMIN', 'MANAGER', 'SUPPORT']);
+        if (!access.allowed) {
             toast({
                 title: 'Acesso Negado',
                 description: 'Você não tem permissão para acessar esta página',
@@ -89,7 +91,7 @@ export default function AlertsPage() {
                 duration: 3000,
                 isClosable: true,
             });
-            router.push('/dashboard');
+            router.push(access.redirectTo);
             return;
         }
 

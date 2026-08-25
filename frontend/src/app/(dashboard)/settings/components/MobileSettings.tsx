@@ -22,11 +22,11 @@ import CategorySettings from './CategorySettings';
 import EnviromentSettings from './EnviromentSettings';
 import UserManagement from './UserManagement';
 import ThemeSettings from './ThemeSettings';
-import { useRouter } from 'next/navigation';
+import { isAdmin } from '@ti-assistant/contracts/dist/roles';
+import { resolveUserRoles } from '@/utils/pageAccess';
 
 export function MobileSettings() {
-    const router = useRouter();
-    const [userRole, setUserRole] = useState<string>('');
+    const [userRoles, setUserRoles] = useState<string[]>([]);
     const { colorMode } = useColorMode();
     const bgColor = useColorModeValue('rgba(255, 255, 255, 0.5)', 'rgba(45, 55, 72, 0.5)');
     const borderColor = useColorModeValue('rgba(0, 0, 0, 0.1)', 'rgba(255, 255, 255, 0.1)');
@@ -37,11 +37,11 @@ export function MobileSettings() {
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-        setUserRole(user.role || '');
+        setUserRoles(resolveUserRoles(user));
     }, []);
 
-    const isEmployee = userRole === 'EMPLOYEE';
-    const isAdmin = userRole === 'ADMIN';
+    const isEmployeeOnly = userRoles.length > 0 && userRoles.every((r) => r === 'EMPLOYEE');
+    const userIsAdmin = isAdmin(userRoles);
 
     return (
         <Box w="full" h="full" py="6vh">
@@ -113,7 +113,7 @@ export function MobileSettings() {
                     </AccordionItem>
 
                     {/* Outras configurações - Visíveis apenas para não funcionários */}
-                    {!isEmployee && (
+                    {!isEmployeeOnly && (
                         <>
                             <AccordionItem
                                 borderColor={accordionBorderColor}
@@ -274,7 +274,7 @@ export function MobileSettings() {
                     )}
 
                     {/* Gerenciamento de Usuários - Visível apenas para administradores */}
-                    {isAdmin && (
+                    {userIsAdmin && (
                         <AccordionItem
                             borderColor={accordionBorderColor}
                             bg={accordionBg}

@@ -35,7 +35,8 @@ import {
   useExecutiveDrilldown,
   useExecutiveFinanceDashboard,
 } from '@/features/executive-finance';
-import { canAccessDashboard } from '@/utils/dashboardNav';
+import { DASHBOARD_ROLES } from '@/utils/dashboardNav';
+import { assertPageAccess } from '@/utils/pageAccess';
 
 export default function ExecutiveFinanceDashboardPage() {
   const router = useRouter();
@@ -44,14 +45,18 @@ export default function ExecutiveFinanceDashboardPage() {
     getDefaultExecutiveFinanceFilters
   );
 
-  const canAccess = Boolean(user?.role && canAccessDashboard(user.role));
+  const access = user
+    ? assertPageAccess(user.roles, DASHBOARD_ROLES)
+    : { allowed: false as const, redirectTo: '/' };
+  const canAccess = access.allowed;
+  const forbiddenRedirect = access.allowed ? null : access.redirectTo;
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || !canAccess) {
-      router.replace('/unauthorized');
+    if (forbiddenRedirect) {
+      router.replace(forbiddenRedirect);
     }
-  }, [authLoading, user, canAccess, router]);
+  }, [authLoading, forbiddenRedirect, router]);
 
   const { data, loading, error, isStale } = useExecutiveFinanceDashboard(filters);
   const drilldown = useExecutiveDrilldown(filters, setFilters);

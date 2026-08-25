@@ -46,6 +46,7 @@ import {
   GoodsReceiptStatus,
   ReceiptLineDestination,
 } from '@ti-assistant/contracts';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
 import type { CategoryDTO, LocationDTO } from '@/features/reference-data';
 import { fetchCategories, fetchLocations } from '@/features/reference-data';
 import { createClientKey } from '@/utils/clientKey';
@@ -105,7 +106,7 @@ function createEmptyInvoiceLine(lineNumber: number): PendingInvoiceLineRow {
 interface GoodsReceiptWizardProps {
   receipt: GoodsReceiptDTO;
   onReceiptUpdated: (receipt: GoodsReceiptDTO) => void;
-  userRole?: string | null;
+  userRoles?: readonly string[] | null;
 }
 
 function discrepancySeverityColor(severity: string): string {
@@ -219,7 +220,7 @@ function physicalLinesSyncKey(receipt: GoodsReceiptDTO): string {
 export function GoodsReceiptWizard({
   receipt,
   onReceiptUpdated,
-  userRole,
+  userRoles,
 }: GoodsReceiptWizardProps) {
   const toast = useToast();
   const [step, setStep] = useState(() => inferInitialStep(receipt));
@@ -1112,7 +1113,7 @@ export function GoodsReceiptWizard({
 
         {receipt.status === GoodsReceiptStatus.PENDING_DIRECTOR &&
           !receipt.director_approved_at &&
-          (userRole === 'DIRECTOR' || userRole === 'ADMIN') && (
+          hasAnyRole(userRoles ?? [], 'DIRECTOR', 'ADMIN') && (
             <Button
               colorScheme="purple"
               isLoading={submitting}

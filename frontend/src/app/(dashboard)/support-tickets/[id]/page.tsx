@@ -5,10 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import {
   SupportTicket,
-  canViewSupportTickets,
+  ROLES_TICKETS_VIEW,
   SupportTicketKind,
   TicketStatus,
 } from '@/features/support-tickets/types';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import {
   fetchSupportTicketById,
   RateLimitError,
@@ -49,7 +51,7 @@ export default function SupportTicketDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const [assigneeId, setAssigneeId] = useState('');
   const [subject, setSubject] = useState('');
@@ -87,15 +89,16 @@ export default function SupportTicketDetailPage() {
       router.push('/');
       return;
     }
-    const user = JSON.parse(userRaw) as { id?: string; role?: string };
-    const role = user.role ?? '';
+    const user = JSON.parse(userRaw) as { id?: string; roles?: string[]; role?: string };
+    const roles = resolveUserRoles(user);
     const uid = user.id ?? '';
     setUserId(uid);
-    setUserRole(role);
-    if (!canViewSupportTickets(role)) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(roles, ROLES_TICKETS_VIEW);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
+    setUserRoles(roles);
 
     setLoading(true);
     setError(null);
@@ -128,10 +131,10 @@ export default function SupportTicketDetailPage() {
     if (locationId) loadSectorsForLocation(locationId);
   }, [locationId, loadSectorsForLocation]);
 
-  const isPrivileged = userRole === 'ADMIN' || userRole === 'MANAGER';
+  const isPrivileged = hasAnyRole(userRoles, 'ADMIN', 'MANAGER');
   const isRequester = ticket && userId && ticket.requester_id === userId;
   const isAssigneeTech =
-    ticket && userId && ticket.assigned_to_id === userId && userRole === 'TECHNICIAN';
+    ticket && userId && ticket.assigned_to_id === userId && hasAnyRole(userRoles, 'TECHNICIAN');
 
   const isResolved = !!ticket && ticket.status === 'RESOLVED';
   const showRequesterForm = ticket && (isRequester || isPrivileged) && !isResolved;

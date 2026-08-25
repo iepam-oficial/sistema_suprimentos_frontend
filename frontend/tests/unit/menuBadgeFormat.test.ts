@@ -3,6 +3,7 @@ import {
   isPathActiveForRoute,
   routeKeyFromPathname,
   routeKeysForRole,
+  routeKeysForRoles,
 } from '@/features/procurement/utils/menuBadgeRoutes';
 
 describe('formatBadgeCount', () => {
@@ -32,6 +33,14 @@ describe('menuBadgeRoutes', () => {
       'aprovacoes-sc',
       'fila-compras',
       'pedidos',
+      'cotacoes',
+    ]);
+  });
+
+  it('unions route keys across multiple roles', () => {
+    expect(routeKeysForRoles(['COORDINATOR', 'DIRECTOR'])).toEqual([
+      'solicitacoes',
+      'aprovacoes-sc',
       'cotacoes',
     ]);
   });

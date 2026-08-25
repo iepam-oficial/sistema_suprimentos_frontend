@@ -9,12 +9,43 @@ import React, {
   useReducer,
   type ReactNode,
 } from 'react';
-import type { SessionResponseDTO, UserDTO } from '../types';
+import type { SessionResponseDTO, UserDTO, UserRole } from '../types';
 import * as authApi from '../api/authApi';
 
 const USER_STORAGE_KEY = '@ti-assistant:user';
 const TOKEN_STORAGE_KEY = '@ti-assistant:token';
 const REFRESH_STORAGE_KEY = '@ti-assistant:refresh-token';
+
+/** Legacy localStorage shape may still carry singular `role`. */
+type StoredUser = UserDTO & { role?: string };
+
+/**
+ * Ensures session user always exposes `roles: UserRole[]` (never singular `role`).
+ * Migrates legacy `{ role }` payloads so localStorage persists the array.
+ */
+function toSessionUser(raw: StoredUser): UserDTO | null {
+  if (!raw?.id || !raw.name || !raw.email) {
+    return null;
+  }
+  const roles: UserRole[] =
+    Array.isArray(raw.roles) && raw.roles.length > 0
+      ? raw.roles
+      : raw.role
+        ? [raw.role as UserRole]
+        : [];
+  if (!roles.length) {
+    return null;
+  }
+  return {
+    id: raw.id,
+    name: raw.name,
+    email: raw.email,
+    roles,
+    sector_id: raw.sector_id,
+    created_at: raw.created_at,
+    updated_at: raw.updated_at,
+  };
+}
 
 interface AuthSessionState {
   user: UserDTO | null;
@@ -60,10 +91,12 @@ function authSessionReducer(
       try {
         const storedUser = localStorage.getItem(USER_STORAGE_KEY);
         const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+        const parsed = storedUser ? (JSON.parse(storedUser) as StoredUser) : null;
+        const user = parsed ? toSessionUser(parsed) : null;
         return {
           ...state,
-          user: storedUser ? (JSON.parse(storedUser) as UserDTO) : null,
-          isAuthenticated: !!storedToken,
+          user,
+          isAuthenticated: !!storedToken && !!user,
           token: storedToken,
           loading: false,
         };
@@ -89,7 +122,11 @@ interface AuthSessionContextValue {
 const AuthSessionContext = createContext<AuthSessionContextValue | undefined>(undefined);
 
 function persistSession(user: UserDTO, token: string, refreshToken?: string) {
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  const sessionUser = toSessionUser(user);
+  if (!sessionUser) {
+    throw new Error('Sessão inválida: usuário sem roles');
+  }
+  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(sessionUser));
   localStorage.setItem(TOKEN_STORAGE_KEY, token);
   if (refreshToken) {
     localStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
@@ -116,7 +153,10 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (state.user) {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.user));
+      const sessionUser = toSessionUser(state.user);
+      if (sessionUser) {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(sessionUser));
+      }
     }
     if (state.token) {
       localStorage.setItem(TOKEN_STORAGE_KEY, state.token);
@@ -125,10 +165,14 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
 
   const setSession = useCallback((session: SessionResponseDTO) => {
     const accessToken = session.accessToken || session.token;
-    persistSession(session.user, accessToken, session.refreshToken);
+    const user = toSessionUser(session.user);
+    if (!user) {
+      throw new Error('Sessão inválida: usuário sem roles');
+    }
+    persistSession(user, accessToken, session.refreshToken);
     dispatch({
       type: 'SET_SESSION',
-      payload: { user: session.user, token: accessToken, refreshToken: session.refreshToken },
+      payload: { user, token: accessToken, refreshToken: session.refreshToken },
     });
   }, []);
 

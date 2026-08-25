@@ -14,6 +14,7 @@ import {
     TabPanel,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import {
     SupplyRequestsTab,
     AllocationsTab,
@@ -83,8 +84,9 @@ export default function AdminSupplyRequestsPage() {
 
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-        if (!user || !['ADMIN', 'MANAGER'].includes(user.role)) {
-            router.push('/unauthorized');
+        const access = assertPageAccess(resolveUserRoles(user), ['ADMIN', 'MANAGER']);
+        if (!access.allowed) {
+            router.push(access.redirectTo);
             return;
         }
 
