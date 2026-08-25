@@ -1,5 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import {
+  Alert,
+  AlertDescription,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
   Box,
   Button,
   FormControl,
@@ -50,6 +58,7 @@ import {
   useAuthSession,
   type UserDetailDTO,
 } from '@/features/identity';
+import { hasRiskyRoleCombo } from './roleComboRisk';
 
 const ALL_ROLES = Object.values(UserRole) as UserRoleType[];
 
@@ -64,6 +73,9 @@ const ROLE_LABELS: Record<UserRoleType, string> = {
   ORGANIZER: 'Organizador',
 };
 
+const ROLES_UNION_DISCLAIMER =
+  'Este usuário terá a união das permissões das funções selecionadas.';
+
 function getRoleText(role: string): string {
   return ROLE_LABELS[role as UserRoleType] || role;
 }
@@ -72,6 +84,17 @@ function formatRolesList(roles: readonly string[] | undefined): string {
   if (!roles?.length) return '-';
   return roles.map(getRoleText).join(', ');
 }
+
+function RolesUnionDisclaimer({ visible }: { visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <Alert status="info" variant="subtle" borderRadius="md" mt={2} py={2}>
+      <AlertDescription fontSize="sm">{ROLES_UNION_DISCLAIMER}</AlertDescription>
+    </Alert>
+  );
+}
+
+type PendingSave = 'create' | 'edit' | null;
 
 export default function UserManagement() {
   const { token } = useAuthSession();
@@ -91,9 +114,16 @@ export default function UserManagement() {
   const [editPassword, setEditPassword] = useState('');
   const [changePassword, setChangePassword] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [pendingSave, setPendingSave] = useState<PendingSave>(null);
   const toast = useToast();
   const { isOpen: isEditModalOpen, onOpen: onEditModalOpen, onClose: onEditModalClose } = useDisclosure();
   const { isOpen: isCreateModalOpen, onOpen: onCreateModalOpen, onClose: onCreateModalClose } = useDisclosure();
+  const {
+    isOpen: isRiskConfirmOpen,
+    onOpen: onRiskConfirmOpen,
+    onClose: onRiskConfirmClose,
+  } = useDisclosure();
+  const riskCancelRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -142,19 +172,7 @@ export default function UserManagement() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (roles.length === 0) {
-      toast({
-        title: 'Erro',
-        description: 'Selecione pelo menos uma função',
-        status: 'error',
-        duration: 3000,
-      });
-      return;
-    }
-
+  const performCreate = async () => {
     setLoading(true);
 
     try {
@@ -191,6 +209,67 @@ export default function UserManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const performUpdate = async () => {
+    setEditLoading(true);
+
+    try {
+      if (!token) throw new Error('Token não encontrado');
+
+      await updateUser(token, editingUser!.id, {
+        name: editName,
+        email: editEmail,
+        roles: editRoles,
+        sector_id: editSectorId && editSectorId.trim() !== '' ? editSectorId : null,
+        ...(changePassword && editPassword ? { password: editPassword } : {}),
+      });
+
+      toast({
+        title: 'Sucesso',
+        description: 'Usuário atualizado com sucesso',
+        status: 'success',
+        duration: 3000,
+      });
+
+      onEditModalClose();
+      loadUsers();
+    } catch (error) {
+      if (error instanceof UserRateLimitError) {
+        router.push('/rate-limit');
+        return;
+      }
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Erro ao atualizar usuário',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (roles.length === 0) {
+      toast({
+        title: 'Erro',
+        description: 'Selecione pelo menos uma função',
+        status: 'error',
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (hasRiskyRoleCombo(roles)) {
+      setPendingSave('create');
+      onRiskConfirmOpen();
+      return;
+    }
+
+    await performCreate();
   };
 
   const handleDelete = async (userId: string) => {
@@ -244,46 +323,34 @@ export default function UserManagement() {
       return;
     }
 
-    setEditLoading(true);
+    if (hasRiskyRoleCombo(editRoles)) {
+      setPendingSave('edit');
+      onRiskConfirmOpen();
+      return;
+    }
 
-    try {
-      if (!token) throw new Error('Token não encontrado');
+    await performUpdate();
+  };
 
-      await updateUser(token, editingUser!.id, {
-        name: editName,
-        email: editEmail,
-        roles: editRoles,
-        sector_id: editSectorId && editSectorId.trim() !== '' ? editSectorId : null,
-        ...(changePassword && editPassword ? { password: editPassword } : {}),
-      });
+  const handleRiskConfirmClose = () => {
+    setPendingSave(null);
+    onRiskConfirmClose();
+  };
 
-      toast({
-        title: 'Sucesso',
-        description: 'Usuário atualizado com sucesso',
-        status: 'success',
-        duration: 3000,
-      });
-
-      onEditModalClose();
-      loadUsers();
-    } catch (error) {
-      if (error instanceof UserRateLimitError) {
-        router.push('/rate-limit');
-        return;
-      }
-      toast({
-        title: 'Erro',
-        description: error instanceof Error ? error.message : 'Erro ao atualizar usuário',
-        status: 'error',
-        duration: 3000,
-      });
-    } finally {
-      setEditLoading(false);
+  const handleRiskConfirmSave = async () => {
+    const action = pendingSave;
+    handleRiskConfirmClose();
+    if (action === 'create') {
+      await performCreate();
+    } else if (action === 'edit') {
+      await performUpdate();
     }
   };
 
   const rolesInvalid = roles.length === 0;
   const editRolesInvalid = editRoles.length === 0;
+  const createRolesRisky = hasRiskyRoleCombo(roles);
+  const editRolesRisky = hasRiskyRoleCombo(editRoles);
 
   return (
     <VStack spacing={6} align="stretch">
@@ -408,6 +475,7 @@ export default function UserManagement() {
                   </SimpleGrid>
                 </CheckboxGroup>
                 <FormErrorMessage>Selecione pelo menos uma função</FormErrorMessage>
+                <RolesUnionDisclaimer visible={editRolesRisky} />
               </FormControl>
 
               <FormControl>
@@ -537,6 +605,7 @@ export default function UserManagement() {
                     </SimpleGrid>
                   </CheckboxGroup>
                   <FormErrorMessage>Selecione pelo menos uma função</FormErrorMessage>
+                  <RolesUnionDisclaimer visible={createRolesRisky} />
                 </FormControl>
 
                 <FormControl>
@@ -572,6 +641,36 @@ export default function UserManagement() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <AlertDialog
+        isOpen={isRiskConfirmOpen}
+        leastDestructiveRef={riskCancelRef}
+        onClose={handleRiskConfirmClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Confirmar funções
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              {ROLES_UNION_DISCLAIMER} Deseja salvar mesmo assim?
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={riskCancelRef} onClick={handleRiskConfirmClose}>
+                Cancelar
+              </Button>
+              <Button
+                colorScheme="blue"
+                ml={3}
+                onClick={handleRiskConfirmSave}
+                isLoading={loading || editLoading}
+              >
+                Salvar mesmo assim
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </VStack>
   );
 }
