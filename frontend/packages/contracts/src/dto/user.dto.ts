@@ -13,7 +13,7 @@ export interface UserDTO {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  roles: UserRole[];
   sector_id?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -58,7 +58,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
-  role: string;
+  roles: UserRole[];
   sector_id?: string;
 }
 
@@ -66,7 +66,7 @@ export interface UpdateUserInput {
   name?: string;
   email?: string;
   password?: string;
-  role?: string;
+  roles?: UserRole[];
   sector_id?: string | null;
 }
 

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@chakra-ui/react';
 import { fetchSupportTickets, RateLimitError } from '../api/supportTicketApi';
 import type { SupportTicket } from '../types';
-import { canViewSupportTickets } from '../types';
+import { ROLES_TICKETS_VIEW } from '../types';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 export interface UseSupportTicketsFetchOptions {
   statusFilter?: string;
@@ -23,7 +24,7 @@ export function useSupportTicketsFetch({
   const [initialLoading, setInitialLoading] = useState(true);
   const [filtersLoading, setFiltersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const hasCompletedOnce = useRef(false);
   const fetchGeneration = useRef(0);
   const router = useRouter();
@@ -43,13 +44,14 @@ export function useSupportTicketsFetch({
         router.push('/');
         return;
       }
-      const user = JSON.parse(userRaw) as { role?: string };
-      const role = user.role ?? '';
-      setUserRole(role);
-      if (!canViewSupportTickets(role)) {
-        router.push('/unauthorized');
+      const user = JSON.parse(userRaw) as { roles?: string[]; role?: string };
+      const roles = resolveUserRoles(user);
+      const access = assertPageAccess(roles, ROLES_TICKETS_VIEW);
+      if (!access.allowed) {
+        router.push(access.redirectTo);
         return;
       }
+      setUserRoles(roles);
 
       const data = await fetchSupportTickets(token, {
         status: !fetchAllStatuses && statusFilter ? statusFilter : undefined,
@@ -91,7 +93,7 @@ export function useSupportTicketsFetch({
     initialLoading,
     filtersLoading,
     error,
-    userRole,
+    userRoles,
     refetch: fetchTickets,
   };
 }

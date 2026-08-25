@@ -34,6 +34,11 @@ export async function fetchUsers(token: string): Promise<UserDetailDTO[]> {
   return handleResponse<UserDetailDTO[]>(response);
 }
 
+export async function fetchTechnicians(token: string): Promise<UserDetailDTO[]> {
+  const response = await fetch('/api/users/technicians', { headers: authHeaders(token) });
+  return handleResponse<UserDetailDTO[]>(response);
+}
+
 export async function fetchUserById(token: string, id: string): Promise<UserDetailDTO> {
   const response = await fetch(`/api/users/${id}`, { headers: authHeaders(token) });
   return handleResponse<UserDetailDTO>(response);

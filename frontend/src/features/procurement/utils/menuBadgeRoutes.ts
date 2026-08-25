@@ -51,8 +51,7 @@ export const MENU_BADGE_PATH_BY_ROUTE: Record<MenuBadgeRouteKey, string> = {
   pedidos: '/procurement/pedidos',
 };
 
-export function routeKeysForRole(role: string | undefined | null): MenuBadgeRouteKey[] {
-  if (!role) return [];
+function routeKeysForSingleRole(role: string): MenuBadgeRouteKey[] {
   const keys: MenuBadgeRouteKey[] = [];
   if (role === 'COORDINATOR' || role === 'MANAGER' || role === 'ADMIN') {
     keys.push('solicitacoes');
@@ -67,6 +66,28 @@ export function routeKeysForRole(role: string | undefined | null): MenuBadgeRout
     keys.push('cotacoes');
   }
   return keys;
+}
+
+/** Union of badge routes across all user roles. */
+export function routeKeysForRoles(roles: readonly string[] | undefined | null): MenuBadgeRouteKey[] {
+  if (!roles?.length) return [];
+  const seen = new Set<MenuBadgeRouteKey>();
+  const keys: MenuBadgeRouteKey[] = [];
+  for (const role of roles) {
+    for (const key of routeKeysForSingleRole(role)) {
+      if (!seen.has(key)) {
+        seen.add(key);
+        keys.push(key);
+      }
+    }
+  }
+  return keys;
+}
+
+/** @deprecated Prefer routeKeysForRoles — kept for single-role call sites/tests. */
+export function routeKeysForRole(role: string | undefined | null): MenuBadgeRouteKey[] {
+  if (!role) return [];
+  return routeKeysForSingleRole(role);
 }
 
 export function routeKeyFromPathname(pathname: string): MenuBadgeRouteKey | null {

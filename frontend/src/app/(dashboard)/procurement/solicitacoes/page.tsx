@@ -14,6 +14,7 @@ import {
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 import { SC_PAGE_ROLES } from '@/features/procurement/lib/purchaseRequestAccess';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 export default function PurchaseRequestsPage() {
   const router = useRouter();
@@ -46,8 +47,9 @@ export default function PurchaseRequestsPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !SC_PAGE_ROLES.includes(user.role as (typeof SC_PAGE_ROLES)[number])) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(resolveUserRoles(user), SC_PAGE_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
     setAuthorized(true);

@@ -30,7 +30,7 @@ export function AdminSupportDeskView() {
   const [modalTicketId, setModalTicketId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  const { tickets, setTickets, initialLoading, filtersLoading, error, userRole } = useSupportTicketsFetch({
+  const { tickets, setTickets, initialLoading, filtersLoading, error, userRoles } = useSupportTicketsFetch({
     priorityFilter,
     fetchAllStatuses: true,
   });
@@ -225,7 +225,7 @@ export function AdminSupportDeskView() {
         ticketId={modalTicketId}
         isOpen={!!modalTicketId}
         onClose={() => setModalTicketId(null)}
-        userRole={userRole}
+        userRoles={userRoles}
         userId={userId}
         onTicketUpdated={handleTicketUpdated}
         onTicketDeleted={handleTicketDeleted}

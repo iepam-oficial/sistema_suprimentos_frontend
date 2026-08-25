@@ -1,3 +1,4 @@
+import { getHighestPriorityRole } from '@ti-assistant/contracts/dist/roles'
 import { isDashboardPath } from '@/utils/dashboardNav'
 
 const PROTECTED_PATH_PREFIXES = [
@@ -69,23 +70,34 @@ function isFromAllowedForRole(path: string, role: string): boolean {
   return allowed.some((p) => path === p || path.startsWith(`${p}/`))
 }
 
-export function getPostLoginPath(role: string): string | null {
-  return ROLE_DEFAULT_PATH[role] ?? null
+/** `from` is allowed if any of the user's roles permits the prefix. */
+function isFromAllowedForAnyRole(path: string, roles: readonly string[]): boolean {
+  return roles.some((role) => isFromAllowedForRole(path, role))
+}
+
+export function getPostLoginPath(roles: readonly string[]): string | null {
+  if (!roles.length) return null
+  try {
+    const highest = getHighestPriorityRole(roles)
+    return ROLE_DEFAULT_PATH[highest] ?? null
+  } catch {
+    return null
+  }
 }
 
 export function resolvePostLoginPath(
-  role: string,
+  roles: readonly string[],
   options?: { from?: string | null },
 ): string | null {
   const fromPath = normalizeFromPath(options?.from)
   if (
     fromPath &&
     !isDashboardPath(fromPath) &&
-    isFromAllowedForRole(fromPath, role)
+    isFromAllowedForAnyRole(fromPath, roles)
   ) {
     return fromPath
   }
-  return getPostLoginPath(role)
+  return getPostLoginPath(roles)
 }
 
 export function getFromSearchParam(): string | null {
@@ -95,10 +107,10 @@ export function getFromSearchParam(): string | null {
 
 /** Full page navigation so httpOnly cookies are sent on the next request. */
 export function redirectAfterLogin(
-  role: string,
+  roles: readonly string[],
   options?: { from?: string | null },
 ): void {
-  const path = resolvePostLoginPath(role, options)
+  const path = resolvePostLoginPath(roles, options)
   if (!path) return
   window.location.assign(path)
 }

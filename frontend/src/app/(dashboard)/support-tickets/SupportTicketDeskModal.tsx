@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { SupportTicket, SupportTicketKind, TicketStatus, canViewSupportTickets } from '@/features/support-tickets/types';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
+import { resolveUserRoles } from '@/utils/pageAccess';
 import { fetchSupportTicketById } from '@/features/support-tickets/api/supportTicketApi';
 import { DeskModal } from '@/components/support-desk/DeskModal';
 import {
@@ -21,7 +23,7 @@ export interface SupportTicketDeskModalProps {
   ticketId: string | null;
   isOpen: boolean;
   onClose: () => void;
-  userRole: string | null;
+  userRoles: readonly string[];
   userId: string | null;
   onTicketUpdated: (ticket: SupportTicket) => void;
   onTicketDeleted?: (ticketId: string) => void;
@@ -31,7 +33,7 @@ export function SupportTicketDeskModal({
   ticketId,
   isOpen,
   onClose,
-  userRole,
+  userRoles,
   userId,
   onTicketUpdated,
   onTicketDeleted,
@@ -72,8 +74,8 @@ export function SupportTicketDeskModal({
     const token = localStorage.getItem('@ti-assistant:token');
     const userRaw = localStorage.getItem('@ti-assistant:user');
     if (!token || !userRaw) return;
-    const user = JSON.parse(userRaw) as { role?: string };
-    if (!canViewSupportTickets(user.role ?? '')) return;
+    const user = JSON.parse(userRaw) as { roles?: string[]; role?: string };
+    if (!canViewSupportTickets(resolveUserRoles(user))) return;
 
     setLoading(true);
     setError(null);
@@ -101,10 +103,10 @@ export function SupportTicketDeskModal({
     if (locationId) loadSectorsForLocation(locationId);
   }, [locationId, loadSectorsForLocation]);
 
-  const isPrivileged = userRole === 'ADMIN' || userRole === 'MANAGER';
+  const isPrivileged = hasAnyRole(userRoles, 'ADMIN', 'MANAGER');
   const isRequester = ticket && userId && ticket.requester_id === userId;
   const isAssigneeTech =
-    ticket && userId && ticket.assigned_to_id === userId && userRole === 'TECHNICIAN';
+    ticket && userId && ticket.assigned_to_id === userId && hasAnyRole(userRoles, 'TECHNICIAN');
   const isResolved = !!ticket && ticket.status === 'RESOLVED';
 
   const applyUpdate = (updated: SupportTicket) => {

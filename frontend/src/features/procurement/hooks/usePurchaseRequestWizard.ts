@@ -37,21 +37,27 @@ function getToken(): string | null {
   return localStorage.getItem('@ti-assistant:token');
 }
 
-function getSessionUser(): { id: string; role: string } | null {
+function getSessionUser(): { id: string; roles: string[] } | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem('@ti-assistant:user');
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { id?: string; role?: string };
+    const parsed = JSON.parse(raw) as { id?: string; roles?: string[]; role?: string };
     if (!parsed.id) return null;
-    return { id: parsed.id, role: parsed.role ?? '' };
+    const roles =
+      Array.isArray(parsed.roles) && parsed.roles.length > 0
+        ? parsed.roles
+        : parsed.role
+          ? [parsed.role]
+          : [];
+    return { id: parsed.id, roles };
   } catch {
     return null;
   }
 }
 
-function getSessionRole(): string {
-  return getSessionUser()?.role ?? '';
+function getSessionRoles(): string[] {
+  return getSessionUser()?.roles ?? [];
 }
 
 function validateStep(step: number, form: PurchaseRequestWizardForm): boolean {
@@ -69,7 +75,7 @@ function validateStep(step: number, form: PurchaseRequestWizardForm): boolean {
     );
   }
   return buildPurchaseRequestPayload(form, {
-    includePriority: canSetPriorityInWizard(getSessionRole()),
+    includePriority: canSetPriorityInWizard(getSessionRoles()),
   }) !== null;
 }
 
@@ -179,7 +185,7 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
 
   const saveDraft = async (): Promise<PurchaseRequestDTO | null> => {
     const payload = buildPurchaseRequestPayload(form, {
-      includePriority: canSetPriorityInWizard(getSessionRole()),
+      includePriority: canSetPriorityInWizard(getSessionRoles()),
     });
     if (!payload) {
       toast({
@@ -238,7 +244,7 @@ export function usePurchaseRequestWizard({ mode, id }: UsePurchaseRequestWizardO
 
   const submit = async () => {
     const payload = buildPurchaseRequestPayload(form, {
-      includePriority: canSetPriorityInWizard(getSessionRole()),
+      includePriority: canSetPriorityInWizard(getSessionRoles()),
     });
     if (!payload) {
       toast({

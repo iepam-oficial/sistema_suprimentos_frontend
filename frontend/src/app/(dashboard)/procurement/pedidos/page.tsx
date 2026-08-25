@@ -23,6 +23,8 @@ import {
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
+
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
 
 export default function ProcurementPurchaseOrdersPage() {
@@ -51,8 +53,9 @@ export default function ProcurementPurchaseOrdersPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(resolveUserRoles(user), ALLOWED_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
     setAuthorized(true);

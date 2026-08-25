@@ -26,6 +26,8 @@ import {
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
+
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN', 'DIRECTOR'];
 
 function goodsReceiptStatusLabel(status: string): string {
@@ -61,7 +63,7 @@ export default function GoodsReceiptPage() {
   const receiptId = params.id as string;
 
   const [authorized, setAuthorized] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<GoodsReceiptDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -113,11 +115,13 @@ export default function GoodsReceiptPage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const roles = resolveUserRoles(user);
+    const access = assertPageAccess(roles, ALLOWED_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
-    setUserRole(user.role);
+    setUserRoles(roles);
     setAuthorized(true);
   }, [router]);
 
@@ -198,7 +202,7 @@ export default function GoodsReceiptPage() {
           <GoodsReceiptWizard
             receipt={receipt}
             onReceiptUpdated={setReceipt}
-            userRole={userRole}
+            userRoles={userRoles}
           />
         ) : (
           <Center py={12}>

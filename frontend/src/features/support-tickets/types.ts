@@ -1,4 +1,5 @@
 import type { SupportTicketDTO } from '@ti-assistant/contracts';
+import { hasAnyRole } from '@ti-assistant/contracts/dist/roles';
 
 export type {
   TicketStatus,
@@ -33,18 +34,18 @@ export const ROLES_TICKETS_CREATE = [
   'COORDINATOR',
 ] as const;
 
-export function canViewSupportTickets(role: string): boolean {
-  return (ROLES_TICKETS_VIEW as readonly string[]).includes(role);
+export function canViewSupportTickets(roles: readonly string[]): boolean {
+  return hasAnyRole(roles, ...(ROLES_TICKETS_VIEW as readonly string[]));
 }
 
-export function canCreateSupportTicket(role: string): boolean {
-  return (ROLES_TICKETS_CREATE as readonly string[]).includes(role);
+export function canCreateSupportTicket(roles: readonly string[]): boolean {
+  return hasAnyRole(roles, ...(ROLES_TICKETS_CREATE as readonly string[]));
 }
 
 const ROLES_ADMIN_SUPPORT_DESK = ['ADMIN', 'MANAGER'] as const;
 
-export function canUseAdminSupportDesk(role: string): boolean {
-  return (ROLES_ADMIN_SUPPORT_DESK as readonly string[]).includes(role);
+export function canUseAdminSupportDesk(roles: readonly string[]): boolean {
+  return hasAnyRole(roles, ...(ROLES_ADMIN_SUPPORT_DESK as readonly string[]));
 }
 
 export const DISPLAY_TIMEZONE = 'America/Belem';

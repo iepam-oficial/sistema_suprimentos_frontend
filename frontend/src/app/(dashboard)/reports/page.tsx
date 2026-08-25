@@ -27,6 +27,7 @@ import {
 } from '@chakra-ui/react';
 import { Filter } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 import {
   fetchReport,
   fetchReportFilters,
@@ -131,7 +132,8 @@ function ReportsPageContent() {
       return;
     }
 
-    if (!['ADMIN', 'MANAGER'].includes(user.role)) {
+    const access = assertPageAccess(resolveUserRoles(user), ['ADMIN', 'MANAGER']);
+    if (!access.allowed) {
       toast({
         title: 'Acesso negado',
         description: 'Você não tem permissão para acessar relatórios',
@@ -139,7 +141,7 @@ function ReportsPageContent() {
         duration: 3000,
         isClosable: true,
       });
-      router.push('/dashboard');
+      router.push(access.redirectTo);
     }
   }, [router, toast]);
 

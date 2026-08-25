@@ -24,16 +24,16 @@ import { MonthCalendar } from './components/MonthCalendar';
 import { EventCard } from './components/EventCard';
 import { EventFormModal } from './components/EventFormModal';
 import { EventsEmptyState } from './components/EventsEmptyState';
+import { resolveUserRoles } from '@/utils/pageAccess';
 
-function getUserRole(): string {
-  if (typeof window === 'undefined') return '';
+function getUserRoles(): string[] {
+  if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem('@ti-assistant:user');
-    if (!raw) return '';
-    const user = JSON.parse(raw) as { role?: string };
-    return user.role ?? '';
+    if (!raw) return [];
+    return resolveUserRoles(JSON.parse(raw) as { roles?: string[]; role?: string });
   } catch {
-    return '';
+    return [];
   }
 }
 
@@ -43,7 +43,7 @@ export default function EventsPage() {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [modalOpen, setModalOpen] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState('');
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const toast = useToast();
   const { colorMode } = useColorMode();
   const router = useRouter();
@@ -59,8 +59,8 @@ export default function EventsPage() {
   const errorBg = useColorModeValue('red.50', 'red.900');
   const errorText = useColorModeValue('red.700', 'red.200');
 
-  const canChangeStatus = canChangeEventStatus(userRole);
-  const canCreate = canCreateEvent(userRole);
+  const canChangeStatus = canChangeEventStatus(userRoles);
+  const canCreate = canCreateEvent(userRoles);
 
   const dayEvents = useMemo(
     () => eventsOnDate(events, selectedDate),
@@ -68,7 +68,7 @@ export default function EventsPage() {
   );
 
   useEffect(() => {
-    setUserRole(getUserRole());
+    setUserRoles(getUserRoles());
   }, []);
 
   const handleStatusChange = async (eventId: string, status: EventStatus) => {

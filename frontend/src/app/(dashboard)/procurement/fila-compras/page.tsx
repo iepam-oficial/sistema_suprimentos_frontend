@@ -12,6 +12,7 @@ import {
   useMarkMenuBadgeSeen,
 } from '@/features/procurement';
 import { sortPurchaseRequestQueue } from '@/features/procurement/lib/sortPurchaseRequestQueue';
+import { assertPageAccess, resolveUserRoles } from '@/utils/pageAccess';
 
 const ALLOWED_ROLES = ['MANAGER', 'ADMIN'];
 
@@ -36,8 +37,9 @@ export default function PurchaseRequestQueuePage() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('@ti-assistant:user') || '{}');
-    if (!user?.role || !ALLOWED_ROLES.includes(user.role)) {
-      router.push('/unauthorized');
+    const access = assertPageAccess(resolveUserRoles(user), ALLOWED_ROLES);
+    if (!access.allowed) {
+      router.push(access.redirectTo);
       return;
     }
     setAuthorized(true);
